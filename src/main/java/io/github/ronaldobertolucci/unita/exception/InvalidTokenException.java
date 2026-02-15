@@ -1,0 +1,7 @@
+package io.github.ronaldobertolucci.unita.exception;
+
+public class InvalidTokenException extends RuntimeException {
+    public InvalidTokenException(String message) {
+        super(message);
+    }
+}

@@ -1,0 +1,20 @@
+CREATE TABLE group_invitations
+(
+    id               BIGSERIAL PRIMARY KEY,
+    group_id         BIGINT      NOT NULL,
+    invited_user_id  BIGINT      NOT NULL,
+    inviting_user_id BIGINT      NOT NULL,
+    status           VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    invited_at       TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    responded_at     TIMESTAMP,
+    CONSTRAINT fk_group_invitations_group FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE,
+    CONSTRAINT fk_group_invitations_invited_user FOREIGN KEY (invited_user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_group_invitations_inviting_user FOREIGN KEY (inviting_user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT chk_group_invitations_status CHECK (status IN ('PENDING', 'ACCEPTED', 'REJECTED'))
+);
+
+-- Índices regulares
+CREATE INDEX idx_group_invitations_invited_user ON group_invitations (invited_user_id);
+CREATE INDEX idx_group_invitations_group ON group_invitations (group_id);
+CREATE INDEX idx_group_invitations_status ON group_invitations (status);
+CREATE INDEX idx_group_invitations_group_user_status ON group_invitations (group_id, invited_user_id, status);

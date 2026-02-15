@@ -1,0 +1,10 @@
+CREATE TABLE groups
+(
+    id                  BIGSERIAL PRIMARY KEY,
+    name                VARCHAR(100) NOT NULL,
+    responsible_user_id BIGINT,
+    CONSTRAINT fk_groups_responsible_user FOREIGN KEY (responsible_user_id) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT uk_groups_name_responsible UNIQUE (name, responsible_user_id)
+);
+
+CREATE INDEX idx_groups_responsible_user ON groups (responsible_user_id);

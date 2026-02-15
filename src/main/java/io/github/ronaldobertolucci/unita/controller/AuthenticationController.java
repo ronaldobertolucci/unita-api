@@ -1,0 +1,65 @@
+package io.github.ronaldobertolucci.unita.controller;
+
+import io.github.ronaldobertolucci.unita.dto.security.TokenDto;
+import io.github.ronaldobertolucci.unita.dto.user.LoginDto;
+import io.github.ronaldobertolucci.unita.dto.user.UserDto;
+import io.github.ronaldobertolucci.unita.dto.user.UserRegistrationDto;
+import io.github.ronaldobertolucci.unita.model.user.User;
+import io.github.ronaldobertolucci.unita.service.security.TokenService;
+import io.github.ronaldobertolucci.unita.service.user.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthenticationController {
+
+    private final AuthenticationManager authenticationManager;
+    private final TokenService tokenService;
+    private final UserService userService;
+
+    @Value("${api.security.token.expiration-hours:2}")
+    private int expirationHours;
+
+    @PostMapping("/login")
+    public ResponseEntity<TokenDto> login(@RequestBody @Valid LoginDto loginDto) {
+        var authenticationToken = new UsernamePasswordAuthenticationToken(
+                loginDto.email(),
+                loginDto.password()
+        );
+
+        Authentication authentication = authenticationManager.authenticate(authenticationToken);
+        User user = (User) authentication.getPrincipal();
+
+        String token = tokenService.generateToken(user);
+
+        UserDto userDto = new UserDto(user);
+        Long expiresInSeconds = expirationHours * 3600L;
+        TokenDto tokenDto = new TokenDto(token, expiresInSeconds, userDto);
+
+        return ResponseEntity.ok(tokenDto);
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<UserDto> register(@RequestBody @Valid UserRegistrationDto registrationDto) {
+        UserDto userDto = userService.register(registrationDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+
+        UserDto userDto = new UserDto(user);
+
+        return ResponseEntity.ok(userDto);
+    }
+}
