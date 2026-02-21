@@ -1,0 +1,369 @@
+package io.github.ronaldobertolucci.unita.service.card;
+
+import io.github.ronaldobertolucci.unita.dto.card.*;
+import io.github.ronaldobertolucci.unita.model.card.*;
+import io.github.ronaldobertolucci.unita.model.finance.CardBrand;
+import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
+import io.github.ronaldobertolucci.unita.model.finance.PeriodicityType;
+import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
+import io.github.ronaldobertolucci.unita.model.pocket.Cash;
+import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
+import io.github.ronaldobertolucci.unita.model.user.User;
+import io.github.ronaldobertolucci.unita.repository.*;
+import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class CreditCardServiceTest {
+
+    @Mock
+    private CreditCardRepository creditCardRepository;
+    @Mock
+    private CreditCardBillRepository creditCardBillRepository;
+    @Mock
+    private CreditCardPurchaseRepository creditCardPurchaseRepository;
+    @Mock
+    private CreditCardInstallmentRepository creditCardInstallmentRepository;
+    @Mock
+    private CreditCardRefundRepository creditCardRefundRepository;
+    @Mock
+    private RecurringPurchaseRepository recurringPurchaseRepository;
+    @Mock
+    private PocketRepository pocketRepository;
+    @Mock
+    private LegalEntityRepository legalEntityRepository;
+    @Mock
+    private CardBrandRepository cardBrandRepository;
+    @Mock
+    private RecurrencePeriodicityRepository recurrencePeriodicityRepository;
+    @Mock
+    private TransactionRepository transactionRepository;
+    @Mock
+    private CreditCardBillResolverService billResolverService;
+    @Mock
+    private Authentication authentication;
+
+    @InjectMocks
+    private CreditCardService creditCardService;
+
+    private User currentUser;
+
+    @BeforeEach
+    void setUp() {
+        currentUser = new User();
+        currentUser.setId(1L);
+        when(authentication.getPrincipal()).thenReturn(currentUser);
+    }
+
+    // -------------------------------------------------------------------------
+    // CreditCard CRUD
+    // -------------------------------------------------------------------------
+
+    @Test
+    void createCreditCard_WhenValid_ShouldPersistAndReturnDto() {
+        CreditCardCreateDto dto = new CreditCardCreateDto(10L, "1234", 20L, new BigDecimal("5000"), 10, 20);
+        LegalEntity le = buildLegalEntity(10L);
+        CardBrand brand = buildCardBrand(20L);
+        CreditCard saved = buildCard(1L, le, brand);
+
+        when(legalEntityRepository.findById(10L)).thenReturn(Optional.of(le));
+        when(cardBrandRepository.findById(20L)).thenReturn(Optional.of(brand));
+        when(creditCardRepository.save(any())).thenReturn(saved);
+
+        CreditCardDto result = creditCardService.createCreditCard(dto, authentication);
+
+        assertNotNull(result);
+        verify(creditCardRepository).save(any(CreditCard.class));
+    }
+
+    @Test
+    void createCreditCard_WhenLegalEntityNotFound_ShouldThrow() {
+        CreditCardCreateDto dto = new CreditCardCreateDto(99L, "1234", 20L, new BigDecimal("5000"), 10, 20);
+        when(legalEntityRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class, () -> creditCardService.createCreditCard(dto, authentication));
+        verify(creditCardRepository, never()).save(any());
+    }
+
+    @Test
+    void findMyCreditCards_ShouldReturnAllCards() {
+        CreditCard c1 = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCard c2 = buildCard(2L, buildLegalEntity(10L), buildCardBrand(20L));
+        when(creditCardRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of(c1, c2));
+
+        List<CreditCardDto> result = creditCardService.findMyCreditCards(authentication);
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void findCreditCardById_WhenOwner_ShouldReturnDto() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+
+        CreditCardDto result = creditCardService.findCreditCardById(1L, authentication);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    void findCreditCardById_WhenNotOwner_ShouldThrow() {
+        when(creditCardRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class, () -> creditCardService.findCreditCardById(99L, authentication));
+    }
+
+    @Test
+    void deleteCreditCard_WhenOwner_ShouldDelete() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+
+        creditCardService.deleteCreditCard(1L, authentication);
+
+        verify(creditCardRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteCreditCard_WhenNotOwner_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class, () -> creditCardService.deleteCreditCard(99L, authentication));
+        verify(creditCardRepository, never()).deleteById(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // CreditCardBill
+    // -------------------------------------------------------------------------
+
+    @Test
+    void payBill_WhenClosed_ShouldCreateTransactionAndMarkAsPaid() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.CLOSED);
+        Cash pocket = buildCash(3L);
+        CreditCardBillPayDto dto = new CreditCardBillPayDto(3L);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+        when(pocketRepository.findByIdAndUserId(3L, currentUser.getId())).thenReturn(Optional.of(pocket));
+        when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
+        when(creditCardBillRepository.save(any())).thenReturn(bill);
+        when(creditCardInstallmentRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+        when(creditCardRefundRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+
+        creditCardService.payBill(1L, 5L, dto, authentication);
+
+        verify(transactionRepository).save(any(Transaction.class));
+        verify(creditCardBillRepository).save(bill);
+        assertEquals(CreditCardBillStatus.PAID, bill.getStatus());
+    }
+
+    @Test
+    void payBill_WhenNotClosed_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.payBill(1L, 5L, new CreditCardBillPayDto(3L), authentication));
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void payBill_WhenBillNotFound_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.payBill(1L, 99L, new CreditCardBillPayDto(3L), authentication));
+    }
+
+    // -------------------------------------------------------------------------
+    // CreditCardInstallment
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateInstallment_WhenCurrentBillIsPaid_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill paidBill = buildBill(5L, card, CreditCardBillStatus.PAID);
+        CreditCardPurchase purchase = buildPurchase(2L, card);
+        CreditCardInstallment installment = CreditCardInstallment.builder()
+                .purchase(purchase).installmentNumber(1)
+                .amount(new BigDecimal("100")).creditCardBill(paidBill).build();
+        installment.setId(7L);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardPurchaseRepository.findByIdAndCreditCardId(2L, 1L)).thenReturn(Optional.of(purchase));
+        when(creditCardInstallmentRepository.findByIdAndPurchaseId(7L, 2L)).thenReturn(Optional.of(installment));
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.updateInstallment(1L, 2L, 7L,
+                        new CreditCardInstallmentUpdateDto(new BigDecimal("100"), 6L), authentication));
+    }
+
+    // -------------------------------------------------------------------------
+    // RecurringPurchase
+    // -------------------------------------------------------------------------
+
+    @Test
+    void createRecurringPurchase_WhenValid_ShouldSaveAndGenerateCurrentMonthPurchase() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
+        RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto(
+                "Netflix", new BigDecimal("49.90"), 1L, LocalDate.now(), null);
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
+        RecurringPurchase savedRp = RecurringPurchase.builder()
+                .creditCard(card).description("Netflix").amount(new BigDecimal("49.90"))
+                .periodicity(periodicity).startDate(LocalDate.now()).build();
+        savedRp.setId(1L);
+        when(recurringPurchaseRepository.save(any())).thenReturn(savedRp);
+        when(creditCardPurchaseRepository.save(any())).thenReturn(buildPurchase(2L, card));
+        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(bill);
+        when(creditCardInstallmentRepository.save(any())).thenReturn(mock(CreditCardInstallment.class));
+
+        RecurringPurchaseDto result = creditCardService.createRecurringPurchase(1L, dto, authentication);
+
+        assertNotNull(result);
+        verify(recurringPurchaseRepository).save(any(RecurringPurchase.class));
+        verify(creditCardPurchaseRepository).save(any(CreditCardPurchase.class));
+        verify(billResolverService).findOrCreateForDate(any(), any());
+    }
+
+    @Test
+    void deleteRecurringPurchase_WhenOwned_ShouldDelete() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        RecurringPurchase rp = RecurringPurchase.builder().creditCard(card).build();
+        rp.setId(3L);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(recurringPurchaseRepository.findByIdAndCreditCardId(3L, 1L)).thenReturn(Optional.of(rp));
+
+        creditCardService.deleteRecurringPurchase(1L, 3L, authentication);
+
+        verify(recurringPurchaseRepository).delete(rp);
+    }
+
+    @Test
+    void deleteRecurringPurchase_WhenNotFound_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(recurringPurchaseRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.deleteRecurringPurchase(1L, 99L, authentication));
+    }
+
+    // -------------------------------------------------------------------------
+    // CreditCardRefund
+    // -------------------------------------------------------------------------
+
+    @Test
+    void createRefund_WhenBillExists_ShouldPersistAndReturnDto() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+        CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto("Estorno", new BigDecimal("50"), LocalDate.now());
+        CreditCardRefund saved = CreditCardRefund.builder()
+                .creditCardBill(bill).description("Estorno").amount(new BigDecimal("50")).refundDate(LocalDate.now()).build();
+        saved.setId(1L);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+        when(creditCardRefundRepository.save(any())).thenReturn(saved);
+
+        CreditCardRefundDto result = creditCardService.createRefund(1L, 5L, dto, authentication);
+
+        assertNotNull(result);
+        verify(creditCardRefundRepository).save(any(CreditCardRefund.class));
+    }
+
+    @Test
+    void deleteRefund_WhenOwned_ShouldDelete() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+        CreditCardRefund refund = CreditCardRefund.builder().creditCardBill(bill).build();
+        refund.setId(7L);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+        when(creditCardRefundRepository.findByIdAndBillId(7L, 5L)).thenReturn(Optional.of(refund));
+
+        creditCardService.deleteRefund(1L, 5L, 7L, authentication);
+
+        verify(creditCardRefundRepository).delete(refund);
+    }
+
+    // -------------------------------------------------------------------------
+    // Builders
+    // -------------------------------------------------------------------------
+
+    private LegalEntity buildLegalEntity(Long id) {
+        LegalEntity le = new LegalEntity();
+        le.setId(id);
+        le.setCnpj("12345678000190");
+        le.setCorporateName("Banco Teste");
+        return le;
+    }
+
+    private CardBrand buildCardBrand(Long id) {
+        CardBrand brand = new CardBrand();
+        brand.setId(id);
+        brand.setName("Visa");
+        return brand;
+    }
+
+    private CreditCard buildCard(Long id, LegalEntity le, CardBrand brand) {
+        CreditCard card = CreditCard.builder()
+                .user(currentUser).legalEntity(le).lastFourDigits("1234")
+                .cardBrand(brand).creditLimit(new BigDecimal("5000")).closingDay(10).dueDay(20).build();
+        card.setId(id);
+        return card;
+    }
+
+    private CreditCardBill buildBill(Long id, CreditCard card, CreditCardBillStatus status) {
+        CreditCardBill bill = CreditCardBill.builder()
+                .creditCard(card).closingDate(LocalDate.of(2024, 1, 10))
+                .dueDate(LocalDate.of(2024, 2, 10)).status(status).build();
+        bill.setId(id);
+        return bill;
+    }
+
+    private CreditCardPurchase buildPurchase(Long id, CreditCard card) {
+        CreditCardPurchase purchase = CreditCardPurchase.builder()
+                .creditCard(card).description("Compra").totalValue(new BigDecimal("100"))
+                .purchaseDate(LocalDate.now()).installmentsCount(1).build();
+        purchase.setId(id);
+        return purchase;
+    }
+
+    private Cash buildCash(Long id) {
+        Cash cash = new Cash();
+        cash.setId(id);
+        cash.setUser(currentUser);
+        return cash;
+    }
+
+    private RecurrencePeriodicity buildPeriodicity(Long id) {
+        RecurrencePeriodicity p = new RecurrencePeriodicity();
+        p.setId(id);
+        p.setName("Mensal");
+        p.setType(PeriodicityType.MONTHLY);
+        return p;
+    }
+}

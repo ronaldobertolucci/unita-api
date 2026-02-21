@@ -52,6 +52,22 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleIllegalStateException_ShouldReturnConflict() {
+        // Arrange
+        IllegalStateException exception = new IllegalStateException("Conflict message");
+
+        // Act
+        ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleIllegalStateException(exception, request);
+
+        // Assert
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Conflict", response.getBody().error());
+        assertEquals("Conflict message", response.getBody().message());
+        assertEquals("/api/test", response.getBody().path());
+    }
+
+    @Test
     void handleIllegalArgument_ShouldReturnBadRequest() {
         // Arrange
         IllegalArgumentException exception = new IllegalArgumentException("Invalid input");

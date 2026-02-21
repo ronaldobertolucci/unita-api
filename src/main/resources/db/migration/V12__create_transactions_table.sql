@@ -1,0 +1,12 @@
+CREATE TABLE transactions
+(
+    id               BIGSERIAL PRIMARY KEY,
+    pocket_id        BIGINT         NOT NULL,
+    amount           NUMERIC(15, 2) NOT NULL,
+    direction        VARCHAR(10)    NOT NULL CHECK (direction IN ('INCOME', 'EXPENSE')),
+    transaction_date DATE           NOT NULL,
+    description      VARCHAR(255)   NOT NULL,
+    CONSTRAINT fk_transactions_pocket FOREIGN KEY (pocket_id) REFERENCES pockets (id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_transactions_pocket_date ON transactions (pocket_id, transaction_date);
