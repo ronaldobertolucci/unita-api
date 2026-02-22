@@ -201,11 +201,13 @@ public class CreditCardService {
         User currentUser = (User) authentication.getPrincipal();
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
+        CreditCard creditCard = creditCardRepository.findByIdAndUserId(creditCardId, currentUser.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
+
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
 
-        CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(dto.creditCardBillId(), creditCardId)
-                .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
+        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, purchase.getPurchaseDate());
 
         CreditCardInstallment installment = CreditCardInstallment.builder()
                 .purchase(purchase)

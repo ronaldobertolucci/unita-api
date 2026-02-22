@@ -392,7 +392,7 @@ class CreditCardControllerTest {
     @Test
     void createInstallment_WhenDataIsValid_ShouldReturn201() throws Exception {
         CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(
-                1, new BigDecimal("300.00"), 1L);
+                1, new BigDecimal("300.00"));
         when(creditCardService.createInstallment(eq(1L), eq(1L), any(), any()))
                 .thenReturn(installmentDto());
 
@@ -407,7 +407,7 @@ class CreditCardControllerTest {
     @Test
     void createInstallment_WhenUnauthenticated_ShouldReturn403() throws Exception {
         CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(
-                1, new BigDecimal("300.00"), 1L);
+                1, new BigDecimal("300.00"));
         when(creditCardService.createInstallment(eq(1L), eq(1L), any(), any()))
                 .thenReturn(installmentDto());
 
@@ -419,7 +419,7 @@ class CreditCardControllerTest {
 
     @Test
     void createInstallment_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
-        CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(null, null, null);
+        CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(null, null);
 
         mockMvc.perform(post("/credit-cards/1/purchases/1/installments").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)

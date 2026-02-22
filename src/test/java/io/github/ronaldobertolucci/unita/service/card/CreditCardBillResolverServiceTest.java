@@ -159,4 +159,25 @@ class CreditCardBillResolverServiceTest {
         assertThat(result.getClosingDate()).isEqualTo(LocalDate.of(2025, 1, 31));
         assertThat(result.getDueDate()).isEqualTo(LocalDate.of(2025, 2, 28));
     }
+
+    @Test
+    void findOrCreateForDate_WhenDueDayIsGreaterThanClosingDay_ShouldSetDueDateInSameMonthAsClosing() {
+        // closingDay=10, dueDay=15 → dueDay > closingDay → vencimento no mesmo mês do fechamento
+        CreditCard cardWithDueDayAfterClosing = CreditCard.builder()
+                .id(4L)
+                .closingDay(10)
+                .dueDay(15)
+                .build();
+        LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
+        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
+                any(), any(), any())).thenReturn(List.of());
+        when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(cardWithDueDayAfterClosing, purchaseDate);
+
+        // closingDate = Jan 10 (isAfter Jan 5 ✓)
+        // dueDay(15) > closingDay(10) → mesmo mês → Jan 15
+        assertThat(result.getClosingDate()).isEqualTo(LocalDate.of(2025, 1, 10));
+        assertThat(result.getDueDate()).isEqualTo(LocalDate.of(2025, 1, 15));
+    }
 }

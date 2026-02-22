@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 
 public record CreditCardInstallmentCreateDto(
         @NotNull @Positive Integer installmentNumber,
-        @NotNull @Positive BigDecimal amount,
-        @NotNull Long creditCardBillId
+        @NotNull @Positive BigDecimal amount
 ) {
 }

@@ -37,7 +37,7 @@ public class CreditCardBillResolverService {
             closingDate = next.withDayOfMonth(Math.min(closingDay, next.lengthOfMonth()));
         }
 
-        LocalDate dueDateMonth = closingDate.plusMonths(1);
+        LocalDate dueDateMonth = dueDay > closingDay ? closingDate : closingDate.plusMonths(1);
         LocalDate dueDate = dueDateMonth.withDayOfMonth(
                 Math.min(dueDay, dueDateMonth.lengthOfMonth()));
 
