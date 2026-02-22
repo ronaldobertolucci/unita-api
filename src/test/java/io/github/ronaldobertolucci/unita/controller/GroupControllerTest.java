@@ -2,11 +2,13 @@ package io.github.ronaldobertolucci.unita.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ronaldobertolucci.unita.config.TestConfig;
+import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
 import io.github.ronaldobertolucci.unita.dto.group.GroupCreateDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupMembershipDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupUpdateResponsibleDto;
-import io.github.ronaldobertolucci.unita.model.group.*;
+import io.github.ronaldobertolucci.unita.model.group.Group;
+import io.github.ronaldobertolucci.unita.model.group.GroupMembership;
 import io.github.ronaldobertolucci.unita.model.security.Role;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
@@ -18,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -30,12 +32,13 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = GroupController.class)
-@Import(TestConfig.class)
+@Import({TestConfig.class, SecurityConfigurations.class})
 class GroupControllerTest {
 
     @Autowired
@@ -82,7 +85,6 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void createGroup_WhenDataIsValid_ShouldCreateGroup() throws Exception {
         // Arrange
         GroupCreateDto dto = new GroupCreateDto("Family");
@@ -92,7 +94,8 @@ class GroupControllerTest {
         // Act & Assert
         mockMvc.perform(post("/groups")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -103,7 +106,21 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void createGroup_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        GroupCreateDto dto = new GroupCreateDto("Family");
+        when(groupService.createGroup(any(GroupCreateDto.class), any()))
+                .thenReturn(groupDto);
+
+        // Act & Assert
+        mockMvc.perform(post("/groups")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andDo(print())
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void createGroup_WhenNameIsBlank_ShouldReturnBadRequest() throws Exception {
         // Arrange
         GroupCreateDto dto = new GroupCreateDto("");
@@ -111,20 +128,20 @@ class GroupControllerTest {
         // Act & Assert
         mockMvc.perform(post("/groups")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isBadRequest());
 
         verify(groupService, never()).createGroup(any(), any());
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void getMyGroups_ShouldReturnList() throws Exception {
         // Arrange
         when(groupService.getMyGroups(any())).thenReturn(List.of(groupDto));
 
         // Act & Assert
-        mockMvc.perform(get("/groups/my"))
+        mockMvc.perform(get("/groups/my").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -134,13 +151,23 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void getMyGroups_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(groupService.getMyGroups(any())).thenReturn(List.of(groupDto));
+
+        // Act & Assert
+        mockMvc.perform(get("/groups/my"))
+                .andDo(print())
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getGroupsWhereIAmResponsible_ShouldReturnList() throws Exception {
         // Arrange
         when(groupService.getGroupsWhereIAmResponsible(any())).thenReturn(List.of(groupDto));
 
         // Act & Assert
-        mockMvc.perform(get("/groups/my/responsible"))
+        mockMvc.perform(get("/groups/my/responsible").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].name").value("Family"));
@@ -149,13 +176,22 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void getGroupsWhereIAmResponsible_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(groupService.getGroupsWhereIAmResponsible(any())).thenReturn(List.of(groupDto));
+
+        // Act & Assert
+        mockMvc.perform(get("/groups/my/responsible"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getGroupById_WhenGroupExists_ShouldReturnGroup() throws Exception {
         // Arrange
         when(groupService.getGroupById(eq(1L), any())).thenReturn(groupDto);
 
         // Act & Assert
-        mockMvc.perform(get("/groups/1"))
+        mockMvc.perform(get("/groups/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.name").value("Family"));
@@ -164,7 +200,16 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void getGroupById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(groupService.getGroupById(eq(1L), any())).thenReturn(groupDto);
+
+        // Act & Assert
+        mockMvc.perform(get("/groups/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void updateGroupName_WhenDataIsValid_ShouldUpdateGroup() throws Exception {
         // Arrange
         GroupCreateDto dto = new GroupCreateDto("New Family");
@@ -174,7 +219,8 @@ class GroupControllerTest {
         // Act & Assert
         mockMvc.perform(put("/groups/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON));
 
@@ -182,7 +228,6 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void transferResponsibility_WhenDataIsValid_ShouldTransfer() throws Exception {
         // Arrange
         GroupUpdateResponsibleDto dto = new GroupUpdateResponsibleDto(2L);
@@ -192,7 +237,8 @@ class GroupControllerTest {
         // Act & Assert
         mockMvc.perform(put("/groups/1/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON));
 
@@ -200,13 +246,26 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void transferResponsibility_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        GroupUpdateResponsibleDto dto = new GroupUpdateResponsibleDto(2L);
+        when(groupService.transferResponsibility(eq(1L), any(GroupUpdateResponsibleDto.class), any()))
+                .thenReturn(groupDto);
+
+        // Act & Assert
+        mockMvc.perform(put("/groups/1/transfer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void deleteGroup_ShouldDeleteGroup() throws Exception {
         // Arrange
         doNothing().when(groupService).deleteGroup(eq(1L), any());
 
         // Act & Assert
-        mockMvc.perform(delete("/groups/1"))
+        mockMvc.perform(delete("/groups/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message").value("Group deleted successfully"));
@@ -215,13 +274,12 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void leaveGroup_ShouldLeaveGroup() throws Exception {
         // Arrange
         doNothing().when(groupService).leaveGroup(eq(1L), any());
 
         // Act & Assert
-        mockMvc.perform(delete("/groups/1/leave"))
+        mockMvc.perform(delete("/groups/1/leave").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message").value("You have left the group"));
@@ -230,7 +288,16 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void leaveGroup_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        doNothing().when(groupService).leaveGroup(eq(1L), any());
+
+        // Act & Assert
+        mockMvc.perform(delete("/groups/1/leave"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getGroupMembers_ShouldReturnMembers() throws Exception {
         // Arrange
         GroupMembership membership = GroupMembership.builder()
@@ -245,7 +312,7 @@ class GroupControllerTest {
                 .thenReturn(List.of(membershipDto));
 
         // Act & Assert
-        mockMvc.perform(get("/groups/1/members"))
+        mockMvc.perform(get("/groups/1/members").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].user.email").value("john@example.com"));
@@ -254,16 +321,44 @@ class GroupControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void getGroupMembers_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        GroupMembership membership = GroupMembership.builder()
+                .id(1L)
+                .user(testUser)
+                .group(testGroup)
+                .build();
+
+        GroupMembershipDto membershipDto = new GroupMembershipDto(membership);
+
+        when(groupService.getGroupMembers(eq(1L), any()))
+                .thenReturn(List.of(membershipDto));
+
+        // Act & Assert
+        mockMvc.perform(get("/groups/1/members"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getGroupMemberCount_ShouldReturnCount() throws Exception {
         // Arrange
         when(groupService.getGroupMemberCount(eq(1L), any())).thenReturn(5L);
 
         // Act & Assert
-        mockMvc.perform(get("/groups/1/members/count"))
+        mockMvc.perform(get("/groups/1/members/count").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(5));
 
         verify(groupService, times(1)).getGroupMemberCount(eq(1L), any());
+    }
+
+    @Test
+    void getGroupMemberCount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(groupService.getGroupMemberCount(eq(1L), any())).thenReturn(5L);
+
+        // Act & Assert
+        mockMvc.perform(get("/groups/1/members/count"))
+                .andExpect(status().isForbidden());
     }
 }

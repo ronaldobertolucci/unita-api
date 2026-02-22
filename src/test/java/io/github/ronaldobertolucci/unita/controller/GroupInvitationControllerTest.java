@@ -2,10 +2,13 @@ package io.github.ronaldobertolucci.unita.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ronaldobertolucci.unita.config.TestConfig;
+import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
 import io.github.ronaldobertolucci.unita.dto.group.GroupInvitationCreateDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupInvitationDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupInvitationResponseDto;
-import io.github.ronaldobertolucci.unita.model.group.*;
+import io.github.ronaldobertolucci.unita.model.group.Group;
+import io.github.ronaldobertolucci.unita.model.group.GroupInvitation;
+import io.github.ronaldobertolucci.unita.model.group.InvitationStatus;
 import io.github.ronaldobertolucci.unita.model.security.Role;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
@@ -17,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,11 +32,12 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = GroupInvitationController.class)
-@Import(TestConfig.class)
+@Import({TestConfig.class, SecurityConfigurations.class})
 class GroupInvitationControllerTest {
 
     @Autowired
@@ -101,7 +105,6 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void createInvitation_WhenDataIsValid_ShouldCreateInvitation() throws Exception {
         // Arrange
         GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
@@ -111,7 +114,8 @@ class GroupInvitationControllerTest {
         // Act & Assert
         mockMvc.perform(post("/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("PENDING"));
@@ -120,7 +124,20 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void createInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        when(invitationService.createInvitation(any(GroupInvitationCreateDto.class), any()))
+                .thenReturn(invitationDto);
+
+        // Act & Assert
+        mockMvc.perform(post("/invitations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void createInvitation_WhenGroupIdIsNull_ShouldReturnBadRequest() throws Exception {
         // Arrange
         GroupInvitationCreateDto dto = new GroupInvitationCreateDto(null, 2L);
@@ -128,14 +145,14 @@ class GroupInvitationControllerTest {
         // Act & Assert
         mockMvc.perform(post("/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isBadRequest());
 
         verify(invitationService, never()).createInvitation(any(), any());
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void createInvitation_WhenInvitedUserIdIsNull_ShouldReturnBadRequest() throws Exception {
         // Arrange
         GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, null);
@@ -143,21 +160,21 @@ class GroupInvitationControllerTest {
         // Act & Assert
         mockMvc.perform(post("/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isBadRequest());
 
         verify(invitationService, never()).createInvitation(any(), any());
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void getMyPendingInvitations_ShouldReturnList() throws Exception {
         // Arrange
         when(invitationService.getMyPendingInvitations(any()))
                 .thenReturn(List.of(invitationDto));
 
         // Act & Assert
-        mockMvc.perform(get("/invitations/my/pending"))
+        mockMvc.perform(get("/invitations/my/pending").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
@@ -166,14 +183,24 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void getMyPendingInvitations_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(invitationService.getMyPendingInvitations(any()))
+                .thenReturn(List.of(invitationDto));
+
+        // Act & Assert
+        mockMvc.perform(get("/invitations/my/pending"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getMyPendingInvitationsCount_ShouldReturnCount() throws Exception {
         // Arrange
         when(invitationService.getMyPendingInvitationsCount(any()))
                 .thenReturn(3L);
 
         // Act & Assert
-        mockMvc.perform(get("/invitations/my/pending/count"))
+        mockMvc.perform(get("/invitations/my/pending/count").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(3));
 
@@ -181,14 +208,24 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
+    void getMyPendingInvitationsCount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(invitationService.getMyPendingInvitationsCount(any()))
+                .thenReturn(3L);
+
+        // Act & Assert
+        mockMvc.perform(get("/invitations/my/pending/count"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getGroupInvitations_ShouldReturnList() throws Exception {
         // Arrange
         when(invitationService.getGroupInvitations(eq(1L), any()))
                 .thenReturn(List.of(invitationDto));
 
         // Act & Assert
-        mockMvc.perform(get("/invitations/group/1"))
+        mockMvc.perform(get("/invitations/group/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
@@ -197,7 +234,17 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "jane@example.com", roles = "USER")
+    void getGroupInvitations_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        when(invitationService.getGroupInvitations(eq(1L), any()))
+                .thenReturn(List.of(invitationDto));
+
+        // Act & Assert
+        mockMvc.perform(get("/invitations/group/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void respondToInvitation_WhenAccepted_ShouldAcceptInvitation() throws Exception {
         // Arrange
         GroupInvitationResponseDto dto = new GroupInvitationResponseDto(true);
@@ -210,7 +257,8 @@ class GroupInvitationControllerTest {
         // Act & Assert
         mockMvc.perform(put("/invitations/1/respond")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("ACCEPTED"));
@@ -219,7 +267,23 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "jane@example.com", roles = "USER")
+    void respondToInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        GroupInvitationResponseDto dto = new GroupInvitationResponseDto(true);
+        testInvitation.setStatus(InvitationStatus.ACCEPTED);
+        GroupInvitationDto acceptedDto = new GroupInvitationDto(testInvitation);
+
+        when(invitationService.respondToInvitation(eq(1L), any(GroupInvitationResponseDto.class), any()))
+                .thenReturn(acceptedDto);
+
+        // Act & Assert
+        mockMvc.perform(put("/invitations/1/respond")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void respondToInvitation_WhenRejected_ShouldRejectInvitation() throws Exception {
         // Arrange
         GroupInvitationResponseDto dto = new GroupInvitationResponseDto(false);
@@ -232,7 +296,8 @@ class GroupInvitationControllerTest {
         // Act & Assert
         mockMvc.perform(put("/invitations/1/respond")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(dto))
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("REJECTED"));
@@ -241,7 +306,6 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "jane@example.com", roles = "USER")
     void respondToInvitation_WhenAcceptIsNull_ShouldReturnBadRequest() throws Exception {
         // Arrange
         String invalidJson = "{\"accept\": null}";
@@ -249,24 +313,34 @@ class GroupInvitationControllerTest {
         // Act & Assert
         mockMvc.perform(put("/invitations/1/respond")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson))
+                        .content(invalidJson)
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isBadRequest());
 
         verify(invitationService, never()).respondToInvitation(any(), any(), any());
     }
 
     @Test
-    @WithMockUser(username = "john@example.com", roles = "USER")
     void cancelInvitation_ShouldCancelInvitation() throws Exception {
         // Arrange
         doNothing().when(invitationService).cancelInvitation(eq(1L), any());
 
         // Act & Assert
-        mockMvc.perform(delete("/invitations/1"))
+        mockMvc.perform(delete("/invitations/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message").value("Invitation cancelled successfully"));
 
         verify(invitationService, times(1)).cancelInvitation(eq(1L), any());
+    }
+
+    @Test
+    void cancelInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        // Arrange
+        doNothing().when(invitationService).cancelInvitation(eq(1L), any());
+
+        // Act & Assert
+        mockMvc.perform(delete("/invitations/1"))
+                .andExpect(status().isForbidden());
     }
 }
