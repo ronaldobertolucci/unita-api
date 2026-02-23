@@ -42,6 +42,14 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findCreditCardById(id, authentication));
     }
 
+    @PatchMapping("/{id}")
+    public ResponseEntity<CreditCardDto> updateCreditCard(
+            @PathVariable Long id,
+            @RequestBody @Valid CreditCardUpdateDto dto,
+            Authentication authentication) {
+        return ResponseEntity.ok(creditCardService.updateCreditCard(id, dto, authentication));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCreditCard(
             @PathVariable Long id,

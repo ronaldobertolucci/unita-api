@@ -112,7 +112,6 @@ class CreditCardControllerTest {
                 .andExpect(status().isForbidden());
     }
 
-
     @Test
     void createCreditCard_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
         CreditCardCreateDto dto = new CreditCardCreateDto(null, "", null, null, null, null);
@@ -174,6 +173,83 @@ class CreditCardControllerTest {
         when(creditCardService.findCreditCardById(eq(1L), any())).thenReturn(creditCardDto());
 
         mockMvc.perform(get("/credit-cards/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateCreditCard_WhenBothFieldsProvided_ShouldReturn200() throws Exception {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20);
+        CreditCardDto updated = new CreditCardDto(1L, "Banco do Brasil", "1234", "Visa",
+                new BigDecimal("5000.00"), 15, 20);
+        when(creditCardService.updateCreditCard(eq(1L), any(), any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/credit-cards/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.closingDay").value(15))
+                .andExpect(jsonPath("$.dueDay").value(20));
+    }
+
+    @Test
+    void updateCreditCard_WhenOnlyClosingDayProvided_ShouldReturn200() throws Exception {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        CreditCardDto updated = new CreditCardDto(1L, "Banco do Brasil", "1234", "Visa",
+                new BigDecimal("5000.00"), 15, 15);
+        when(creditCardService.updateCreditCard(eq(1L), any(), any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/credit-cards/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.closingDay").value(15));
+    }
+
+    @Test
+    void updateCreditCard_WhenOnlyDueDayProvided_ShouldReturn200() throws Exception {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, 20);
+        CreditCardDto updated = new CreditCardDto(1L, "Banco do Brasil", "1234", "Visa",
+                new BigDecimal("5000.00"), 10, 20);
+        when(creditCardService.updateCreditCard(eq(1L), any(), any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/credit-cards/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dueDay").value(20));
+    }
+
+    @Test
+    void updateCreditCard_WhenBothFieldsAreNull_ShouldReturn400() throws Exception {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null);
+        when(creditCardService.updateCreditCard(eq(1L), any(), any()))
+                .thenThrow(new IllegalArgumentException("At least one field must be provided"));
+
+        mockMvc.perform(patch("/credit-cards/1").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateCreditCard_WhenNotFound_ShouldReturn404() throws Exception {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        when(creditCardService.updateCreditCard(eq(99L), any(), any()))
+                .thenThrow(new EntityNotFoundException("Credit card not found"));
+
+        mockMvc.perform(patch("/credit-cards/99").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateCreditCard_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20);
+
+        mockMvc.perform(patch("/credit-cards/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isForbidden());
     }
 

@@ -129,6 +129,72 @@ class CreditCardServiceTest {
     }
 
     @Test
+    void updateCreditCard_WhenBothFieldsProvided_ShouldUpdateAndReturn() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+
+        CreditCardDto result = creditCardService.updateCreditCard(1L, dto, authentication);
+
+        assertNotNull(result);
+        assertEquals(15, card.getClosingDay());
+        assertEquals(25, card.getDueDay());
+        verify(creditCardRepository).save(card);
+    }
+
+    @Test
+    void updateCreditCard_WhenOnlyClosingDayProvided_ShouldUpdateOnlyClosingDay() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        int originalDueDay = card.getDueDay();
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        assertEquals(15, card.getClosingDay());
+        assertEquals(originalDueDay, card.getDueDay());
+        verify(creditCardRepository).save(card);
+    }
+
+    @Test
+    void updateCreditCard_WhenOnlyDueDayProvided_ShouldUpdateOnlyDueDay() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        int originalClosingDay = card.getClosingDay();
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, 25);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        assertEquals(originalClosingDay, card.getClosingDay());
+        assertEquals(25, card.getDueDay());
+        verify(creditCardRepository).save(card);
+    }
+
+    @Test
+    void updateCreditCard_WhenBothFieldsAreNull_ShouldThrowIllegalArgumentException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> creditCardService.updateCreditCard(1L, dto, authentication));
+        verify(creditCardRepository, never()).save(any());
+    }
+
+    @Test
+    void updateCreditCard_WhenNotFound_ShouldThrow() {
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        when(creditCardRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.updateCreditCard(99L, dto, authentication));
+        verify(creditCardRepository, never()).save(any());
+    }
+
+    @Test
     void deleteCreditCard_WhenOwner_ShouldDelete() {
         when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
 

@@ -80,6 +80,26 @@ public class CreditCardService {
     }
 
     @Transactional
+    public CreditCardDto updateCreditCard(Long id, CreditCardUpdateDto dto, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        CreditCard creditCard = creditCardRepository.findByIdAndUserId(id, currentUser.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
+
+        if (dto.closingDay() == null && dto.dueDay() == null) {
+            throw new IllegalArgumentException("At least one field must be provided");
+        }
+
+        if (dto.closingDay() != null) {
+            creditCard.setClosingDay(dto.closingDay());
+        }
+        if (dto.dueDay() != null) {
+            creditCard.setDueDay(dto.dueDay());
+        }
+
+        return new CreditCardDto(creditCardRepository.save(creditCard));
+    }
+
+    @Transactional
     public void deleteCreditCard(Long id, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!creditCardRepository.existsByIdAndUserId(id, currentUser.getId())) {
