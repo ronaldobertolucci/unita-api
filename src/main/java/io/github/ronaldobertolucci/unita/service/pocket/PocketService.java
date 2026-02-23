@@ -262,12 +262,16 @@ public class PocketService {
         return new TransactionDto(transactionRepository.save(transaction));
     }
 
-    public List<TransactionDto> findTransactions(Long pocketId, Authentication authentication) {
+    public List<TransactionDto> findTransactions(Long pocketId, LocalDate startDate, LocalDate endDate,
+                                                 Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {
             throw new EntityNotFoundException("Pocket not found");
         }
-        return transactionRepository.findAllByPocketId(pocketId)
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("startDate must not be after endDate");
+        }
+        return transactionRepository.findAllByPocketIdAndPeriod(pocketId, startDate, endDate)
                 .stream()
                 .map(TransactionDto::new)
                 .toList();

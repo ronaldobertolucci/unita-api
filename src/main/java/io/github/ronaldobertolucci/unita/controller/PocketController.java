@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -164,8 +165,10 @@ public class PocketController {
     @GetMapping("/{id}/transactions")
     public ResponseEntity<List<TransactionDto>> findTransactions(
             @PathVariable Long id,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
             Authentication authentication) {
-        return ResponseEntity.ok(pocketService.findTransactions(id, authentication));
+        return ResponseEntity.ok(pocketService.findTransactions(id, startDate, endDate, authentication));
     }
 
     @GetMapping("/{id}/balance")

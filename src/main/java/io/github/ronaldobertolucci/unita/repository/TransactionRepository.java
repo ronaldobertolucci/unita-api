@@ -7,18 +7,24 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-    @Query("""
-            SELECT t FROM Transaction t
-            WHERE t.pocket.id = :pocketId
-            ORDER BY t.transactionDate DESC
-            """)
-    List<Transaction> findAllByPocketId(@Param("pocketId") Long pocketId);
+    @Query(value = """
+        SELECT * FROM transactions t
+        WHERE t.pocket_id = :pocketId
+        AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
+        AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
+        ORDER BY t.transaction_date DESC
+        """, nativeQuery = true)
+    List<Transaction> findAllByPocketIdAndPeriod(
+            @Param("pocketId") Long pocketId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 
     @Query("""
             SELECT t FROM Transaction t

@@ -15,14 +15,17 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class TransactionRepositoryTest extends BaseRepositoryTest {
 
-    @Autowired private TransactionRepository transactionRepository;
-    @Autowired private CashRepository cashRepository;
+    @Autowired
+    private TransactionRepository transactionRepository;
+    @Autowired
+    private CashRepository cashRepository;
 
     private Cash pocket;
     private Cash otherPocket;
@@ -42,24 +45,60 @@ class TransactionRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    void findAllByPocketId_ShouldReturnOnlyTransactionsOfPocket() {
-        saveTransaction(pocket, Direction.INCOME, new BigDecimal("100.00"));
-        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("40.00"));
-        saveTransaction(otherPocket, Direction.INCOME, new BigDecimal("200.00"));
+    void findAllByPocketIdAndPeriod_WithoutDates_ShouldReturnAllTransactionsOfPocket() {
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("40.00"), LocalDate.of(2025, 2, 10));
+        saveTransaction(otherPocket, Direction.INCOME, new BigDecimal("200.00"), LocalDate.of(2025, 1, 10));
 
-        List<Transaction> result = transactionRepository.findAllByPocketId(pocket.getId());
+        List<Transaction> result = transactionRepository.findAllByPocketIdAndPeriod(pocket.getId(), null, null);
 
         assertEquals(2, result.size());
         assertTrue(result.stream().allMatch(t -> t.getPocket().getId().equals(pocket.getId())));
     }
 
     @Test
-    void findAllByPocketId_ShouldReturnOrderedByDateDesc() {
+    void findAllByPocketIdAndPeriod_WithStartAndEndDate_ShouldReturnOnlyTransactionsInPeriod() {
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("200.00"), LocalDate.of(2025, 2, 10));
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("300.00"), LocalDate.of(2025, 3, 10));
+
+        List<Transaction> result = transactionRepository.findAllByPocketIdAndPeriod(
+                pocket.getId(), LocalDate.of(2025, 1, 1), LocalDate.of(2025, 2, 28));
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void findAllByPocketIdAndPeriod_WithOnlyStartDate_ShouldReturnTransactionsFromStartDateOnward() {
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("200.00"), LocalDate.of(2025, 2, 10));
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("300.00"), LocalDate.of(2025, 3, 10));
+
+        List<Transaction> result = transactionRepository.findAllByPocketIdAndPeriod(
+                pocket.getId(), LocalDate.of(2025, 2, 1), null);
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void findAllByPocketIdAndPeriod_WithOnlyEndDate_ShouldReturnTransactionsUpToEndDate() {
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("200.00"), LocalDate.of(2025, 2, 10));
+        saveTransaction(pocket, Direction.INCOME, new BigDecimal("300.00"), LocalDate.of(2025, 3, 10));
+
+        List<Transaction> result = transactionRepository.findAllByPocketIdAndPeriod(
+                pocket.getId(), null, LocalDate.of(2025, 2, 28));
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void findAllByPocketIdAndPeriod_ShouldReturnOrderedByDateDesc() {
         saveTransaction(pocket, Direction.INCOME, new BigDecimal("100.00"), LocalDate.of(2024, 1, 1));
         saveTransaction(pocket, Direction.INCOME, new BigDecimal("200.00"), LocalDate.of(2024, 3, 1));
         saveTransaction(pocket, Direction.INCOME, new BigDecimal("300.00"), LocalDate.of(2024, 2, 1));
 
-        List<Transaction> result = transactionRepository.findAllByPocketId(pocket.getId());
+        List<Transaction> result = transactionRepository.findAllByPocketIdAndPeriod(pocket.getId(), null, null);
 
         assertEquals(LocalDate.of(2024, 3, 1), result.get(0).getTransactionDate());
         assertEquals(LocalDate.of(2024, 2, 1), result.get(1).getTransactionDate());
@@ -67,8 +106,8 @@ class TransactionRepositoryTest extends BaseRepositoryTest {
     }
 
     @Test
-    void findAllByPocketId_WhenNone_ShouldReturnEmpty() {
-        assertTrue(transactionRepository.findAllByPocketId(pocket.getId()).isEmpty());
+    void findAllByPocketIdAndPeriod_WhenNone_ShouldReturnEmpty() {
+        assertTrue(transactionRepository.findAllByPocketIdAndPeriod(pocket.getId(), null, null).isEmpty());
     }
 
     @Test

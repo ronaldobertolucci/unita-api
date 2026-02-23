@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -288,6 +289,65 @@ class PocketServiceTest {
         when(transactionRepository.findByIdAndPocketId(99L, 5L)).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class, () -> pocketService.deleteTransaction(5L, 99L, authentication));
+    }
+
+    @Test
+    void findTransactions_WithoutDates_ShouldReturnAll() {
+        Cash pocket = buildCash(5L);
+        Transaction tx = Transaction.builder()
+                .pocket(pocket).amount(new BigDecimal("100.00")).direction(Direction.INCOME)
+                .transactionDate(LocalDate.of(2025, 1, 10)).description("Salário").build();
+        tx.setId(1L);
+
+        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
+        when(transactionRepository.findAllByPocketIdAndPeriod(5L, null, null)).thenReturn(List.of(tx));
+
+        List<TransactionDto> result = pocketService.findTransactions(5L, null, null, authentication);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Salário", result.get(0).description());
+        verify(transactionRepository).findAllByPocketIdAndPeriod(5L, null, null);
+    }
+
+    @Test
+    void findTransactions_WithStartAndEndDate_ShouldReturnFiltered() {
+        LocalDate start = LocalDate.of(2025, 1, 1);
+        LocalDate end = LocalDate.of(2025, 1, 31);
+        Cash pocket = buildCash(5L);
+        Transaction tx = Transaction.builder()
+                .pocket(pocket).amount(new BigDecimal("100.00")).direction(Direction.INCOME)
+                .transactionDate(LocalDate.of(2025, 1, 10)).description("Salário").build();
+        tx.setId(1L);
+
+        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
+        when(transactionRepository.findAllByPocketIdAndPeriod(5L, start, end)).thenReturn(List.of(tx));
+
+        List<TransactionDto> result = pocketService.findTransactions(5L, start, end, authentication);
+
+        assertEquals(1, result.size());
+        verify(transactionRepository).findAllByPocketIdAndPeriod(5L, start, end);
+    }
+
+    @Test
+    void findTransactions_WhenStartDateIsAfterEndDate_ShouldThrowIllegalArgumentException() {
+        LocalDate start = LocalDate.of(2025, 1, 31);
+        LocalDate end = LocalDate.of(2025, 1, 1);
+
+        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> pocketService.findTransactions(5L, start, end, authentication));
+        verify(transactionRepository, never()).findAllByPocketIdAndPeriod(any(), any(), any());
+    }
+
+    @Test
+    void findTransactions_WhenPocketNotOwned_ShouldThrow() {
+        when(pocketRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class,
+                () -> pocketService.findTransactions(99L, null, null, authentication));
+        verify(transactionRepository, never()).findAllByPocketIdAndPeriod(any(), any(), any());
     }
 
     // -------------------------------------------------------------------------

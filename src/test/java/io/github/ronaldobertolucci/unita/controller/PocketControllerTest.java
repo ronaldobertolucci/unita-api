@@ -600,21 +600,69 @@ class PocketControllerTest {
     }
 
     @Test
-    void findTransactions_ShouldReturn200WithList() throws Exception {
-        when(pocketService.findTransactions(eq(1L), any())).thenReturn(List.of(transactionDto()));
+    void findTransactions_WithoutParams_ShouldReturn200WithList() throws Exception {
+        when(pocketService.findTransactions(eq(1L), isNull(), isNull(), any()))
+                .thenReturn(List.of(transactionDto()));
 
-        mockMvc.perform(get("/pockets/1/transactions").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+        mockMvc.perform(get("/pockets/1/transactions")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].description").value("Salário"));
     }
 
     @Test
-    void findTransactions_WhenUnauthenticated_ShouldReturn403() throws Exception {
-        when(pocketService.findTransactions(eq(1L), any())).thenReturn(List.of(transactionDto()));
+    void findTransactions_WithStartAndEndDate_ShouldReturn200WithFilteredList() throws Exception {
+        when(pocketService.findTransactions(eq(1L), eq(LocalDate.of(2025, 1, 1)),
+                eq(LocalDate.of(2025, 1, 31)), any()))
+                .thenReturn(List.of(transactionDto()));
 
+        mockMvc.perform(get("/pockets/1/transactions")
+                        .param("startDate", "2025-01-01")
+                        .param("endDate", "2025-01-31")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void findTransactions_WithOnlyStartDate_ShouldReturn200() throws Exception {
+        when(pocketService.findTransactions(eq(1L), eq(LocalDate.of(2025, 1, 1)), isNull(), any()))
+                .thenReturn(List.of(transactionDto()));
+
+        mockMvc.perform(get("/pockets/1/transactions")
+                        .param("startDate", "2025-01-01")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void findTransactions_WithOnlyEndDate_ShouldReturn200() throws Exception {
+        when(pocketService.findTransactions(eq(1L), isNull(), eq(LocalDate.of(2025, 1, 31)), any()))
+                .thenReturn(List.of(transactionDto()));
+
+        mockMvc.perform(get("/pockets/1/transactions")
+                        .param("endDate", "2025-01-31")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void findTransactions_WhenUnauthenticated_ShouldReturn403() throws Exception {
         mockMvc.perform(get("/pockets/1/transactions"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void findTransactions_WhenPocketNotFound_ShouldReturn404() throws Exception {
+        when(pocketService.findTransactions(eq(99L), isNull(), isNull(), any()))
+                .thenThrow(new EntityNotFoundException("Pocket not found"));
+
+        mockMvc.perform(get("/pockets/99/transactions")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isNotFound());
     }
 
     @Test
