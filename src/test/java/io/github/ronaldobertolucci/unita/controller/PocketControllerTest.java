@@ -782,6 +782,55 @@ class PocketControllerTest {
     }
 
     @Test
+    void updateRecurringTransaction_WhenDataIsValid_ShouldReturn200() throws Exception {
+        RecurringTransactionUpdateDto dto = new RecurringTransactionUpdateDto(new BigDecimal("75.00"));
+        RecurringTransactionDto updated = new RecurringTransactionDto(1L, new BigDecimal("75.00"),
+                Direction.EXPENSE, "Mensal", LocalDate.of(2025, 1, 1), null, "Academia");
+        when(pocketService.updateRecurringTransaction(eq(1L), eq(1L), any(), any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/pockets/1/recurring/1")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amount").value(75.00));
+    }
+
+    @Test
+    void updateRecurringTransaction_WhenAmountIsNull_ShouldReturn400() throws Exception {
+        RecurringTransactionUpdateDto dto = new RecurringTransactionUpdateDto(null);
+
+        mockMvc.perform(patch("/pockets/1/recurring/1")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateRecurringTransaction_WhenNotFound_ShouldReturn404() throws Exception {
+        RecurringTransactionUpdateDto dto = new RecurringTransactionUpdateDto(new BigDecimal("75.00"));
+        when(pocketService.updateRecurringTransaction(eq(1L), eq(99L), any(), any()))
+                .thenThrow(new EntityNotFoundException("Recurring transaction not found"));
+
+        mockMvc.perform(patch("/pockets/1/recurring/99")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateRecurringTransaction_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        RecurringTransactionUpdateDto dto = new RecurringTransactionUpdateDto(new BigDecimal("75.00"));
+
+        mockMvc.perform(patch("/pockets/1/recurring/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void deleteRecurringTransaction_WhenExists_ShouldReturn204() throws Exception {
         doNothing().when(pocketService).deleteRecurringTransaction(eq(1L), eq(1L), any());
 

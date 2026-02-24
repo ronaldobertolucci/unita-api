@@ -391,6 +391,48 @@ class PocketServiceTest {
     }
 
     @Test
+    void updateRecurringTransaction_WhenOwned_ShouldUpdateAmountAndReturn() {
+        Cash pocket = buildCash(5L);
+        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
+        RecurringTransaction rt = RecurringTransaction.builder()
+                .pocket(pocket).amount(new BigDecimal("50.00")).direction(Direction.EXPENSE)
+                .periodicity(periodicity).startDate(LocalDate.of(2025, 1, 1)).description("Academia").build();
+        rt.setId(3L);
+        RecurringTransactionUpdateDto dto = new RecurringTransactionUpdateDto(new BigDecimal("75.00"));
+
+        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
+        when(recurringTransactionRepository.findByIdAndPocketId(3L, 5L)).thenReturn(Optional.of(rt));
+        when(recurringTransactionRepository.save(rt)).thenReturn(rt);
+
+        RecurringTransactionDto result = pocketService.updateRecurringTransaction(5L, 3L, dto, authentication);
+
+        assertNotNull(result);
+        assertEquals(0, new BigDecimal("75.00").compareTo(rt.getAmount()));
+        verify(recurringTransactionRepository).save(rt);
+    }
+
+    @Test
+    void updateRecurringTransaction_WhenPocketNotOwned_ShouldThrow() {
+        when(pocketRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class,
+                () -> pocketService.updateRecurringTransaction(99L, 1L,
+                        new RecurringTransactionUpdateDto(new BigDecimal("75.00")), authentication));
+        verify(recurringTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void updateRecurringTransaction_WhenRecurringNotFound_ShouldThrow() {
+        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
+        when(recurringTransactionRepository.findByIdAndPocketId(99L, 5L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> pocketService.updateRecurringTransaction(5L, 99L,
+                        new RecurringTransactionUpdateDto(new BigDecimal("75.00")), authentication));
+        verify(recurringTransactionRepository, never()).save(any());
+    }
+
+    @Test
     void deleteRecurringTransaction_WhenOwned_ShouldDelete() {
         Cash pocket = buildCash(5L);
         RecurringTransaction rt = RecurringTransaction.builder().pocket(pocket).build();

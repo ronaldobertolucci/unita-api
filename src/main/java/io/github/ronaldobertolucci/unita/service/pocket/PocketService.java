@@ -339,6 +339,21 @@ public class PocketService {
     }
 
     @Transactional
+    public RecurringTransactionDto updateRecurringTransaction(Long pocketId, Long recurringId,
+                                                              RecurringTransactionUpdateDto dto, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {
+            throw new EntityNotFoundException("Pocket not found");
+        }
+        RecurringTransaction recurringTransaction = recurringTransactionRepository
+                .findByIdAndPocketId(recurringId, pocketId)
+                .orElseThrow(() -> new EntityNotFoundException("Recurring transaction not found"));
+
+        recurringTransaction.setAmount(dto.amount());
+        return new RecurringTransactionDto(recurringTransactionRepository.save(recurringTransaction));
+    }
+
+    @Transactional
     public void deleteRecurringTransaction(Long pocketId, Long recurringId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {

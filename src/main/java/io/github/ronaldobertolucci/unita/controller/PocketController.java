@@ -207,6 +207,16 @@ public class PocketController {
         return ResponseEntity.ok(pocketService.findRecurringTransactions(id, authentication));
     }
 
+    @PatchMapping("/{id}/recurring/{recurringId}")
+    public ResponseEntity<RecurringTransactionDto> updateRecurringTransaction(
+            @PathVariable Long id,
+            @PathVariable Long recurringId,
+            @RequestBody @Valid RecurringTransactionUpdateDto dto,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                pocketService.updateRecurringTransaction(id, recurringId, dto, authentication));
+    }
+
     @DeleteMapping("/{id}/recurring/{recurringId}")
     public ResponseEntity<Void> deleteRecurringTransaction(
             @PathVariable Long id,
