@@ -373,7 +373,7 @@ public class PocketService {
                 .pocket(pocket)
                 .amount(recurringTransaction.getAmount())
                 .direction(recurringTransaction.getDirection())
-                .transactionDate(LocalDate.now())
+                .transactionDate(recurringTransaction.getStartDate())
                 .description(recurringTransaction.getDescription())
                 .build();
         transactionRepository.save(transaction);

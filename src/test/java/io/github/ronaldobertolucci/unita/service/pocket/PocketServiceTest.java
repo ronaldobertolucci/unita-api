@@ -10,6 +10,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -355,27 +356,30 @@ class PocketServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void createRecurringTransaction_WhenValid_ShouldSaveRecurringAndGenerateFirstTransaction() {
+    void createRecurringTransaction_WhenValid_ShouldSaveRecurringAndGenerateFirstTransactionWithStartDate() {
         Cash pocket = buildCash(5L);
         RecurrencePeriodicity periodicity = buildPeriodicity(1L);
+        LocalDate startDate = LocalDate.of(2025, 1, 1);
         RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
-                new BigDecimal("200.00"), Direction.EXPENSE, 1L, LocalDate.now(), null, "Netflix");
+                new BigDecimal("200.00"), Direction.EXPENSE, 1L, startDate, null, "Netflix");
 
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
         when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
 
         RecurringTransaction saved = RecurringTransaction.builder()
                 .pocket(pocket).amount(dto.amount()).direction(dto.direction())
-                .periodicity(periodicity).startDate(dto.startDate()).description(dto.description()).build();
+                .periodicity(periodicity).startDate(startDate).description(dto.description()).build();
         saved.setId(1L);
         when(recurringTransactionRepository.save(any())).thenReturn(saved);
-        when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
 
-        RecurringTransactionDto result = pocketService.createRecurringTransaction(5L, dto, authentication);
+        ArgumentCaptor<Transaction> transactionCaptor = ArgumentCaptor.forClass(Transaction.class);
+        when(transactionRepository.save(transactionCaptor.capture())).thenReturn(mock(Transaction.class));
 
-        assertNotNull(result);
+        pocketService.createRecurringTransaction(5L, dto, authentication);
+
         verify(recurringTransactionRepository).save(any(RecurringTransaction.class));
-        verify(transactionRepository).save(any(Transaction.class)); // primeira geração imediata
+        verify(transactionRepository).save(any(Transaction.class));
+        assertEquals(startDate, transactionCaptor.getValue().getTransactionDate());
     }
 
     @Test
