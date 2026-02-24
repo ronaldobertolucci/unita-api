@@ -14,6 +14,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -287,21 +288,25 @@ class CreditCardServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void createRecurringPurchase_WhenValid_ShouldSaveAndGenerateCurrentMonthPurchase() {
+    void createRecurringPurchase_WhenValid_ShouldSaveAndGenerateCurrentMonthPurchaseWithStartDate() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         RecurrencePeriodicity periodicity = buildPeriodicity(1L);
+        LocalDate startDate = LocalDate.of(2025, 1, 1);
         RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto(
-                "Netflix", new BigDecimal("49.90"), 1L, LocalDate.now(), null);
+                "Netflix", new BigDecimal("49.90"), 1L, startDate, null);
         CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
 
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
+
         RecurringPurchase savedRp = RecurringPurchase.builder()
                 .creditCard(card).description("Netflix").amount(new BigDecimal("49.90"))
-                .periodicity(periodicity).startDate(LocalDate.now()).build();
+                .periodicity(periodicity).startDate(startDate).build();
         savedRp.setId(1L);
         when(recurringPurchaseRepository.save(any())).thenReturn(savedRp);
-        when(creditCardPurchaseRepository.save(any())).thenReturn(buildPurchase(2L, card));
+
+        ArgumentCaptor<CreditCardPurchase> purchaseCaptor = ArgumentCaptor.forClass(CreditCardPurchase.class);
+        when(creditCardPurchaseRepository.save(purchaseCaptor.capture())).thenReturn(buildPurchase(2L, card));
         when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(bill);
         when(creditCardInstallmentRepository.save(any())).thenReturn(mock(CreditCardInstallment.class));
 
@@ -311,6 +316,7 @@ class CreditCardServiceTest {
         verify(recurringPurchaseRepository).save(any(RecurringPurchase.class));
         verify(creditCardPurchaseRepository).save(any(CreditCardPurchase.class));
         verify(billResolverService).findOrCreateForDate(any(), any());
+        assertEquals(startDate, purchaseCaptor.getValue().getPurchaseDate());
     }
 
     @Test

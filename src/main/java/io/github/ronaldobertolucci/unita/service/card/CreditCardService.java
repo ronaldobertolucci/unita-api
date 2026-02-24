@@ -424,19 +424,19 @@ public class CreditCardService {
     }
 
     private void generateCurrentMonthPurchase(RecurringPurchase recurringPurchase, CreditCard creditCard) {
-        LocalDate today = LocalDate.now();
+        LocalDate startDate = recurringPurchase.getStartDate();
 
         CreditCardPurchase purchase = CreditCardPurchase.builder()
                 .creditCard(creditCard)
                 .description(recurringPurchase.getDescription())
                 .totalValue(recurringPurchase.getAmount())
-                .purchaseDate(today)
+                .purchaseDate(startDate)
                 .installmentsCount(1)
                 .build();
 
         creditCardPurchaseRepository.save(purchase);
 
-        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, today);
+        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, startDate);
 
         CreditCardInstallment installment = CreditCardInstallment.builder()
                 .purchase(purchase)
