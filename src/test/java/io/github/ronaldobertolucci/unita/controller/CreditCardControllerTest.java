@@ -750,6 +750,55 @@ class CreditCardControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void updateRecurringPurchase_WhenDataIsValid_ShouldReturn200() throws Exception {
+        RecurringPurchaseUpdateDto dto = new RecurringPurchaseUpdateDto(new BigDecimal("59.90"));
+        RecurringPurchaseDto updated = new RecurringPurchaseDto(1L, "Streaming",
+                new BigDecimal("59.90"), "Mensal", LocalDate.of(2025, 1, 1), null);
+        when(creditCardService.updateRecurringPurchase(eq(1L), eq(1L), any(), any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/credit-cards/1/recurring/1")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amount").value(59.90));
+    }
+
+    @Test
+    void updateRecurringPurchase_WhenAmountIsNull_ShouldReturn400() throws Exception {
+        RecurringPurchaseUpdateDto dto = new RecurringPurchaseUpdateDto(null);
+
+        mockMvc.perform(patch("/credit-cards/1/recurring/1")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateRecurringPurchase_WhenNotFound_ShouldReturn404() throws Exception {
+        RecurringPurchaseUpdateDto dto = new RecurringPurchaseUpdateDto(new BigDecimal("59.90"));
+        when(creditCardService.updateRecurringPurchase(eq(1L), eq(99L), any(), any()))
+                .thenThrow(new EntityNotFoundException("Recurring purchase not found"));
+
+        mockMvc.perform(patch("/credit-cards/1/recurring/99")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateRecurringPurchase_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        RecurringPurchaseUpdateDto dto = new RecurringPurchaseUpdateDto(new BigDecimal("59.90"));
+
+        mockMvc.perform(patch("/credit-cards/1/recurring/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
+
 
     @Test
     void deleteRecurringPurchase_WhenExists_ShouldReturn204() throws Exception {

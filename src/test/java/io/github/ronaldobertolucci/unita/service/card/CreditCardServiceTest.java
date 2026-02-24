@@ -314,6 +314,48 @@ class CreditCardServiceTest {
     }
 
     @Test
+    void updateRecurringPurchase_WhenOwned_ShouldUpdateAmountAndReturn() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
+        RecurringPurchase rp = RecurringPurchase.builder()
+                .creditCard(card).description("Streaming").amount(new BigDecimal("49.90"))
+                .periodicity(periodicity).startDate(LocalDate.of(2025, 1, 1)).build();
+        rp.setId(3L);
+        RecurringPurchaseUpdateDto dto = new RecurringPurchaseUpdateDto(new BigDecimal("59.90"));
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(recurringPurchaseRepository.findByIdAndCreditCardId(3L, 1L)).thenReturn(Optional.of(rp));
+        when(recurringPurchaseRepository.save(rp)).thenReturn(rp);
+
+        RecurringPurchaseDto result = creditCardService.updateRecurringPurchase(1L, 3L, dto, authentication);
+
+        assertNotNull(result);
+        assertEquals(0, new BigDecimal("59.90").compareTo(rp.getAmount()));
+        verify(recurringPurchaseRepository).save(rp);
+    }
+
+    @Test
+    void updateRecurringPurchase_WhenCardNotOwned_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.updateRecurringPurchase(99L, 1L,
+                        new RecurringPurchaseUpdateDto(new BigDecimal("59.90")), authentication));
+        verify(recurringPurchaseRepository, never()).save(any());
+    }
+
+    @Test
+    void updateRecurringPurchase_WhenRecurringNotFound_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(recurringPurchaseRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.updateRecurringPurchase(1L, 99L,
+                        new RecurringPurchaseUpdateDto(new BigDecimal("59.90")), authentication));
+        verify(recurringPurchaseRepository, never()).save(any());
+    }
+
+    @Test
     void deleteRecurringPurchase_WhenOwned_ShouldDelete() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         RecurringPurchase rp = RecurringPurchase.builder().creditCard(card).build();

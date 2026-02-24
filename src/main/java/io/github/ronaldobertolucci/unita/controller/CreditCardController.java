@@ -210,6 +210,16 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findRecurringPurchases(id, authentication));
     }
 
+    @PatchMapping("/{id}/recurring/{recurringId}")
+    public ResponseEntity<RecurringPurchaseDto> updateRecurringPurchase(
+            @PathVariable Long id,
+            @PathVariable Long recurringId,
+            @RequestBody @Valid RecurringPurchaseUpdateDto dto,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                creditCardService.updateRecurringPurchase(id, recurringId, dto, authentication));
+    }
+
     @DeleteMapping("/{id}/recurring/{recurringId}")
     public ResponseEntity<Void> deleteRecurringPurchase(
             @PathVariable Long id,

@@ -383,6 +383,20 @@ public class CreditCardService {
     }
 
     @Transactional
+    public RecurringPurchaseDto updateRecurringPurchase(Long creditCardId, Long recurringId,
+                                                        RecurringPurchaseUpdateDto dto, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateCreditCardOwnership(creditCardId, currentUser.getId());
+
+        RecurringPurchase recurringPurchase = recurringPurchaseRepository
+                .findByIdAndCreditCardId(recurringId, creditCardId)
+                .orElseThrow(() -> new EntityNotFoundException("Recurring purchase not found"));
+
+        recurringPurchase.setAmount(dto.amount());
+        return new RecurringPurchaseDto(recurringPurchaseRepository.save(recurringPurchase));
+    }
+
+    @Transactional
     public void deleteRecurringPurchase(Long creditCardId, Long recurringId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         validateCreditCardOwnership(creditCardId, currentUser.getId());
