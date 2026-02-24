@@ -378,6 +378,84 @@ class CreditCardControllerTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    void reopenBill_WhenClosed_ShouldReturn200WithOpenStatus() throws Exception {
+        CreditCardBillDto reopened = new CreditCardBillDto(1L, LocalDate.of(2025, 1, 10),
+                LocalDate.of(2025, 2, 5), CreditCardBillStatus.OPEN,
+                new BigDecimal("500.00"), BigDecimal.ZERO, new BigDecimal("500.00"));
+        when(creditCardService.reopenBill(eq(1L), eq(1L), any())).thenReturn(reopened);
+
+        mockMvc.perform(put("/credit-cards/1/bills/1/reopen")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OPEN"));
+    }
+
+    @Test
+    void reopenBill_WhenNotClosed_ShouldReturn409() throws Exception {
+        when(creditCardService.reopenBill(eq(1L), eq(1L), any()))
+                .thenThrow(new IllegalStateException("Only closed bills can be reopened"));
+
+        mockMvc.perform(put("/credit-cards/1/bills/1/reopen")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void reopenBill_WhenNotFound_ShouldReturn404() throws Exception {
+        when(creditCardService.reopenBill(eq(1L), eq(99L), any()))
+                .thenThrow(new EntityNotFoundException("Credit card bill not found"));
+
+        mockMvc.perform(put("/credit-cards/1/bills/99/reopen")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void reopenBill_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(put("/credit-cards/1/bills/1/reopen"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void closeBill_WhenOpen_ShouldReturn200WithClosedStatus() throws Exception {
+        CreditCardBillDto closed = new CreditCardBillDto(1L, LocalDate.of(2025, 1, 10),
+                LocalDate.of(2025, 2, 5), CreditCardBillStatus.CLOSED,
+                new BigDecimal("500.00"), BigDecimal.ZERO, new BigDecimal("500.00"));
+        when(creditCardService.closeBill(eq(1L), eq(1L), any())).thenReturn(closed);
+
+        mockMvc.perform(put("/credit-cards/1/bills/1/close")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
+    }
+
+    @Test
+    void closeBill_WhenNotOpen_ShouldReturn409() throws Exception {
+        when(creditCardService.closeBill(eq(1L), eq(1L), any()))
+                .thenThrow(new IllegalStateException("Only open bills can be closed"));
+
+        mockMvc.perform(put("/credit-cards/1/bills/1/close")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void closeBill_WhenNotFound_ShouldReturn404() throws Exception {
+        when(creditCardService.closeBill(eq(1L), eq(99L), any()))
+                .thenThrow(new EntityNotFoundException("Credit card bill not found"));
+
+        mockMvc.perform(put("/credit-cards/1/bills/99/close")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void closeBill_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(put("/credit-cards/1/bills/1/close"))
+                .andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardPurchase
     // -------------------------------------------------------------------------

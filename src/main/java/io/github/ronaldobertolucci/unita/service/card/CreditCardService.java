@@ -169,6 +169,38 @@ public class CreditCardService {
         return toBillDto(bill);
     }
 
+    @Transactional
+    public CreditCardBillDto reopenBill(Long creditCardId, Long billId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateCreditCardOwnership(creditCardId, currentUser.getId());
+
+        CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
+                .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
+
+        if (bill.getStatus() != CreditCardBillStatus.CLOSED) {
+            throw new IllegalStateException("Only closed bills can be reopened");
+        }
+
+        bill.setStatus(CreditCardBillStatus.OPEN);
+        return toBillDto(creditCardBillRepository.save(bill));
+    }
+
+    @Transactional
+    public CreditCardBillDto closeBill(Long creditCardId, Long billId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateCreditCardOwnership(creditCardId, currentUser.getId());
+
+        CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
+                .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
+
+        if (bill.getStatus() != CreditCardBillStatus.OPEN) {
+            throw new IllegalStateException("Only open bills can be closed");
+        }
+
+        bill.setStatus(CreditCardBillStatus.CLOSED);
+        return toBillDto(creditCardBillRepository.save(bill));
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardPurchase
     // -------------------------------------------------------------------------

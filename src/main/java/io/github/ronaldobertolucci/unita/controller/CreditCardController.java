@@ -86,6 +86,22 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.payBill(id, billId, dto, authentication));
     }
 
+    @PutMapping("/{id}/bills/{billId}/reopen")
+    public ResponseEntity<CreditCardBillDto> reopenBill(
+            @PathVariable Long id,
+            @PathVariable Long billId,
+            Authentication authentication) {
+        return ResponseEntity.ok(creditCardService.reopenBill(id, billId, authentication));
+    }
+
+    @PutMapping("/{id}/bills/{billId}/close")
+    public ResponseEntity<CreditCardBillDto> closeBill(
+            @PathVariable Long id,
+            @PathVariable Long billId,
+            Authentication authentication) {
+        return ResponseEntity.ok(creditCardService.closeBill(id, billId, authentication));
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardPurchase
     // -------------------------------------------------------------------------

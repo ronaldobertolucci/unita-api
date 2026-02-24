@@ -260,6 +260,110 @@ class CreditCardServiceTest {
                 () -> creditCardService.payBill(1L, 99L, new CreditCardBillPayDto(3L), authentication));
     }
 
+    @Test
+    void reopenBill_WhenClosed_ShouldChangeStatusToOpen() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.CLOSED);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+        when(creditCardBillRepository.save(bill)).thenReturn(bill);
+        when(creditCardInstallmentRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+        when(creditCardRefundRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+
+        creditCardService.reopenBill(1L, 5L, authentication);
+
+        assertEquals(CreditCardBillStatus.OPEN, bill.getStatus());
+        verify(creditCardBillRepository).save(bill);
+    }
+
+    @Test
+    void reopenBill_WhenNotClosed_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.reopenBill(1L, 5L, authentication));
+        verify(creditCardBillRepository, never()).save(any());
+    }
+
+    @Test
+    void reopenBill_WhenPaid_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.PAID);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.reopenBill(1L, 5L, authentication));
+        verify(creditCardBillRepository, never()).save(any());
+    }
+
+    @Test
+    void reopenBill_WhenBillNotFound_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.reopenBill(1L, 99L, authentication));
+    }
+
+    @Test
+    void closeBill_WhenOpen_ShouldChangeStatusToClosed() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+        when(creditCardBillRepository.save(bill)).thenReturn(bill);
+        when(creditCardInstallmentRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+        when(creditCardRefundRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+
+        creditCardService.closeBill(1L, 5L, authentication);
+
+        assertEquals(CreditCardBillStatus.CLOSED, bill.getStatus());
+        verify(creditCardBillRepository).save(bill);
+    }
+
+    @Test
+    void closeBill_WhenNotOpen_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.CLOSED);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.closeBill(1L, 5L, authentication));
+        verify(creditCardBillRepository, never()).save(any());
+    }
+
+    @Test
+    void closeBill_WhenPaid_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.PAID);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.closeBill(1L, 5L, authentication));
+        verify(creditCardBillRepository, never()).save(any());
+    }
+
+    @Test
+    void closeBill_WhenBillNotFound_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.closeBill(1L, 99L, authentication));
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardInstallment
     // -------------------------------------------------------------------------
