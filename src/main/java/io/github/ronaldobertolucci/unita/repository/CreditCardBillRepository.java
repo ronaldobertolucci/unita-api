@@ -66,4 +66,6 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             @Param("today") LocalDate today,
             @Param("currentStatus") CreditCardBillStatus currentStatus,
             @Param("newStatus") CreditCardBillStatus newStatus);
+
+    boolean existsByIdAndCreditCardId(Long id, Long creditCardId);
 }

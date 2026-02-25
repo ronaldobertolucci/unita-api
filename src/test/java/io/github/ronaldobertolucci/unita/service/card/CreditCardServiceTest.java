@@ -364,6 +364,70 @@ class CreditCardServiceTest {
                 () -> creditCardService.closeBill(1L, 99L, authentication));
     }
 
+    @Test
+    void findBillStatement_WhenValid_ShouldReturnInstallmentsAndRefunds() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+        CreditCardPurchase purchase = buildPurchase(2L, card);
+
+        CreditCardInstallment installment = CreditCardInstallment.builder()
+                .purchase(purchase).installmentNumber(1)
+                .amount(new BigDecimal("100.00")).creditCardBill(bill).build();
+        installment.setId(1L);
+
+        CreditCardRefund refund = CreditCardRefund.builder()
+                .creditCardBill(bill).description("Estorno")
+                .amount(new BigDecimal("50.00")).refundDate(LocalDate.of(2025, 1, 8)).build();
+        refund.setId(1L);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.existsByIdAndCreditCardId(5L, 1L)).thenReturn(true);
+        when(creditCardInstallmentRepository.findAllByBillId(5L)).thenReturn(List.of(installment));
+        when(creditCardRefundRepository.findAllByBillId(5L)).thenReturn(List.of(refund));
+
+        BillStatementDto result = creditCardService.findBillStatement(1L, 5L, authentication);
+
+        assertNotNull(result);
+        assertEquals(1, result.installments().size());
+        assertEquals(1, result.refunds().size());
+        assertEquals("Compra", result.installments().get(0).description());
+        assertEquals("Estorno", result.refunds().get(0).description());
+    }
+
+    @Test
+    void findBillStatement_WhenBillNotFound_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.existsByIdAndCreditCardId(99L, 1L)).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.findBillStatement(1L, 99L, authentication));
+        verifyNoInteractions(creditCardInstallmentRepository);
+        verifyNoInteractions(creditCardRefundRepository);
+    }
+
+    @Test
+    void findBillStatement_WhenCardNotOwned_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.findBillStatement(99L, 1L, authentication));
+        verifyNoInteractions(creditCardBillRepository);
+    }
+
+    @Test
+    void findBillStatement_WhenEmpty_ShouldReturnEmptyLists() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.existsByIdAndCreditCardId(5L, 1L)).thenReturn(true);
+        when(creditCardInstallmentRepository.findAllByBillId(5L)).thenReturn(List.of());
+        when(creditCardRefundRepository.findAllByBillId(5L)).thenReturn(List.of());
+
+        BillStatementDto result = creditCardService.findBillStatement(1L, 5L, authentication);
+
+        assertNotNull(result);
+        assertTrue(result.installments().isEmpty());
+        assertTrue(result.refunds().isEmpty());
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardInstallment
     // -------------------------------------------------------------------------

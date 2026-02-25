@@ -456,6 +456,53 @@ class CreditCardControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void findBillStatement_WhenExists_ShouldReturn200() throws Exception {
+        BillInstallmentDto installmentDto = new BillInstallmentDto(1L, "Supermercado",
+                new BigDecimal("100.00"), LocalDate.of(2025, 1, 5), 1, 3);
+        CreditCardRefundDto refundDto = new CreditCardRefundDto(1L, "Estorno",
+                new BigDecimal("50.00"), LocalDate.of(2025, 1, 8));
+        BillStatementDto statementDto = new BillStatementDto(List.of(installmentDto), List.of(refundDto));
+        when(creditCardService.findBillStatement(eq(1L), eq(1L), any())).thenReturn(statementDto);
+
+        mockMvc.perform(get("/credit-cards/1/bills/1/installments")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.installments.length()").value(1))
+                .andExpect(jsonPath("$.installments[0].description").value("Supermercado"))
+                .andExpect(jsonPath("$.installments[0].installmentNumber").value(1))
+                .andExpect(jsonPath("$.refunds.length()").value(1))
+                .andExpect(jsonPath("$.refunds[0].description").value("Estorno"));
+    }
+
+    @Test
+    void findBillStatement_WhenEmpty_ShouldReturn200WithEmptyLists() throws Exception {
+        BillStatementDto statementDto = new BillStatementDto(List.of(), List.of());
+        when(creditCardService.findBillStatement(eq(1L), eq(1L), any())).thenReturn(statementDto);
+
+        mockMvc.perform(get("/credit-cards/1/bills/1/installments")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.installments.length()").value(0))
+                .andExpect(jsonPath("$.refunds.length()").value(0));
+    }
+
+    @Test
+    void findBillStatement_WhenBillNotFound_ShouldReturn404() throws Exception {
+        when(creditCardService.findBillStatement(eq(1L), eq(99L), any()))
+                .thenThrow(new EntityNotFoundException("Credit card bill not found"));
+
+        mockMvc.perform(get("/credit-cards/1/bills/99/installments")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void findBillStatement_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(get("/credit-cards/1/bills/1/installments"))
+                .andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardPurchase
     // -------------------------------------------------------------------------

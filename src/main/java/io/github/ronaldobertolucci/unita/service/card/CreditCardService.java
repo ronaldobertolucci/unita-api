@@ -201,6 +201,27 @@ public class CreditCardService {
         return toBillDto(creditCardBillRepository.save(bill));
     }
 
+    public BillStatementDto findBillStatement(Long creditCardId, Long billId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateCreditCardOwnership(creditCardId, currentUser.getId());
+
+        if (!creditCardBillRepository.existsByIdAndCreditCardId(billId, creditCardId)) {
+            throw new EntityNotFoundException("Credit card bill not found");
+        }
+
+        List<BillInstallmentDto> installments = creditCardInstallmentRepository.findAllByBillId(billId)
+                .stream()
+                .map(BillInstallmentDto::new)
+                .toList();
+
+        List<CreditCardRefundDto> refunds = creditCardRefundRepository.findAllByBillId(billId)
+                .stream()
+                .map(CreditCardRefundDto::new)
+                .toList();
+
+        return new BillStatementDto(installments, refunds);
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardPurchase
     // -------------------------------------------------------------------------

@@ -102,6 +102,14 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.closeBill(id, billId, authentication));
     }
 
+    @GetMapping("/{id}/bills/{billId}/installments")
+    public ResponseEntity<BillStatementDto> findBillStatement(
+            @PathVariable Long id,
+            @PathVariable Long billId,
+            Authentication authentication) {
+        return ResponseEntity.ok(creditCardService.findBillStatement(id, billId, authentication));
+    }
+
     // -------------------------------------------------------------------------
     // CreditCardPurchase
     // -------------------------------------------------------------------------
