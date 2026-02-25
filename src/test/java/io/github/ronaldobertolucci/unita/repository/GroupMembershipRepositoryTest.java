@@ -260,4 +260,89 @@ class GroupMembershipRepositoryTest extends BaseRepositoryTest {
         );
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    void existsSharedGroup_WhenUsersShareAGroup_ShouldReturnTrue() {
+        // Arrange
+        membershipRepository.save(GroupMembership.builder()
+                .user(user1)
+                .group(group1)
+                .build());
+
+        membershipRepository.save(GroupMembership.builder()
+                .user(user2)
+                .group(group1)
+                .build());
+
+        // Act
+        boolean result = membershipRepository.existsSharedGroup(user1.getId(), user2.getId());
+
+        // Assert
+        assertTrue(result);
+    }
+
+    @Test
+    void existsSharedGroup_WhenUsersDoNotShareAGroup_ShouldReturnFalse() {
+        // Arrange
+        membershipRepository.save(GroupMembership.builder()
+                .user(user1)
+                .group(group1)
+                .build());
+
+        membershipRepository.save(GroupMembership.builder()
+                .user(user2)
+                .group(group2)
+                .build());
+
+        // Act
+        boolean result = membershipRepository.existsSharedGroup(user1.getId(), user2.getId());
+
+        // Assert
+        assertFalse(result);
+    }
+
+    @Test
+    void existsSharedGroup_WhenOneUserHasNoMemberships_ShouldReturnFalse() {
+        // Arrange
+        membershipRepository.save(GroupMembership.builder()
+                .user(user1)
+                .group(group1)
+                .build());
+
+        // Act
+        boolean result = membershipRepository.existsSharedGroup(user1.getId(), user2.getId());
+
+        // Assert
+        assertFalse(result);
+    }
+
+    @Test
+    void existsSharedGroup_WhenUsersShareMultipleGroups_ShouldReturnTrue() {
+        // Arrange
+        membershipRepository.save(GroupMembership.builder()
+                .user(user1)
+                .group(group1)
+                .build());
+
+        membershipRepository.save(GroupMembership.builder()
+                .user(user2)
+                .group(group1)
+                .build());
+
+        membershipRepository.save(GroupMembership.builder()
+                .user(user1)
+                .group(group2)
+                .build());
+
+        membershipRepository.save(GroupMembership.builder()
+                .user(user2)
+                .group(group2)
+                .build());
+
+        // Act
+        boolean result = membershipRepository.existsSharedGroup(user1.getId(), user2.getId());
+
+        // Assert
+        assertTrue(result);
+    }
 }

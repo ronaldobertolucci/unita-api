@@ -36,4 +36,15 @@ public interface GroupMembershipRepository extends JpaRepository<GroupMembership
     long countByGroupId(Long groupId);
 
     void deleteByUserIdAndGroupId(Long userId, Long groupId);
+
+    @Query("""
+        SELECT COUNT(gm1) > 0 FROM GroupMembership gm1
+        WHERE gm1.user.id = :userId1
+        AND EXISTS (
+            SELECT gm2 FROM GroupMembership gm2
+            WHERE gm2.user.id = :userId2
+            AND gm2.group.id = gm1.group.id
+        )
+        """)
+    boolean existsSharedGroup(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 }
