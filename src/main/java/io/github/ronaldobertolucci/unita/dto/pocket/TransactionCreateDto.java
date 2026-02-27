@@ -13,6 +13,6 @@ public record TransactionCreateDto(
         @NotNull @Positive BigDecimal amount,
         @NotNull Direction direction,
         @NotNull LocalDate transactionDate,
-        @NotBlank @Size(max = 255) String description
-) {
-}
+        @NotBlank @Size(max = 255) String description,
+        @NotNull Long categoryId
+) {}

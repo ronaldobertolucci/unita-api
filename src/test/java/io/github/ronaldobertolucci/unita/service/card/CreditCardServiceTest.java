@@ -2,14 +2,12 @@ package io.github.ronaldobertolucci.unita.service.card;
 
 import io.github.ronaldobertolucci.unita.dto.card.*;
 import io.github.ronaldobertolucci.unita.model.card.*;
-import io.github.ronaldobertolucci.unita.model.finance.CardBrand;
-import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
-import io.github.ronaldobertolucci.unita.model.finance.PeriodicityType;
-import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
+import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.pocket.Cash;
 import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
+import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +54,8 @@ class CreditCardServiceTest {
     private TransactionRepository transactionRepository;
     @Mock
     private CreditCardBillResolverService billResolverService;
+    @Mock
+    private CategoryService categoryService;
     @Mock
     private Authentication authentication;
 
@@ -230,6 +230,8 @@ class CreditCardServiceTest {
         when(creditCardBillRepository.save(any())).thenReturn(bill);
         when(creditCardInstallmentRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
         when(creditCardRefundRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+        when(categoryService.findSystemByName("Pagamento de Cartão"))
+                .thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
 
         creditCardService.payBill(1L, 5L, dto, authentication);
 
@@ -461,9 +463,10 @@ class CreditCardServiceTest {
         RecurrencePeriodicity periodicity = buildPeriodicity(1L);
         LocalDate startDate = LocalDate.of(2025, 1, 1);
         RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto(
-                "Netflix", new BigDecimal("49.90"), 1L, startDate, null);
+                "Netflix", new BigDecimal("49.90"), 1L, startDate, null, 1L);
         CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
 
+        when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.EXPENSE));
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
 
@@ -560,11 +563,13 @@ class CreditCardServiceTest {
     void createRefund_WhenBillExists_ShouldPersistAndReturnDto() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
-        CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto("Estorno", new BigDecimal("50"), LocalDate.now());
+        CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto(
+                "Estorno", new BigDecimal("50"), LocalDate.now(), 1L);
         CreditCardRefund saved = CreditCardRefund.builder()
                 .creditCardBill(bill).description("Estorno").amount(new BigDecimal("50")).refundDate(LocalDate.now()).build();
         saved.setId(1L);
 
+        when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
         when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
         when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
         when(creditCardRefundRepository.save(any())).thenReturn(saved);
@@ -647,5 +652,12 @@ class CreditCardServiceTest {
         p.setName("Mensal");
         p.setType(PeriodicityType.MONTHLY);
         return p;
+    }
+
+    private Category buildCategory(Long id, CategoryType type) {
+        Category c = Category.builder()
+                .user(null).name("Categoria").type(type).system(false).build();
+        c.setId(id);
+        return c;
     }
 }

@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.model.pocket;
 
+import io.github.ronaldobertolucci.unita.model.finance.Category;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import jakarta.persistence.*;
 import lombok.*;
@@ -37,4 +38,8 @@ public class Transaction {
 
     @Column(name = "description", nullable = false, length = 255)
     private String description;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 }

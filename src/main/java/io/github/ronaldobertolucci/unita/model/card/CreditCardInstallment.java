@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.model.card;
 
+import io.github.ronaldobertolucci.unita.model.finance.Category;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -32,4 +33,8 @@ public class CreditCardInstallment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_card_bill_id", nullable = false)
     private CreditCardBill creditCardBill;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 }

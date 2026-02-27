@@ -2,6 +2,8 @@ package io.github.ronaldobertolucci.unita.repository;
 
 import io.github.ronaldobertolucci.unita.model.card.*;
 import io.github.ronaldobertolucci.unita.model.finance.CardBrand;
+import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,12 +29,14 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
     @Autowired private CreditCardRepository creditCardRepository;
     @Autowired private LegalEntityRepository legalEntityRepository;
     @Autowired private CardBrandRepository cardBrandRepository;
+    @Autowired private CategoryRepository categoryRepository;
 
     private CreditCard card;
     private CreditCardBill bill;
     private CreditCardBill otherBill;
     private CreditCardPurchase purchase;
     private CreditCardPurchase otherPurchase;
+    private Category category;
 
     @BeforeEach
     void setUp() {
@@ -54,6 +58,12 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
 
         purchase = savePurchase();
         otherPurchase = savePurchase();
+        category = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Categoria Teste")
+                .type(CategoryType.EXPENSE)
+                .system(false)
+                .build());
     }
 
     @Test
@@ -170,6 +180,6 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
 
     private CreditCardInstallment saveInstallment(CreditCardPurchase purchase, int number, BigDecimal amount, CreditCardBill bill) {
         return installmentRepository.save(CreditCardInstallment.builder()
-                .purchase(purchase).installmentNumber(number).amount(amount).creditCardBill(bill).build());
+                .purchase(purchase).installmentNumber(number).amount(amount).creditCardBill(bill).category(category).build());
     }
 }

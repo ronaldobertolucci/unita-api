@@ -2,6 +2,8 @@ package io.github.ronaldobertolucci.unita.service.pocket;
 
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
+import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccount;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccountStatus;
@@ -12,6 +14,7 @@ import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.GroupMembershipRepository;
 import io.github.ronaldobertolucci.unita.repository.PocketRepository;
 import io.github.ronaldobertolucci.unita.repository.TransactionRepository;
+import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +42,8 @@ class TransferServiceTest {
     private GroupMembershipRepository groupMembershipRepository;
     @Mock
     private Authentication authentication;
+    @Mock
+    private CategoryService categoryService;
 
     @InjectMocks
     private TransferService transferService;
@@ -91,6 +96,13 @@ class TransferServiceTest {
         return new TransferCreateDto(sourceId, targetId, amount, "Transferência");
     }
 
+    private Category buildCategory(Long id, CategoryType type) {
+        Category c = Category.builder()
+                .user(null).name("Categoria").type(type).system(false).build();
+        c.setId(id);
+        return c;
+    }
+
     // -------------------------------------------------------------------------
     // Transfer
     // -------------------------------------------------------------------------
@@ -101,6 +113,8 @@ class TransferServiceTest {
         BankAccount target = buildBankAccount(2L, targetUser);
         TransferCreateDto dto = buildDto(1L, 2L, new BigDecimal("200.00"));
 
+        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
+        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(buildCategory(2L, CategoryType.NEUTRAL));
         when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(source));
         when(pocketRepository.findById(2L)).thenReturn(Optional.of(target));
         when(groupMembershipRepository.existsSharedGroup(currentUser.getId(), targetUser.getId())).thenReturn(true);
@@ -119,6 +133,8 @@ class TransferServiceTest {
         Cash target = buildCash(2L, targetUser);
         TransferCreateDto dto = buildDto(1L, 2L, new BigDecimal("100.00"));
 
+        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
+        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(buildCategory(2L, CategoryType.NEUTRAL));
         when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(source));
         when(pocketRepository.findById(2L)).thenReturn(Optional.of(target));
         when(groupMembershipRepository.existsSharedGroup(currentUser.getId(), targetUser.getId())).thenReturn(true);
@@ -137,6 +153,8 @@ class TransferServiceTest {
         Cash target = buildCash(2L, targetUser);
         TransferCreateDto dto = buildDto(1L, 2L, new BigDecimal("150.00"));
 
+        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
+        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(buildCategory(2L, CategoryType.NEUTRAL));
         when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(source));
         when(pocketRepository.findById(2L)).thenReturn(Optional.of(target));
         when(groupMembershipRepository.existsSharedGroup(currentUser.getId(), targetUser.getId())).thenReturn(true);

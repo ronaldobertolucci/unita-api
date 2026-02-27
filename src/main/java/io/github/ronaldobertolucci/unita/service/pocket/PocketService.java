@@ -2,14 +2,11 @@ package io.github.ronaldobertolucci.unita.service.pocket;
 
 import io.github.ronaldobertolucci.unita.dto.pocket.*;
 import io.github.ronaldobertolucci.unita.model.employer.Employer;
-import io.github.ronaldobertolucci.unita.model.finance.BankAccountType;
-import io.github.ronaldobertolucci.unita.model.finance.BenefitType;
-import io.github.ronaldobertolucci.unita.model.finance.Direction;
-import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
-import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
+import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.pocket.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
+import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -36,6 +33,7 @@ public class PocketService {
     private final BenefitTypeRepository benefitTypeRepository;
     private final EmployerRepository employerRepository;
     private final RecurrencePeriodicityRepository recurrencePeriodicityRepository;
+    private final CategoryService categoryService;
 
     // -------------------------------------------------------------------------
     // Pocket (geral)
@@ -251,12 +249,15 @@ public class PocketService {
         Pocket pocket = pocketRepository.findByIdAndUserId(pocketId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Pocket not found"));
 
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+
         Transaction transaction = Transaction.builder()
                 .pocket(pocket)
                 .amount(dto.amount())
                 .direction(dto.direction())
                 .transactionDate(dto.transactionDate())
                 .description(dto.description())
+                .category(category)
                 .build();
 
         return new TransactionDto(transactionRepository.save(transaction));
@@ -302,13 +303,15 @@ public class PocketService {
 
     @Transactional
     public RecurringTransactionDto createRecurringTransaction(Long pocketId, RecurringTransactionCreateDto dto,
-            Authentication authentication) {
+                                                              Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         Pocket pocket = pocketRepository.findByIdAndUserId(pocketId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Pocket not found"));
 
         RecurrencePeriodicity periodicity = recurrencePeriodicityRepository.findById(dto.periodicityId())
                 .orElseThrow(() -> new EntityNotFoundException("Periodicity not found"));
+
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
 
         RecurringTransaction recurringTransaction = RecurringTransaction.builder()
                 .pocket(pocket)
@@ -318,10 +321,10 @@ public class PocketService {
                 .startDate(dto.startDate())
                 .endDate(dto.endDate())
                 .description(dto.description())
+                .category(category)
                 .build();
 
         recurringTransactionRepository.save(recurringTransaction);
-
         generateCurrentTransaction(recurringTransaction, pocket);
 
         return new RecurringTransactionDto(recurringTransaction);
@@ -375,6 +378,7 @@ public class PocketService {
                 .direction(recurringTransaction.getDirection())
                 .transactionDate(recurringTransaction.getStartDate())
                 .description(recurringTransaction.getDescription())
+                .category(recurringTransaction.getCategory())
                 .build();
         transactionRepository.save(transaction);
     }

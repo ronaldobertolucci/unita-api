@@ -11,6 +11,6 @@ import java.time.LocalDate;
 public record CreditCardRefundCreateDto(
         @NotBlank @Size(max = 255) String description,
         @NotNull @Positive BigDecimal amount,
-        @NotNull LocalDate refundDate
-) {
-}
+        @NotNull LocalDate refundDate,
+        @NotNull Long categoryId
+) {}

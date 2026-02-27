@@ -13,6 +13,6 @@ public record RecurringPurchaseCreateDto(
         @NotNull @Positive BigDecimal amount,
         @NotNull Long periodicityId,
         @NotNull LocalDate startDate,
-        LocalDate endDate
-) {
-}
+        LocalDate endDate,
+        @NotNull Long categoryId
+) {}

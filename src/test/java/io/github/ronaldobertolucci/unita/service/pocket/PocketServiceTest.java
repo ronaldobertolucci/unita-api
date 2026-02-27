@@ -6,6 +6,7 @@ import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.pocket.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
+import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,8 @@ class PocketServiceTest {
     private EmployerRepository employerRepository;
     @Mock
     private RecurrencePeriodicityRepository recurrencePeriodicityRepository;
+    @Mock
+    private CategoryService categoryService;
     @Mock
     private Authentication authentication;
 
@@ -221,8 +224,10 @@ class PocketServiceTest {
     void createTransaction_WhenPocketOwned_ShouldPersistAndReturnDto() {
         Cash pocket = buildCash(5L);
         TransactionCreateDto dto = new TransactionCreateDto(
-                new BigDecimal("100.00"), Direction.INCOME, LocalDate.now(), "Salário");
+                new BigDecimal("100.00"), Direction.INCOME, LocalDate.now(), "Salário", 1L);
 
+        when(categoryService.resolveCategory(eq(1L), any()))
+                .thenReturn(buildCategory(1L, CategoryType.INCOME));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
         Transaction saved = Transaction.builder()
                 .pocket(pocket).amount(dto.amount()).direction(dto.direction())
@@ -242,7 +247,7 @@ class PocketServiceTest {
 
         assertThrows(EntityNotFoundException.class,
                 () -> pocketService.createTransaction(99L, new TransactionCreateDto(
-                        BigDecimal.TEN, Direction.INCOME, LocalDate.now(), "Desc"), authentication));
+                        BigDecimal.TEN, Direction.INCOME, LocalDate.now(), "Desc", 1L), authentication));
     }
 
     @Test
@@ -361,8 +366,9 @@ class PocketServiceTest {
         RecurrencePeriodicity periodicity = buildPeriodicity(1L);
         LocalDate startDate = LocalDate.of(2025, 1, 1);
         RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
-                new BigDecimal("200.00"), Direction.EXPENSE, 1L, startDate, null, "Netflix");
+                new BigDecimal("200.00"), Direction.EXPENSE, 1L, startDate, null, "Netflix", 1L);
 
+        when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.EXPENSE));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
         when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
 
@@ -390,7 +396,7 @@ class PocketServiceTest {
 
         assertThrows(EntityNotFoundException.class,
                 () -> pocketService.createRecurringTransaction(5L,
-                        new RecurringTransactionCreateDto(BigDecimal.TEN, Direction.EXPENSE, 99L, LocalDate.now(), null, "Desc"),
+                        new RecurringTransactionCreateDto(BigDecimal.TEN, Direction.EXPENSE, 99L, LocalDate.now(), null, "Desc", 1L),
                         authentication));
     }
 
@@ -504,5 +510,12 @@ class PocketServiceTest {
         p.setName("Mensal");
         p.setType(PeriodicityType.MONTHLY);
         return p;
+    }
+
+    private Category buildCategory(Long id, CategoryType type) {
+        Category c = Category.builder()
+                .user(null).name("Categoria").type(type).system(false).build();
+        c.setId(id);
+        return c;
     }
 }

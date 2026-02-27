@@ -15,6 +15,6 @@ public record RecurringTransactionCreateDto(
         @NotNull Long periodicityId,
         @NotNull LocalDate startDate,
         LocalDate endDate,
-        @NotBlank @Size(max = 255) String description
-) {
-}
+        @NotBlank @Size(max = 255) String description,
+        @NotNull Long categoryId
+) {}

@@ -565,7 +565,7 @@ class PocketControllerTest {
     void createTransaction_WhenDataIsValid_ShouldReturn201() throws Exception {
         TransactionCreateDto dto = new TransactionCreateDto(
                 new BigDecimal("100.00"), Direction.INCOME,
-                LocalDate.of(2025, 1, 10), "Salário");
+                LocalDate.of(2025, 1, 10), "Salário", 1L);
         when(pocketService.createTransaction(eq(1L), any(), any())).thenReturn(transactionDto());
 
         mockMvc.perform(post("/pockets/1/transactions").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
@@ -580,7 +580,7 @@ class PocketControllerTest {
     void createTransaction_WhenUnauthenticated_ShouldReturn403() throws Exception {
         TransactionCreateDto dto = new TransactionCreateDto(
                 new BigDecimal("100.00"), Direction.INCOME,
-                LocalDate.of(2025, 1, 10), "Salário");
+                LocalDate.of(2025, 1, 10), "Salário", 1L);
         when(pocketService.createTransaction(eq(1L), any(), any())).thenReturn(transactionDto());
 
         mockMvc.perform(post("/pockets/1/transactions")
@@ -591,7 +591,7 @@ class PocketControllerTest {
 
     @Test
     void createTransaction_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
-        TransactionCreateDto dto = new TransactionCreateDto(null, null, null, "");
+        TransactionCreateDto dto = new TransactionCreateDto(null, null, null, "", null);
 
         mockMvc.perform(post("/pockets/1/transactions").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -724,7 +724,7 @@ class PocketControllerTest {
     void createRecurringTransaction_WhenDataIsValid_ShouldReturn201() throws Exception {
         RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
                 new BigDecimal("50.00"), Direction.EXPENSE, 1L,
-                LocalDate.of(2025, 1, 1), null, "Academia");
+                LocalDate.of(2025, 1, 1), null, "Academia", 1L);
         when(pocketService.createRecurringTransaction(eq(1L), any(), any()))
                 .thenReturn(recurringTransactionDto());
 
@@ -740,7 +740,7 @@ class PocketControllerTest {
     void createRecurringTransaction_WhenUnauthenticated_ShouldReturn403() throws Exception {
         RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
                 new BigDecimal("50.00"), Direction.EXPENSE, 1L,
-                LocalDate.of(2025, 1, 1), null, "Academia");
+                LocalDate.of(2025, 1, 1), null, "Academia", 1L);
         when(pocketService.createRecurringTransaction(eq(1L), any(), any()))
                 .thenReturn(recurringTransactionDto());
 
@@ -753,7 +753,7 @@ class PocketControllerTest {
     @Test
     void createRecurringTransaction_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
         RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
-                null, null, null, null, null, "");
+                null, null, null, null, null, "", null);
 
         mockMvc.perform(post("/pockets/1/recurring").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)

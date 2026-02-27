@@ -593,7 +593,7 @@ class CreditCardControllerTest {
     @Test
     void createInstallment_WhenDataIsValid_ShouldReturn201() throws Exception {
         CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(
-                1, new BigDecimal("300.00"));
+                1, new BigDecimal("300.00"), 1L);
         when(creditCardService.createInstallment(eq(1L), eq(1L), any(), any()))
                 .thenReturn(installmentDto());
 
@@ -608,7 +608,7 @@ class CreditCardControllerTest {
     @Test
     void createInstallment_WhenUnauthenticated_ShouldReturn403() throws Exception {
         CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(
-                1, new BigDecimal("300.00"));
+                1, new BigDecimal("300.00"), 1L);
         when(creditCardService.createInstallment(eq(1L), eq(1L), any(), any()))
                 .thenReturn(installmentDto());
 
@@ -620,7 +620,7 @@ class CreditCardControllerTest {
 
     @Test
     void createInstallment_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
-        CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(null, null);
+        CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(null, null, null);
 
         mockMvc.perform(post("/credit-cards/1/purchases/1/installments").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -733,7 +733,7 @@ class CreditCardControllerTest {
     @Test
     void createRefund_WhenDataIsValid_ShouldReturn201() throws Exception {
         CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto(
-                "Estorno", new BigDecimal("50.00"), LocalDate.of(2025, 1, 8));
+                "Estorno", new BigDecimal("50.00"), LocalDate.of(2025, 1, 8), 1L);
         when(creditCardService.createRefund(eq(1L), eq(1L), any(), any()))
                 .thenReturn(refundDto());
 
@@ -748,7 +748,7 @@ class CreditCardControllerTest {
     @Test
     void createRefund_WhenUnauthenticated_ShouldReturn403() throws Exception {
         CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto(
-                "Estorno", new BigDecimal("50.00"), LocalDate.of(2025, 1, 8));
+                "Estorno", new BigDecimal("50.00"), LocalDate.of(2025, 1, 8), 1L);
         when(creditCardService.createRefund(eq(1L), eq(1L), any(), any()))
                 .thenReturn(refundDto());
 
@@ -760,7 +760,7 @@ class CreditCardControllerTest {
 
     @Test
     void createRefund_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
-        CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto("", null, null);
+        CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto("", null, null, null);
 
         mockMvc.perform(post("/credit-cards/1/bills/1/refunds").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -820,7 +820,7 @@ class CreditCardControllerTest {
     @Test
     void createRecurringPurchase_WhenDataIsValid_ShouldReturn201() throws Exception {
         RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto(
-                "Streaming", new BigDecimal("49.90"), 1L, LocalDate.of(2025, 1, 1), null);
+                "Streaming", new BigDecimal("49.90"), 1L, LocalDate.of(2025, 1, 1), null, 1L);
         when(creditCardService.createRecurringPurchase(eq(1L), any(), any()))
                 .thenReturn(recurringPurchaseDto());
 
@@ -835,7 +835,7 @@ class CreditCardControllerTest {
     @Test
     void createRecurringPurchase_WhenUnauthenticated_ShouldReturn403() throws Exception {
         RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto(
-                "Streaming", new BigDecimal("49.90"), 1L, LocalDate.of(2025, 1, 1), null);
+                "Streaming", new BigDecimal("49.90"), 1L, LocalDate.of(2025, 1, 1), null, 1L);
         when(creditCardService.createRecurringPurchase(eq(1L), any(), any()))
                 .thenReturn(recurringPurchaseDto());
 
@@ -847,7 +847,7 @@ class CreditCardControllerTest {
 
     @Test
     void createRecurringPurchase_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
-        RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto("", null, null, null, null);
+        RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto("", null, null, null, null, null);
 
         mockMvc.perform(post("/credit-cards/1/recurring").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)

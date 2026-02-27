@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.service.pocket;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransactionDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
+import io.github.ronaldobertolucci.unita.model.finance.Category;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccount;
 import io.github.ronaldobertolucci.unita.model.pocket.Cash;
@@ -12,6 +13,7 @@ import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.GroupMembershipRepository;
 import io.github.ronaldobertolucci.unita.repository.PocketRepository;
 import io.github.ronaldobertolucci.unita.repository.TransactionRepository;
+import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -28,6 +30,7 @@ public class TransferService {
     private final PocketRepository pocketRepository;
     private final TransactionRepository transactionRepository;
     private final GroupMembershipRepository groupMembershipRepository;
+    private final CategoryService categoryService;
 
     @Transactional
     public TransferDto transfer(TransferCreateDto dto, Authentication authentication) {
@@ -62,12 +65,16 @@ public class TransferService {
 
         LocalDate today = LocalDate.now();
 
+        Category sentCategory = categoryService.findSystemByName("Transferência Enviada");
+        Category receivedCategory = categoryService.findSystemByName("Transferência Recebida");
+
         Transaction sourceTransaction = Transaction.builder()
                 .pocket(source)
                 .amount(dto.amount())
                 .direction(Direction.EXPENSE)
                 .transactionDate(today)
                 .description(dto.description())
+                .category(sentCategory)
                 .build();
 
         Transaction targetTransaction = Transaction.builder()
@@ -76,6 +83,7 @@ public class TransferService {
                 .direction(Direction.INCOME)
                 .transactionDate(today)
                 .description(dto.description())
+                .category(receivedCategory)
                 .build();
 
         return new TransferDto(

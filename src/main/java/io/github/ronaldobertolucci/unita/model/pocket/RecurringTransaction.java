@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.model.pocket;
 
+import io.github.ronaldobertolucci.unita.model.finance.Category;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
 import jakarta.persistence.*;
@@ -48,4 +49,8 @@ public class RecurringTransaction {
 
     @Column(name = "last_generated_date")
     private LocalDate lastGeneratedDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 }

@@ -2,14 +2,12 @@ package io.github.ronaldobertolucci.unita.service.card;
 
 import io.github.ronaldobertolucci.unita.dto.card.*;
 import io.github.ronaldobertolucci.unita.model.card.*;
-import io.github.ronaldobertolucci.unita.model.finance.CardBrand;
-import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
-import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
+import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.pocket.Pocket;
 import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
-import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
+import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -36,6 +34,7 @@ public class CreditCardService {
     private final RecurrencePeriodicityRepository recurrencePeriodicityRepository;
     private final TransactionRepository transactionRepository;
     private final CreditCardBillResolverService billResolverService;
+    private final CategoryService categoryService;
 
     // -------------------------------------------------------------------------
     // CreditCard
@@ -150,6 +149,8 @@ public class CreditCardService {
         BigDecimal totalRefunds = creditCardRefundRepository.sumAmountByBillId(billId);
         BigDecimal totalAmount = totalInstallments.subtract(totalRefunds);
 
+        Category paymentCategory = categoryService.findSystemByName("Pagamento de Cartão");
+
         Transaction transaction = Transaction.builder()
                 .pocket(pocket)
                 .amount(totalAmount)
@@ -158,6 +159,7 @@ public class CreditCardService {
                 .description("Pagamento fatura - " + bill.getCreditCard().getLegalEntity().getCorporateName()
                         + " ..." + bill.getCreditCard().getLastFourDigits()
                         + " (" + bill.getDueDate() + ")")
+                .category(paymentCategory)
                 .build();
 
         transactionRepository.save(transaction);
@@ -280,6 +282,8 @@ public class CreditCardService {
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
 
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+
         CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, purchase.getPurchaseDate());
 
         CreditCardInstallment installment = CreditCardInstallment.builder()
@@ -287,6 +291,7 @@ public class CreditCardService {
                 .installmentNumber(dto.installmentNumber())
                 .amount(dto.amount())
                 .creditCardBill(bill)
+                .category(category)
                 .build();
 
         return new CreditCardInstallmentDto(creditCardInstallmentRepository.save(installment));
@@ -358,11 +363,14 @@ public class CreditCardService {
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
 
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+
         CreditCardRefund refund = CreditCardRefund.builder()
                 .creditCardBill(bill)
                 .description(dto.description())
                 .amount(dto.amount())
                 .refundDate(dto.refundDate())
+                .category(category)
                 .build();
 
         return new CreditCardRefundDto(creditCardRefundRepository.save(refund));
@@ -409,6 +417,8 @@ public class CreditCardService {
         RecurrencePeriodicity periodicity = recurrencePeriodicityRepository.findById(dto.periodicityId())
                 .orElseThrow(() -> new EntityNotFoundException("Periodicity not found"));
 
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+
         RecurringPurchase recurringPurchase = RecurringPurchase.builder()
                 .creditCard(creditCard)
                 .description(dto.description())
@@ -416,6 +426,7 @@ public class CreditCardService {
                 .periodicity(periodicity)
                 .startDate(dto.startDate())
                 .endDate(dto.endDate())
+                .category(category)
                 .build();
 
         recurringPurchaseRepository.save(recurringPurchase);
@@ -496,6 +507,7 @@ public class CreditCardService {
                 .installmentNumber(1)
                 .amount(recurringPurchase.getAmount())
                 .creditCardBill(bill)
+                .category(recurringPurchase.getCategory())
                 .build();
 
         creditCardInstallmentRepository.save(installment);

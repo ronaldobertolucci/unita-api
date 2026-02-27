@@ -2,9 +2,7 @@ package io.github.ronaldobertolucci.unita.repository;
 
 import io.github.ronaldobertolucci.unita.model.card.CreditCard;
 import io.github.ronaldobertolucci.unita.model.card.RecurringPurchase;
-import io.github.ronaldobertolucci.unita.model.finance.CardBrand;
-import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
-import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
+import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,10 +26,12 @@ class RecurringPurchaseRepositoryTest extends BaseRepositoryTest {
     @Autowired private LegalEntityRepository legalEntityRepository;
     @Autowired private CardBrandRepository cardBrandRepository;
     @Autowired private RecurrencePeriodicityRepository periodicityRepository;
+    @Autowired private CategoryRepository categoryRepository;
 
     private CreditCard card;
     private CreditCard otherCard;
     private RecurrencePeriodicity periodicity;
+    private Category category;
 
     @BeforeEach
     void setUp() {
@@ -55,6 +55,13 @@ class RecurringPurchaseRepositoryTest extends BaseRepositoryTest {
         periodicity = periodicityRepository.findAll().stream()
                 .filter(p -> p.getName().equals("Mensal"))
                 .findFirst().orElseThrow();
+
+        category = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Categoria Teste")
+                .type(CategoryType.EXPENSE)
+                .system(false)
+                .build());
     }
 
     @Test
@@ -131,6 +138,6 @@ class RecurringPurchaseRepositoryTest extends BaseRepositoryTest {
     private RecurringPurchase saveRecurring(CreditCard card, LocalDate startDate, LocalDate endDate) {
         return recurringPurchaseRepository.save(RecurringPurchase.builder()
                 .creditCard(card).description("Assinatura").amount(new BigDecimal("49.90"))
-                .periodicity(periodicity).startDate(startDate).endDate(endDate).build());
+                .periodicity(periodicity).startDate(startDate).endDate(endDate).category(category).build());
     }
 }

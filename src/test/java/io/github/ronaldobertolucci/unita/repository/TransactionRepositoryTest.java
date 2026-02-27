@@ -1,5 +1,7 @@
 package io.github.ronaldobertolucci.unita.repository;
 
+import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.pocket.Cash;
 import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
@@ -26,9 +28,12 @@ class TransactionRepositoryTest extends BaseRepositoryTest {
     private TransactionRepository transactionRepository;
     @Autowired
     private CashRepository cashRepository;
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     private Cash pocket;
     private Cash otherPocket;
+    private Category category;
 
     @BeforeEach
     void setUp() {
@@ -42,6 +47,13 @@ class TransactionRepositoryTest extends BaseRepositoryTest {
         Cash otherCash = new Cash();
         otherCash.setUser(other);
         otherPocket = cashRepository.save(otherCash);
+
+        category = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Categoria Teste")
+                .type(CategoryType.EXPENSE)
+                .system(false)
+                .build());
     }
 
     @Test
@@ -163,6 +175,7 @@ class TransactionRepositoryTest extends BaseRepositoryTest {
                 .amount(amount)
                 .direction(direction)
                 .transactionDate(date)
+                .category(category)
                 .description("Transação teste")
                 .build());
     }

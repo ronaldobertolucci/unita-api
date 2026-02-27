@@ -2,6 +2,8 @@ package io.github.ronaldobertolucci.unita.repository;
 
 import io.github.ronaldobertolucci.unita.model.card.*;
 import io.github.ronaldobertolucci.unita.model.finance.CardBrand;
+import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,9 +28,11 @@ class CreditCardRefundRepositoryTest extends BaseRepositoryTest {
     @Autowired private CreditCardRepository creditCardRepository;
     @Autowired private LegalEntityRepository legalEntityRepository;
     @Autowired private CardBrandRepository cardBrandRepository;
+    @Autowired private CategoryRepository categoryRepository;
 
     private CreditCardBill bill;
     private CreditCardBill otherBill;
+    private Category category;
 
     @BeforeEach
     void setUp() {
@@ -51,6 +55,13 @@ class CreditCardRefundRepositoryTest extends BaseRepositoryTest {
         otherBill = billRepository.save(CreditCardBill.builder()
                 .creditCard(card).closingDate(LocalDate.of(2024, 2, 10))
                 .dueDate(LocalDate.of(2024, 3, 10)).status(CreditCardBillStatus.OPEN).build());
+
+        category = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Categoria Teste")
+                .type(CategoryType.EXPENSE)
+                .system(false)
+                .build());
     }
 
     @Test
@@ -124,6 +135,6 @@ class CreditCardRefundRepositoryTest extends BaseRepositoryTest {
     private CreditCardRefund saveRefund(CreditCardBill bill, BigDecimal amount, LocalDate date) {
         return refundRepository.save(CreditCardRefund.builder()
                 .creditCardBill(bill).description("Estorno teste")
-                .amount(amount).refundDate(date).build());
+                .amount(amount).refundDate(date).category(category).build());
     }
 }

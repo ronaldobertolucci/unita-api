@@ -1,5 +1,7 @@
 package io.github.ronaldobertolucci.unita.repository;
 
+import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.finance.RecurrencePeriodicity;
 import io.github.ronaldobertolucci.unita.model.pocket.Cash;
@@ -25,10 +27,12 @@ class RecurringTransactionRepositoryTest extends BaseRepositoryTest {
     @Autowired private RecurringTransactionRepository recurringTransactionRepository;
     @Autowired private CashRepository cashRepository;
     @Autowired private RecurrencePeriodicityRepository periodicityRepository;
+    @Autowired private CategoryRepository categoryRepository;
 
     private Cash pocket;
     private Cash otherPocket;
     private RecurrencePeriodicity periodicity;
+    private Category category;
 
     @BeforeEach
     void setUp() {
@@ -47,6 +51,13 @@ class RecurringTransactionRepositoryTest extends BaseRepositoryTest {
                 .filter(p -> p.getName().equals("Mensal"))
                 .findFirst()
                 .orElseThrow();
+
+        category = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Categoria Teste")
+                .type(CategoryType.EXPENSE)
+                .system(false)
+                .build());
     }
 
     @Test
@@ -129,6 +140,7 @@ class RecurringTransactionRepositoryTest extends BaseRepositoryTest {
                 .periodicity(periodicity)
                 .startDate(startDate)
                 .endDate(endDate)
+                .category(category)
                 .build());
     }
 }
