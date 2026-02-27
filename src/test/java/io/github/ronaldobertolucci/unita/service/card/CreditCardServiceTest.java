@@ -372,14 +372,22 @@ class CreditCardServiceTest {
         CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
         CreditCardPurchase purchase = buildPurchase(2L, card);
 
+        Category expense = buildCategory(1L, CategoryType.EXPENSE);
         CreditCardInstallment installment = CreditCardInstallment.builder()
+                .category(expense)
                 .purchase(purchase).installmentNumber(1)
                 .amount(new BigDecimal("100.00")).creditCardBill(bill).build();
         installment.setId(1L);
 
+        Category income = buildCategory(1L, CategoryType.INCOME);
         CreditCardRefund refund = CreditCardRefund.builder()
-                .creditCardBill(bill).description("Estorno")
-                .amount(new BigDecimal("50.00")).refundDate(LocalDate.of(2025, 1, 8)).build();
+                .creditCardBill(bill)
+                .description("Estorno")
+                .amount(new BigDecimal("50"))
+                .refundDate(LocalDate.now())
+                .category(income)
+                .build();
+
         refund.setId(1L);
 
         when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
@@ -565,8 +573,16 @@ class CreditCardServiceTest {
         CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
         CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto(
                 "Estorno", new BigDecimal("50"), LocalDate.now(), 1L);
+
+        Category category = buildCategory(1L, CategoryType.NEUTRAL);
         CreditCardRefund saved = CreditCardRefund.builder()
-                .creditCardBill(bill).description("Estorno").amount(new BigDecimal("50")).refundDate(LocalDate.now()).build();
+                .creditCardBill(bill)
+                .description("Estorno")
+                .amount(new BigDecimal("50"))
+                .refundDate(LocalDate.now())
+                .category(category)
+                .build();
+
         saved.setId(1L);
 
         when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));

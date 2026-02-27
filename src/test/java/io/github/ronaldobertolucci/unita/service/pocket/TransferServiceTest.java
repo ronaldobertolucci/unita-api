@@ -4,6 +4,7 @@ import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
 import io.github.ronaldobertolucci.unita.model.finance.Category;
 import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
+import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccount;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccountStatus;
@@ -25,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -113,13 +115,38 @@ class TransferServiceTest {
         BankAccount target = buildBankAccount(2L, targetUser);
         TransferCreateDto dto = buildDto(1L, 2L, new BigDecimal("200.00"));
 
-        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
-        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(buildCategory(2L, CategoryType.NEUTRAL));
+        Category sentCategory = buildCategory(1L, CategoryType.NEUTRAL);
+        Category receivedCategory = buildCategory(2L, CategoryType.NEUTRAL);
+
+        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(sentCategory);
+        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(receivedCategory);
+
+        Transaction sourceTransaction = Transaction.builder()
+                .pocket(source)
+                .amount(dto.amount())
+                .direction(Direction.EXPENSE)
+                .transactionDate(LocalDate.now())
+                .description(dto.description())
+                .category(sentCategory)
+                .build();
+
+        Transaction targetTransaction = Transaction.builder()
+                .pocket(target)
+                .amount(dto.amount())
+                .direction(Direction.INCOME)
+                .transactionDate(LocalDate.now())
+                .description(dto.description())
+                .category(receivedCategory)
+                .build();
+
+        when(transactionRepository.save(any()))
+                .thenReturn(sourceTransaction)
+                .thenReturn(targetTransaction);
+
         when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(source));
         when(pocketRepository.findById(2L)).thenReturn(Optional.of(target));
         when(groupMembershipRepository.existsSharedGroup(currentUser.getId(), targetUser.getId())).thenReturn(true);
         when(transactionRepository.calculateBalanceByPocketId(1L)).thenReturn(new BigDecimal("500.00"));
-        when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
 
         TransferDto result = transferService.transfer(dto, authentication);
 
@@ -133,13 +160,38 @@ class TransferServiceTest {
         Cash target = buildCash(2L, targetUser);
         TransferCreateDto dto = buildDto(1L, 2L, new BigDecimal("100.00"));
 
-        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
-        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(buildCategory(2L, CategoryType.NEUTRAL));
+        Category sentCategory = buildCategory(1L, CategoryType.NEUTRAL);
+        Category receivedCategory = buildCategory(2L, CategoryType.NEUTRAL);
+
+        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(sentCategory);
+        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(receivedCategory);
+
+        Transaction sourceTransaction = Transaction.builder()
+                .pocket(source)
+                .amount(dto.amount())
+                .direction(Direction.EXPENSE)
+                .transactionDate(LocalDate.now())
+                .description(dto.description())
+                .category(sentCategory)
+                .build();
+
+        Transaction targetTransaction = Transaction.builder()
+                .pocket(target)
+                .amount(dto.amount())
+                .direction(Direction.INCOME)
+                .transactionDate(LocalDate.now())
+                .description(dto.description())
+                .category(receivedCategory)
+                .build();
+
+        when(transactionRepository.save(any()))
+                .thenReturn(sourceTransaction)
+                .thenReturn(targetTransaction);
+
         when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(source));
         when(pocketRepository.findById(2L)).thenReturn(Optional.of(target));
         when(groupMembershipRepository.existsSharedGroup(currentUser.getId(), targetUser.getId())).thenReturn(true);
         when(transactionRepository.calculateBalanceByPocketId(1L)).thenReturn(new BigDecimal("500.00"));
-        when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
 
         TransferDto result = transferService.transfer(dto, authentication);
 
@@ -153,13 +205,38 @@ class TransferServiceTest {
         Cash target = buildCash(2L, targetUser);
         TransferCreateDto dto = buildDto(1L, 2L, new BigDecimal("150.00"));
 
-        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
-        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(buildCategory(2L, CategoryType.NEUTRAL));
+        Category sentCategory = buildCategory(1L, CategoryType.NEUTRAL);
+        Category receivedCategory = buildCategory(2L, CategoryType.NEUTRAL);
+
+        when(categoryService.findSystemByName("Transferência Enviada")).thenReturn(sentCategory);
+        when(categoryService.findSystemByName("Transferência Recebida")).thenReturn(receivedCategory);
+
+        Transaction sourceTransaction = Transaction.builder()
+                .pocket(source)
+                .amount(dto.amount())
+                .direction(Direction.EXPENSE)
+                .transactionDate(LocalDate.now())
+                .description(dto.description())
+                .category(sentCategory)
+                .build();
+
+        Transaction targetTransaction = Transaction.builder()
+                .pocket(target)
+                .amount(dto.amount())
+                .direction(Direction.INCOME)
+                .transactionDate(LocalDate.now())
+                .description(dto.description())
+                .category(receivedCategory)
+                .build();
+
+        when(transactionRepository.save(any()))
+                .thenReturn(sourceTransaction)
+                .thenReturn(targetTransaction);
+
         when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(source));
         when(pocketRepository.findById(2L)).thenReturn(Optional.of(target));
         when(groupMembershipRepository.existsSharedGroup(currentUser.getId(), targetUser.getId())).thenReturn(true);
         when(transactionRepository.calculateBalanceByPocketId(1L)).thenReturn(new BigDecimal("500.00"));
-        when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
 
         TransferDto result = transferService.transfer(dto, authentication);
 

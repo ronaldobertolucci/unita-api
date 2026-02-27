@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.dto.card;
 
+import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.model.card.CreditCardInstallment;
 
 import java.math.BigDecimal;
@@ -10,7 +11,8 @@ public record CreditCardInstallmentDto(
         Integer installmentNumber,
         BigDecimal amount,
         Long creditCardBillId,
-        LocalDate billDueDate
+        LocalDate billDueDate,
+        CategoryDto category
 ) {
     public CreditCardInstallmentDto(CreditCardInstallment installment) {
         this(
@@ -18,7 +20,8 @@ public record CreditCardInstallmentDto(
                 installment.getInstallmentNumber(),
                 installment.getAmount(),
                 installment.getCreditCardBill().getId(),
-                installment.getCreditCardBill().getDueDate()
+                installment.getCreditCardBill().getDueDate(),
+                new CategoryDto(installment.getCategory())
         );
     }
 }

@@ -3,9 +3,11 @@ package io.github.ronaldobertolucci.unita.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ronaldobertolucci.unita.config.TestConfig;
 import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
+import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransactionDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
 import io.github.ronaldobertolucci.unita.service.pocket.TransferService;
@@ -51,11 +53,15 @@ class TransferControllerTest {
     // Helpers
     // -------------------------------------------------------------------------
 
+    private CategoryDto categoryDto() {
+        return new CategoryDto(1L, "Transferência", CategoryType.NEUTRAL, true);
+    }
+
     private TransferDto transferDto() {
         TransactionDto source = new TransactionDto(1L, new BigDecimal("200.00"),
-                Direction.EXPENSE, LocalDate.now(), "Transferência");
+                Direction.EXPENSE, LocalDate.now(), "Transferência", categoryDto());
         TransactionDto target = new TransactionDto(2L, new BigDecimal("200.00"),
-                Direction.INCOME, LocalDate.now(), "Transferência");
+                Direction.INCOME, LocalDate.now(), "Transferência", categoryDto());
         return new TransferDto(source, target);
     }
 

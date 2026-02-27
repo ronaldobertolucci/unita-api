@@ -3,7 +3,9 @@ package io.github.ronaldobertolucci.unita.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ronaldobertolucci.unita.config.TestConfig;
 import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
+import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.*;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccountStatus;
 import io.github.ronaldobertolucci.unita.model.pocket.BenefitAccountStatus;
@@ -77,9 +79,13 @@ class PocketControllerTest {
         return new CashDto(1L, new BigDecimal("250.00"));
     }
 
+    private CategoryDto categoryDto() {
+        return new CategoryDto(1L, "Salário", CategoryType.INCOME, true);
+    }
+
     private TransactionDto transactionDto() {
         return new TransactionDto(1L, new BigDecimal("100.00"), Direction.INCOME,
-                LocalDate.of(2025, 1, 10), "Salário");
+                LocalDate.of(2025, 1, 10), "Salário", categoryDto());
     }
 
     private RecurringTransactionDto recurringTransactionDto() {

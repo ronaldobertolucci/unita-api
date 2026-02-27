@@ -229,9 +229,13 @@ class PocketServiceTest {
         when(categoryService.resolveCategory(eq(1L), any()))
                 .thenReturn(buildCategory(1L, CategoryType.INCOME));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
+
+        Category neutral = buildCategory(1L, CategoryType.NEUTRAL);
         Transaction saved = Transaction.builder()
+                .category(neutral)
                 .pocket(pocket).amount(dto.amount()).direction(dto.direction())
                 .transactionDate(dto.transactionDate()).description(dto.description()).build();
+
         saved.setId(1L);
         when(transactionRepository.save(any())).thenReturn(saved);
 
@@ -300,7 +304,10 @@ class PocketServiceTest {
     @Test
     void findTransactions_WithoutDates_ShouldReturnAll() {
         Cash pocket = buildCash(5L);
+
+        Category neutral = buildCategory(1L, CategoryType.NEUTRAL);
         Transaction tx = Transaction.builder()
+                .category(neutral)
                 .pocket(pocket).amount(new BigDecimal("100.00")).direction(Direction.INCOME)
                 .transactionDate(LocalDate.of(2025, 1, 10)).description("Salário").build();
         tx.setId(1L);
@@ -321,7 +328,10 @@ class PocketServiceTest {
         LocalDate start = LocalDate.of(2025, 1, 1);
         LocalDate end = LocalDate.of(2025, 1, 31);
         Cash pocket = buildCash(5L);
+
+        Category neutral = buildCategory(1L, CategoryType.NEUTRAL);
         Transaction tx = Transaction.builder()
+                .category(neutral)
                 .pocket(pocket).amount(new BigDecimal("100.00")).direction(Direction.INCOME)
                 .transactionDate(LocalDate.of(2025, 1, 10)).description("Salário").build();
         tx.setId(1L);

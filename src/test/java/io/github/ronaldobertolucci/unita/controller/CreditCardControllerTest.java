@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ronaldobertolucci.unita.config.TestConfig;
 import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
 import io.github.ronaldobertolucci.unita.dto.card.*;
+import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.model.card.CreditCardBillStatus;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
 import io.github.ronaldobertolucci.unita.service.card.CreditCardService;
 import io.github.ronaldobertolucci.unita.service.security.TokenService;
@@ -66,14 +68,18 @@ class CreditCardControllerTest {
                 new BigDecimal("300.00"), LocalDate.of(2025, 1, 5), 1);
     }
 
+    private CategoryDto categoryDto() {
+        return new CategoryDto(1L, "Alimentação", CategoryType.EXPENSE, true);
+    }
+
     private CreditCardInstallmentDto installmentDto() {
         return new CreditCardInstallmentDto(1L, 1, new BigDecimal("300.00"),
-                1L, LocalDate.of(2025, 2, 5));
+                1L, LocalDate.of(2025, 2, 5), categoryDto());
     }
 
     private CreditCardRefundDto refundDto() {
         return new CreditCardRefundDto(1L, "Estorno",
-                new BigDecimal("50.00"), LocalDate.of(2025, 1, 8));
+                new BigDecimal("50.00"), LocalDate.of(2025, 1, 8), categoryDto());
     }
 
     private RecurringPurchaseDto recurringPurchaseDto() {
@@ -459,9 +465,9 @@ class CreditCardControllerTest {
     @Test
     void findBillStatement_WhenExists_ShouldReturn200() throws Exception {
         BillInstallmentDto installmentDto = new BillInstallmentDto(1L, "Supermercado",
-                new BigDecimal("100.00"), LocalDate.of(2025, 1, 5), 1, 3);
+                new BigDecimal("100.00"), LocalDate.of(2025, 1, 5), 1, 3, categoryDto());
         CreditCardRefundDto refundDto = new CreditCardRefundDto(1L, "Estorno",
-                new BigDecimal("50.00"), LocalDate.of(2025, 1, 8));
+                new BigDecimal("50.00"), LocalDate.of(2025, 1, 8), categoryDto());
         BillStatementDto statementDto = new BillStatementDto(List.of(installmentDto), List.of(refundDto));
         when(creditCardService.findBillStatement(eq(1L), eq(1L), any())).thenReturn(statementDto);
 
@@ -652,7 +658,7 @@ class CreditCardControllerTest {
         CreditCardInstallmentUpdateDto dto = new CreditCardInstallmentUpdateDto(
                 new BigDecimal("300.00"), 2L);
         CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1,
-                new BigDecimal("300.00"), 2L, LocalDate.of(2025, 3, 5));
+                new BigDecimal("300.00"), 2L, LocalDate.of(2025, 3, 5), categoryDto());
         when(creditCardService.updateInstallment(eq(1L), eq(1L), eq(1L), any(), any()))
                 .thenReturn(updated);
 
@@ -668,7 +674,7 @@ class CreditCardControllerTest {
         CreditCardInstallmentUpdateDto dto = new CreditCardInstallmentUpdateDto(
                 new BigDecimal("300.00"), 2L);
         CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1,
-                new BigDecimal("300.00"), 2L, LocalDate.of(2025, 3, 5));
+                new BigDecimal("300.00"), 2L, LocalDate.of(2025, 3, 5), categoryDto());
         when(creditCardService.updateInstallment(eq(1L), eq(1L), eq(1L), any(), any()))
                 .thenReturn(updated);
 

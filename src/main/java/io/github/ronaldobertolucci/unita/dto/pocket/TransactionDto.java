@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.dto.pocket;
 
+import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
 
@@ -11,7 +12,8 @@ public record TransactionDto(
         BigDecimal amount,
         Direction direction,
         LocalDate transactionDate,
-        String description
+        String description,
+        CategoryDto category
 ) {
     public TransactionDto(Transaction transaction) {
         this(
@@ -19,7 +21,8 @@ public record TransactionDto(
                 transaction.getAmount(),
                 transaction.getDirection(),
                 transaction.getTransactionDate(),
-                transaction.getDescription()
+                transaction.getDescription(),
+                new CategoryDto(transaction.getCategory())
         );
     }
 }
