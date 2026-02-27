@@ -226,7 +226,7 @@ class PocketServiceTest {
         TransactionCreateDto dto = new TransactionCreateDto(
                 new BigDecimal("100.00"), Direction.INCOME, LocalDate.now(), "Salário", 1L);
 
-        when(categoryService.resolveCategory(eq(1L), any()))
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
                 .thenReturn(buildCategory(1L, CategoryType.INCOME));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
 
@@ -243,6 +243,21 @@ class PocketServiceTest {
 
         assertNotNull(result);
         verify(transactionRepository).save(any(Transaction.class));
+    }
+
+    @Test
+    void createTransaction_WhenCategoryTypeIncompatible_ShouldThrow() {
+        when(authentication.getPrincipal()).thenReturn(currentUser);
+        Pocket pocket = buildCash(1L);
+        when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(pocket));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenThrow(new IllegalArgumentException("Category type INCOME is not allowed in this context"));
+
+        TransactionCreateDto dto = new TransactionCreateDto(
+                new BigDecimal("100.00"), Direction.EXPENSE, LocalDate.now(), "Compra", 1L);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> pocketService.createTransaction(1L, dto, authentication));
     }
 
     @Test
@@ -378,7 +393,8 @@ class PocketServiceTest {
         RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
                 new BigDecimal("200.00"), Direction.EXPENSE, 1L, startDate, null, "Netflix", 1L);
 
-        when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.EXPENSE));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
         when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
 
@@ -396,6 +412,22 @@ class PocketServiceTest {
         verify(recurringTransactionRepository).save(any(RecurringTransaction.class));
         verify(transactionRepository).save(any(Transaction.class));
         assertEquals(startDate, transactionCaptor.getValue().getTransactionDate());
+    }
+
+    @Test
+    void createRecurringTransaction_WhenCategoryTypeIncompatible_ShouldThrow() {
+        when(authentication.getPrincipal()).thenReturn(currentUser);
+        Pocket pocket = buildCash(1L);
+        when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(pocket));
+        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(buildPeriodicity(1L)));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenThrow(new IllegalArgumentException("Category type EXPENSE is not allowed in this context"));
+
+        RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
+                new BigDecimal("200.00"), Direction.INCOME, 1L, LocalDate.now(), null, "Salário", 1L);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> pocketService.createRecurringTransaction(1L, dto, authentication));
     }
 
     @Test

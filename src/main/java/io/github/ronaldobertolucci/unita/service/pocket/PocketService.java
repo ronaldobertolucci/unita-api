@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -249,7 +251,10 @@ public class PocketService {
         Pocket pocket = pocketRepository.findByIdAndUserId(pocketId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Pocket not found"));
 
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+        Set<CategoryType> allowed = dto.direction() == Direction.INCOME
+                ? EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL)
+                : EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL);
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser, allowed);
 
         Transaction transaction = Transaction.builder()
                 .pocket(pocket)
@@ -311,7 +316,10 @@ public class PocketService {
         RecurrencePeriodicity periodicity = recurrencePeriodicityRepository.findById(dto.periodicityId())
                 .orElseThrow(() -> new EntityNotFoundException("Periodicity not found"));
 
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+        Set<CategoryType> allowed = dto.direction() == Direction.INCOME
+                ? EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL)
+                : EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL);
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser, allowed);
 
         RecurringTransaction recurringTransaction = RecurringTransaction.builder()
                 .pocket(pocket)

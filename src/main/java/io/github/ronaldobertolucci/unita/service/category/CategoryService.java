@@ -5,6 +5,7 @@ import io.github.ronaldobertolucci.unita.dto.category.CategoryCreateDto;
 import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.dto.category.CategoryUpdateDto;
 import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.CategoryRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -174,6 +176,15 @@ public class CategoryService {
     public Category findSystemByName(String name) {
         return categoryRepository.findSystemByName(name)
                 .orElseThrow(() -> new EntityNotFoundException("System category not found: " + name));
+    }
+
+    public Category resolveCategory(Long categoryId, User user, Set<CategoryType> allowedTypes) {
+        Category category = resolveCategory(categoryId, user);
+        if (!allowedTypes.contains(category.getType())) {
+            throw new IllegalArgumentException(
+                    "Category type " + category.getType() + " is not allowed in this context");
+        }
+        return category;
     }
 
     public Category resolveCategory(Long categoryId, User user) {

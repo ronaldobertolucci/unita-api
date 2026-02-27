@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 
 @Service
@@ -150,6 +151,9 @@ public class CreditCardService {
         BigDecimal totalAmount = totalInstallments.subtract(totalRefunds);
 
         Category paymentCategory = categoryService.findSystemByName("Pagamento de Cartão");
+        if (!EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL).contains(paymentCategory.getType())) {
+            throw new IllegalArgumentException("Category type " + paymentCategory.getType() + " is not allowed in this context");
+        }
 
         Transaction transaction = Transaction.builder()
                 .pocket(pocket)
@@ -282,7 +286,8 @@ public class CreditCardService {
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
 
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
+                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
 
         CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, purchase.getPurchaseDate());
 
@@ -363,7 +368,8 @@ public class CreditCardService {
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
 
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
+                EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL));
 
         CreditCardRefund refund = CreditCardRefund.builder()
                 .creditCardBill(bill)
@@ -417,7 +423,8 @@ public class CreditCardService {
         RecurrencePeriodicity periodicity = recurrencePeriodicityRepository.findById(dto.periodicityId())
                 .orElseThrow(() -> new EntityNotFoundException("Periodicity not found"));
 
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser);
+        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
+                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
 
         RecurringPurchase recurringPurchase = RecurringPurchase.builder()
                 .creditCard(creditCard)

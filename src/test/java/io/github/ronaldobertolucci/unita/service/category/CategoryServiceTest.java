@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -443,6 +444,39 @@ class CategoryServiceTest {
 
         assertThrows(EntityNotFoundException.class,
                 () -> categoryService.resolveCategory(99L, currentUser));
+    }
+
+    @Test
+    void resolveCategory_WhenTypeAllowed_ShouldReturn() {
+        Category category = buildGlobalCategory(1L, "Alimentação", CategoryType.EXPENSE);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+
+        Category result = categoryService.resolveCategory(1L, currentUser,
+                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
+
+        assertNotNull(result);
+        assertEquals(CategoryType.EXPENSE, result.getType());
+    }
+
+    @Test
+    void resolveCategory_WhenTypeNotAllowed_ShouldThrowIllegalArgumentException() {
+        Category category = buildGlobalCategory(1L, "Salário", CategoryType.INCOME);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> categoryService.resolveCategory(1L, currentUser,
+                        EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL)));
+    }
+
+    @Test
+    void resolveCategory_WhenNeutralTypeAlwaysAllowed_ShouldReturn() {
+        Category category = buildGlobalCategory(1L, "Ajuste de Saldo", CategoryType.NEUTRAL);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+
+        Category result = categoryService.resolveCategory(1L, currentUser,
+                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
+
+        assertNotNull(result);
     }
 
     // -------------------------------------------------------------------------

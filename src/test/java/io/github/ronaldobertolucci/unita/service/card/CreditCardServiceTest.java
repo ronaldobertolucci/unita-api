@@ -443,6 +443,21 @@ class CreditCardServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
+    void createInstallment_WhenCategoryTypeIncompatible_ShouldThrow() {
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId()))
+                .thenReturn(Optional.of(buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L))));
+        when(creditCardPurchaseRepository.findByIdAndCreditCardId(2L, 1L))
+                .thenReturn(Optional.of(buildPurchase(2L, buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L)))));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenThrow(new IllegalArgumentException("Category type INCOME is not allowed in this context"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> creditCardService.createInstallment(1L, 2L,
+                        new CreditCardInstallmentCreateDto(1, new BigDecimal("100"), 1L), authentication));
+    }
+
+    @Test
     void updateInstallment_WhenCurrentBillIsPaid_ShouldThrowIllegalStateException() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         CreditCardBill paidBill = buildBill(5L, card, CreditCardBillStatus.PAID);
@@ -474,7 +489,8 @@ class CreditCardServiceTest {
                 "Netflix", new BigDecimal("49.90"), 1L, startDate, null, 1L);
         CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
 
-        when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.EXPENSE));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
 
@@ -496,6 +512,22 @@ class CreditCardServiceTest {
         verify(creditCardPurchaseRepository).save(any(CreditCardPurchase.class));
         verify(billResolverService).findOrCreateForDate(any(), any());
         assertEquals(startDate, purchaseCaptor.getValue().getPurchaseDate());
+    }
+
+    @Test
+    void createRecurringPurchase_WhenCategoryTypeIncompatible_ShouldThrow() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenThrow(new IllegalArgumentException("Category type INCOME is not allowed in this context"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> creditCardService.createRecurringPurchase(1L,
+                        new RecurringPurchaseCreateDto("Netflix", new BigDecimal("49.90"),
+                                1L, LocalDate.now(), null, 1L),
+                        authentication));
     }
 
     @Test
@@ -585,7 +617,8 @@ class CreditCardServiceTest {
 
         saved.setId(1L);
 
-        when(categoryService.resolveCategory(eq(1L), any())).thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenReturn(buildCategory(1L, CategoryType.NEUTRAL));
         when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
         when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
         when(creditCardRefundRepository.save(any())).thenReturn(saved);
@@ -594,6 +627,21 @@ class CreditCardServiceTest {
 
         assertNotNull(result);
         verify(creditCardRefundRepository).save(any(CreditCardRefund.class));
+    }
+
+    @Test
+    void createRefund_WhenCategoryTypeIncompatible_ShouldThrow() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardBillRepository.findByIdAndCreditCardId(5L, 1L)).thenReturn(Optional.of(bill));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenThrow(new IllegalArgumentException("Category type EXPENSE is not allowed in this context"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> creditCardService.createRefund(1L, 5L,
+                        new CreditCardRefundCreateDto("Estorno", new BigDecimal("50"), LocalDate.now(), 1L),
+                        authentication));
     }
 
     @Test

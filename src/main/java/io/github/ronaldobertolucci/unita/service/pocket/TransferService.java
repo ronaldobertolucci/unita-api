@@ -4,6 +4,7 @@ import io.github.ronaldobertolucci.unita.dto.pocket.TransactionDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
 import io.github.ronaldobertolucci.unita.model.finance.Category;
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
 import io.github.ronaldobertolucci.unita.model.pocket.BankAccount;
 import io.github.ronaldobertolucci.unita.model.pocket.Cash;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.EnumSet;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +68,14 @@ public class TransferService {
         LocalDate today = LocalDate.now();
 
         Category sentCategory = categoryService.findSystemByName("Transferência Enviada");
+        if (!EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL).contains(sentCategory.getType())) {
+            throw new IllegalArgumentException("Category type " + sentCategory.getType() + " is not allowed in this context");
+        }
+
         Category receivedCategory = categoryService.findSystemByName("Transferência Recebida");
+        if (!EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL).contains(receivedCategory.getType())) {
+            throw new IllegalArgumentException("Category type " + receivedCategory.getType() + " is not allowed in this context");
+        }
 
         Transaction sourceTransaction = Transaction.builder()
                 .pocket(source)
