@@ -3,7 +3,7 @@ package io.github.ronaldobertolucci.unita.dto.legal;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record LegalEntityCreateDto(
+public record LegalEntityUpdateDto(
         @NotBlank @Size(max = 14) String cnpj,
         @NotBlank @Size(max = 255) String corporateName,
         @Size(max = 255) String tradeName,

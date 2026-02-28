@@ -35,6 +35,7 @@ class BenefitAccountRepositoryTest extends BaseRepositoryTest {
         LegalEntity le = new LegalEntity();
         le.setCnpj("12345678000190");
         le.setCorporateName("Operadora Benefício");
+        le.setUser(user);
         legalEntityRepository.save(le);
 
         BenefitType benefitType = benefitTypeRepository.findAll().get(0);

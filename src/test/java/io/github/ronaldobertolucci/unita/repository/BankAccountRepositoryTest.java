@@ -37,6 +37,7 @@ class BankAccountRepositoryTest extends BaseRepositoryTest {
         legalEntity = new LegalEntity();
         legalEntity.setCnpj("12345678000190");
         legalEntity.setCorporateName("Banco Teste");
+        legalEntity.setUser(user);
         legalEntityRepository.save(legalEntity);
 
         accountType = bankAccountTypeRepository.findAll().get(0);

@@ -41,6 +41,7 @@ class RecurringPurchaseRepositoryTest extends BaseRepositoryTest {
         LegalEntity le = new LegalEntity();
         le.setCnpj("12345678000190");
         le.setCorporateName("Banco");
+        le.setUser(user);
         legalEntityRepository.save(le);
 
         CardBrand brand = cardBrandRepository.findAll().get(0);

@@ -42,6 +42,7 @@ class PocketRepositoryTest extends BaseRepositoryTest {
         LegalEntity le = new LegalEntity();
         le.setCnpj("12345678000191");
         le.setCorporateName("Banco Teste");
+        le.setUser(user);
         legalEntityRepository.save(le);
 
         BankAccountType type = bankAccountTypeRepository.findAll().get(0);
@@ -109,6 +110,7 @@ class PocketRepositoryTest extends BaseRepositoryTest {
         LegalEntity le = new LegalEntity();
         le.setCnpj("12345678000190");
         le.setCorporateName("Banco Teste");
+        le.setUser(user);
         legalEntityRepository.save(le);
 
         BankAccountType type = bankAccountTypeRepository.findAll().get(0);

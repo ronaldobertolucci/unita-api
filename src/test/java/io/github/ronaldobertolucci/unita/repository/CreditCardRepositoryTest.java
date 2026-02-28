@@ -38,6 +38,7 @@ class CreditCardRepositoryTest extends BaseRepositoryTest {
         legalEntity = new LegalEntity();
         legalEntity.setCnpj("12345678000190");
         legalEntity.setCorporateName("Banco Emissor");
+        legalEntity.setUser(user);
         legalEntityRepository.save(legalEntity);
 
         cardBrand = cardBrandRepository.findAll().get(0);

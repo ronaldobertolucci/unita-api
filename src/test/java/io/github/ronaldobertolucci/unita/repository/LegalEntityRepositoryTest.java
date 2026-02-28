@@ -1,6 +1,7 @@
 package io.github.ronaldobertolucci.unita.repository;
 
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
+import io.github.ronaldobertolucci.unita.model.user.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -20,7 +21,9 @@ class LegalEntityRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void save_ShouldPersistLegalEntity() {
-        LegalEntity entity = buildLegalEntity("12345678000190", "Empresa Teste LTDA");
+        User user = saveUser("user@test.com");
+
+        LegalEntity entity = buildLegalEntity("12345678000190", "Empresa Teste LTDA", user);
 
         LegalEntity saved = legalEntityRepository.save(entity);
 
@@ -31,7 +34,9 @@ class LegalEntityRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findById_WhenExists_ShouldReturnLegalEntity() {
-        LegalEntity saved = legalEntityRepository.save(buildLegalEntity("12345678000190", "Empresa Teste LTDA"));
+        User user = saveUser("user@test.com");
+
+        LegalEntity saved = legalEntityRepository.save(buildLegalEntity("12345678000190", "Empresa Teste LTDA", user));
 
         Optional<LegalEntity> found = legalEntityRepository.findById(saved.getId());
 
@@ -46,8 +51,10 @@ class LegalEntityRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findAll_ShouldReturnAllLegalEntities() {
-        legalEntityRepository.save(buildLegalEntity("11111111000101", "Empresa A"));
-        legalEntityRepository.save(buildLegalEntity("22222222000102", "Empresa B"));
+        User user = saveUser("user@test.com");
+
+        legalEntityRepository.save(buildLegalEntity("11111111000101", "Empresa A", user));
+        legalEntityRepository.save(buildLegalEntity("22222222000102", "Empresa B", user));
 
         List<LegalEntity> all = legalEntityRepository.findAll();
 
@@ -56,18 +63,21 @@ class LegalEntityRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void delete_ShouldRemoveLegalEntity() {
-        LegalEntity saved = legalEntityRepository.save(buildLegalEntity("12345678000190", "Empresa Teste LTDA"));
+        User user = saveUser("user@test.com");
+
+        LegalEntity saved = legalEntityRepository.save(buildLegalEntity("12345678000190", "Empresa Teste LTDA", user));
 
         legalEntityRepository.delete(saved);
 
         assertTrue(legalEntityRepository.findById(saved.getId()).isEmpty());
     }
 
-    private LegalEntity buildLegalEntity(String cnpj, String corporateName) {
+    private LegalEntity buildLegalEntity(String cnpj, String corporateName, User user) {
         LegalEntity entity = new LegalEntity();
         entity.setCnpj(cnpj);
         entity.setCorporateName(corporateName);
         entity.setTradeName("Empresa Fantasia");
+        entity.setUser(user);
         return entity;
     }
 }

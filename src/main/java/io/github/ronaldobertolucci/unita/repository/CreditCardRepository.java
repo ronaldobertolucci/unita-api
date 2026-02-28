@@ -30,4 +30,6 @@ public interface CreditCardRepository extends JpaRepository<CreditCard, Long> {
     Optional<CreditCard> findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     boolean existsByIdAndUserId(Long id, Long userId);
+
+    boolean existsByLegalEntityId(Long legalEntityId);
 }

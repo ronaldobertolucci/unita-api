@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.model.employer;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "legal_entity_employers")
@@ -12,7 +13,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class LegalEntityEmployer extends Employer {
 
     @OneToOne(fetch = FetchType.LAZY)

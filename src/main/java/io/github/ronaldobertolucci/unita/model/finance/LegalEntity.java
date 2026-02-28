@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.model.finance;
 
+import io.github.ronaldobertolucci.unita.model.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,4 +29,8 @@ public class LegalEntity {
 
     @Column(name = "state_registration", length = 50)
     private String stateRegistration;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 }

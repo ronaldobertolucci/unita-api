@@ -21,4 +21,6 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
     Optional<BankAccount> findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     boolean existsByIdAndUserId(Long id, Long userId);
+
+    boolean existsByLegalEntityId(Long legalEntityId);
 }

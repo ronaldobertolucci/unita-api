@@ -2,6 +2,7 @@ package io.github.ronaldobertolucci.unita.model.employer;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "individual_employers")
@@ -11,7 +12,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class IndividualEmployer extends Employer {
 
     @Column(name = "cpf", nullable = false, unique = true, length = 11)

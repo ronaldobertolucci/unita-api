@@ -34,6 +34,7 @@ class FgtsEmployerAccountRepositoryTest extends BaseRepositoryTest {
         IndividualEmployer employer = new IndividualEmployer();
         employer.setCpf("12345678901");
         employer.setName("Empregador Teste");
+        employer.setUser(user);
         individualEmployerRepository.save(employer);
 
         savedAccount = fgtsRepository.save(FgtsEmployerAccount.builder()
