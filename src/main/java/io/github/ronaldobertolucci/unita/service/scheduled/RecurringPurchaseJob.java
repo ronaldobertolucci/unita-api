@@ -1,16 +1,12 @@
 package io.github.ronaldobertolucci.unita.service.scheduled;
 
-import io.github.ronaldobertolucci.unita.model.card.*;
+import io.github.ronaldobertolucci.unita.model.card.RecurringPurchase;
 import io.github.ronaldobertolucci.unita.model.finance.PeriodicityType;
-import io.github.ronaldobertolucci.unita.repository.CreditCardInstallmentRepository;
-import io.github.ronaldobertolucci.unita.repository.CreditCardPurchaseRepository;
 import io.github.ronaldobertolucci.unita.repository.RecurringPurchaseRepository;
-import io.github.ronaldobertolucci.unita.service.card.CreditCardBillResolverService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -21,12 +17,11 @@ import java.util.List;
 public class RecurringPurchaseJob {
 
     private final RecurringPurchaseRepository recurringPurchaseRepository;
-    private final CreditCardPurchaseRepository creditCardPurchaseRepository;
-    private final CreditCardInstallmentRepository creditCardInstallmentRepository;
-    private final CreditCardBillResolverService billResolverService;
+    private final RecurringPurchaseJobProcessor processor;
 
+    // ATENÇÃO: findAllActive deve JOIN FETCH periodicity para evitar LazyInitializationException
+    // durante a filtragem abaixo, que ocorre fora de qualquer transação.
     @Scheduled(cron = "0 0 0 * * *", zone = "America/Sao_Paulo")
-    @Transactional
     public void execute() {
         LocalDate today = LocalDate.now();
         log.info("RecurringPurchaseJob starting for date {}", today);
@@ -34,44 +29,25 @@ public class RecurringPurchaseJob {
         List<RecurringPurchase> actives = recurringPurchaseRepository.findAllActive(today);
 
         int generated = 0;
+        int failed = 0;
+
         for (RecurringPurchase rp : actives) {
-            if (alreadyGeneratedThisPeriod(rp, today)) {
-                continue;
-            }
-            if (!shouldGenerateToday(rp, today)) {
+            if (alreadyGeneratedThisPeriod(rp, today) || !shouldGenerateToday(rp, today)) {
                 continue;
             }
 
-            CreditCard creditCard = rp.getCreditCard();
-
-            CreditCardPurchase purchase = CreditCardPurchase.builder()
-                    .creditCard(creditCard)
-                    .description(rp.getDescription())
-                    .totalValue(rp.getAmount())
-                    .purchaseDate(today)
-                    .installmentsCount(1)
-                    .build();
-
-            creditCardPurchaseRepository.save(purchase);
-
-            CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, today);
-
-            CreditCardInstallment installment = CreditCardInstallment.builder()
-                    .purchase(purchase)
-                    .installmentNumber(1)
-                    .amount(rp.getAmount())
-                    .creditCardBill(bill)
-                    .build();
-
-            creditCardInstallmentRepository.save(installment);
-
-            rp.setLastGeneratedDate(today);
-            recurringPurchaseRepository.save(rp);
-
-            generated++;
+            try {
+                processor.process(rp.getId(), today);
+                generated++;
+            } catch (Exception e) {
+                log.error("RecurringPurchaseJob — failed for recurringPurchaseId={}: {}",
+                        rp.getId(), e.getMessage(), e);
+                failed++;
+            }
         }
 
-        log.info("RecurringPurchaseJob finished — {} purchase(s) generated", generated);
+        log.info("RecurringPurchaseJob finished — {} purchase(s) generated, {} failed",
+                generated, failed);
     }
 
     private boolean shouldGenerateToday(RecurringPurchase rp, LocalDate today) {

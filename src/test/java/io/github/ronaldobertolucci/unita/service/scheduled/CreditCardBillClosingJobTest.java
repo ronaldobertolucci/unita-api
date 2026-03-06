@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -53,5 +54,13 @@ class CreditCardBillClosingJobTest {
                 eq(today),
                 eq(CreditCardBillStatus.OPEN),
                 eq(CreditCardBillStatus.CLOSED));
+    }
+
+    @Test
+    void execute_WhenRepositoryThrows_ShouldRethrowException() {
+        when(creditCardBillRepository.closeAllOverdue(any(), any(), any()))
+                .thenThrow(new RuntimeException("DB error"));
+
+        assertThrows(RuntimeException.class, () -> job.execute());
     }
 }

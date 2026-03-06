@@ -2,14 +2,11 @@ package io.github.ronaldobertolucci.unita.service.scheduled;
 
 import io.github.ronaldobertolucci.unita.model.finance.PeriodicityType;
 import io.github.ronaldobertolucci.unita.model.pocket.RecurringTransaction;
-import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
 import io.github.ronaldobertolucci.unita.repository.RecurringTransactionRepository;
-import io.github.ronaldobertolucci.unita.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,10 +17,11 @@ import java.util.List;
 public class RecurringTransactionJob {
 
     private final RecurringTransactionRepository recurringTransactionRepository;
-    private final TransactionRepository transactionRepository;
+    private final RecurringTransactionJobProcessor processor;
 
+    // ATENÇÃO: findAllActive deve JOIN FETCH periodicity para evitar LazyInitializationException
+    // durante a filtragem abaixo, que ocorre fora de qualquer transação.
     @Scheduled(cron = "0 0 0 * * *", zone = "America/Sao_Paulo")
-    @Transactional
     public void execute() {
         LocalDate today = LocalDate.now();
         log.info("RecurringTransactionJob starting for date {}", today);
@@ -31,31 +29,25 @@ public class RecurringTransactionJob {
         List<RecurringTransaction> actives = recurringTransactionRepository.findAllActive(today);
 
         int generated = 0;
+        int failed = 0;
+
         for (RecurringTransaction rt : actives) {
-            if (alreadyGeneratedThisPeriod(rt, today)) {
-                continue;
-            }
-            if (!shouldGenerateToday(rt, today)) {
+            if (alreadyGeneratedThisPeriod(rt, today) || !shouldGenerateToday(rt, today)) {
                 continue;
             }
 
-            Transaction transaction = Transaction.builder()
-                    .pocket(rt.getPocket())
-                    .amount(rt.getAmount())
-                    .direction(rt.getDirection())
-                    .transactionDate(today)
-                    .description(rt.getDescription())
-                    .build();
-
-            transactionRepository.save(transaction);
-
-            rt.setLastGeneratedDate(today);
-            recurringTransactionRepository.save(rt);
-
-            generated++;
+            try {
+                processor.process(rt.getId(), today);
+                generated++;
+            } catch (Exception e) {
+                log.error("RecurringTransactionJob — failed for recurringTransactionId={}: {}",
+                        rt.getId(), e.getMessage(), e);
+                failed++;
+            }
         }
 
-        log.info("RecurringTransactionJob finished — {} transaction(s) generated", generated);
+        log.info("RecurringTransactionJob finished — {} transaction(s) generated, {} failed",
+                generated, failed);
     }
 
     private boolean shouldGenerateToday(RecurringTransaction rt, LocalDate today) {

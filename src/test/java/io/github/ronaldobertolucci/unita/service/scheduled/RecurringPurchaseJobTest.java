@@ -1,16 +1,13 @@
 package io.github.ronaldobertolucci.unita.service.scheduled;
 
-import io.github.ronaldobertolucci.unita.model.card.*;
+import io.github.ronaldobertolucci.unita.model.card.CreditCard;
+import io.github.ronaldobertolucci.unita.model.card.RecurringPurchase;
 import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
-import io.github.ronaldobertolucci.unita.repository.CreditCardInstallmentRepository;
-import io.github.ronaldobertolucci.unita.repository.CreditCardPurchaseRepository;
 import io.github.ronaldobertolucci.unita.repository.RecurringPurchaseRepository;
-import io.github.ronaldobertolucci.unita.service.card.CreditCardBillResolverService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,17 +16,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RecurringPurchaseJobTest {
 
     @Mock private RecurringPurchaseRepository recurringPurchaseRepository;
-    @Mock private CreditCardPurchaseRepository creditCardPurchaseRepository;
-    @Mock private CreditCardInstallmentRepository creditCardInstallmentRepository;
-    @Mock private CreditCardBillResolverService billResolverService;
+    @Mock private RecurringPurchaseJobProcessor processor;
 
     @InjectMocks private RecurringPurchaseJob job;
 
@@ -56,30 +51,21 @@ class RecurringPurchaseJobTest {
     }
 
     @Test
-    void execute_WhenDailyAndNeverGenerated_ShouldCreatePurchaseAndInstallment() {
+    void execute_WhenDailyAndNeverGenerated_ShouldCallProcessor() {
         LocalDate today = LocalDate.now();
         RecurringPurchase rp = buildRecurring(PeriodicityType.DAILY, today.minusDays(5), null, null);
-        CreditCardBill bill = buildBill();
-        CreditCardPurchase savedPurchase = buildPurchase();
 
         when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp));
-        when(creditCardPurchaseRepository.save(any())).thenReturn(savedPurchase);
-        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(bill);
-        when(creditCardInstallmentRepository.save(any())).thenReturn(mock(CreditCardInstallment.class));
 
         job.execute();
 
-        verify(creditCardPurchaseRepository).save(any(CreditCardPurchase.class));
-        verify(billResolverService).findOrCreateForDate(creditCard, today);
-        verify(creditCardInstallmentRepository).save(any(CreditCardInstallment.class));
-        verify(recurringPurchaseRepository).save(rp);
-        assertEquals(today, rp.getLastGeneratedDate());
+        verify(processor).process(eq(rp.getId()), eq(today));
     }
 
     @Test
     void execute_WhenAlreadyGeneratedThisMonth_ShouldSkip() {
         LocalDate today = LocalDate.now();
-        LocalDate lastGenerated = today.withDayOfMonth(1); // mesmo mês
+        LocalDate lastGenerated = today.withDayOfMonth(1);
         RecurringPurchase rp = buildRecurring(PeriodicityType.MONTHLY,
                 today.minusMonths(1).withDayOfMonth(today.getDayOfMonth()), null, lastGenerated);
 
@@ -87,60 +73,102 @@ class RecurringPurchaseJobTest {
 
         job.execute();
 
-        verify(creditCardPurchaseRepository, never()).save(any());
-        verify(billResolverService, never()).findOrCreateForDate(any(), any());
+        verify(processor, never()).process(any(), any());
     }
 
     @Test
-    void execute_ShouldCreateInstallmentWithCorrectFields() {
+    void execute_WhenMonthlyAndDifferentDayOfMonth_ShouldSkip() {
         LocalDate today = LocalDate.now();
-        RecurringPurchase rp = buildRecurring(PeriodicityType.DAILY, today.minusDays(1), null, null);
-        CreditCardBill bill = buildBill();
-        CreditCardPurchase savedPurchase = buildPurchase();
+        int otherDay = today.getDayOfMonth() == 1 ? 2 : 1;
+        LocalDate startDate = today.withDayOfMonth(otherDay).minusMonths(1);
+        RecurringPurchase rp = buildRecurring(PeriodicityType.MONTHLY, startDate, null, null);
 
         when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp));
-        when(creditCardPurchaseRepository.save(any())).thenReturn(savedPurchase);
-        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(bill);
-        when(creditCardInstallmentRepository.save(any())).thenReturn(mock(CreditCardInstallment.class));
 
         job.execute();
 
-        ArgumentCaptor<CreditCardInstallment> captor = ArgumentCaptor.forClass(CreditCardInstallment.class);
-        verify(creditCardInstallmentRepository).save(captor.capture());
-
-        CreditCardInstallment installment = captor.getValue();
-        assertEquals(1, installment.getInstallmentNumber());
-        assertEquals(new BigDecimal("49.90"), installment.getAmount());
-        assertEquals(bill, installment.getCreditCardBill());
+        verify(processor, never()).process(any(), any());
     }
 
     @Test
-    void execute_WhenNoActiveRecurrings_ShouldDoNothing() {
+    void execute_WhenWeeklyAndSameDayOfWeek_ShouldCallProcessor() {
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = today.minusWeeks(3);
+        RecurringPurchase rp = buildRecurring(PeriodicityType.WEEKLY, startDate, null, null);
+
+        when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp));
+
+        job.execute();
+
+        verify(processor).process(eq(rp.getId()), eq(today));
+    }
+
+    @Test
+    void execute_WhenYearlyAndSameMonthAndDay_ShouldCallProcessor() {
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = today.minusYears(1);
+        RecurringPurchase rp = buildRecurring(PeriodicityType.YEARLY, startDate, null, null);
+
+        when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp));
+
+        job.execute();
+
+        verify(processor).process(eq(rp.getId()), eq(today));
+    }
+
+    @Test
+    void execute_WhenYearlyAndAlreadyGeneratedThisYear_ShouldSkip() {
+        LocalDate today = LocalDate.now();
+        LocalDate lastGenerated = today.withDayOfYear(1);
+        RecurringPurchase rp = buildRecurring(PeriodicityType.YEARLY, today.minusYears(1), null, lastGenerated);
+
+        when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp));
+
+        job.execute();
+
+        verify(processor, never()).process(any(), any());
+    }
+
+    @Test
+    void execute_WhenNoActiveRecurrings_ShouldNotCallProcessor() {
         when(recurringPurchaseRepository.findAllActive(any())).thenReturn(List.of());
 
         job.execute();
 
-        verify(creditCardPurchaseRepository, never()).save(any());
-        verify(billResolverService, never()).findOrCreateForDate(any(), any());
+        verify(processor, never()).process(any(), any());
+    }
+
+    @Test
+    void execute_WhenProcessorThrows_ShouldContinueAndNotRethrow() {
+        LocalDate today = LocalDate.now();
+        RecurringPurchase rp1 = buildRecurring(PeriodicityType.DAILY, today.minusDays(5), null, null);
+        rp1.setId(1L);
+        RecurringPurchase rp2 = buildRecurring(PeriodicityType.DAILY, today.minusDays(3), null, null);
+        rp2.setId(2L);
+
+        when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp1, rp2));
+        doThrow(new RuntimeException("DB error")).when(processor).process(eq(1L), any());
+
+        job.execute();
+
+        verify(processor).process(eq(1L), eq(today));
+        verify(processor).process(eq(2L), eq(today));
     }
 
     @Test
     void execute_WhenMultiple_ShouldProcessOnlyEligible() {
         LocalDate today = LocalDate.now();
         RecurringPurchase rp1 = buildRecurring(PeriodicityType.DAILY, today.minusDays(5), null, null);
-        RecurringPurchase rp2 = buildRecurring(PeriodicityType.DAILY, today.minusDays(3), null, today); // já gerado
-
-        CreditCardBill bill = buildBill();
-        CreditCardPurchase savedPurchase = buildPurchase();
+        rp1.setId(1L);
+        RecurringPurchase rp2 = buildRecurring(PeriodicityType.DAILY, today.minusDays(3), null, today);
+        rp2.setId(2L);
 
         when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp1, rp2));
-        when(creditCardPurchaseRepository.save(any())).thenReturn(savedPurchase);
-        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(bill);
-        when(creditCardInstallmentRepository.save(any())).thenReturn(mock(CreditCardInstallment.class));
 
         job.execute();
 
-        verify(creditCardPurchaseRepository, times(1)).save(any());
+        verify(processor, times(1)).process(eq(1L), eq(today));
+        verify(processor, never()).process(eq(2L), any());
     }
 
     private RecurringPurchase buildRecurring(PeriodicityType type, LocalDate startDate,
@@ -150,27 +178,15 @@ class RecurringPurchaseJobTest {
         periodicity.setType(type);
 
         RecurringPurchase rp = RecurringPurchase.builder()
-                .creditCard(creditCard).description("Netflix")
-                .amount(new BigDecimal("49.90")).periodicity(periodicity)
-                .startDate(startDate).endDate(endDate).build();
+                .creditCard(creditCard)
+                .description("Netflix")
+                .amount(new BigDecimal("49.90"))
+                .periodicity(periodicity)
+                .startDate(startDate)
+                .endDate(endDate)
+                .build();
         rp.setId(1L);
         rp.setLastGeneratedDate(lastGeneratedDate);
         return rp;
-    }
-
-    private CreditCardBill buildBill() {
-        CreditCardBill bill = CreditCardBill.builder()
-                .creditCard(creditCard).closingDate(LocalDate.of(2024, 2, 10))
-                .dueDate(LocalDate.of(2024, 3, 10)).status(CreditCardBillStatus.OPEN).build();
-        bill.setId(5L);
-        return bill;
-    }
-
-    private CreditCardPurchase buildPurchase() {
-        CreditCardPurchase purchase = CreditCardPurchase.builder()
-                .creditCard(creditCard).description("Netflix")
-                .totalValue(new BigDecimal("49.90")).purchaseDate(LocalDate.now()).installmentsCount(1).build();
-        purchase.setId(2L);
-        return purchase;
     }
 }

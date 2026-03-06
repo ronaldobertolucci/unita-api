@@ -23,8 +23,13 @@ public class CreditCardBillClosingJob {
         LocalDate today = LocalDate.now();
         log.info("CreditCardBillClosingJob starting for date {}", today);
 
-        int closed = creditCardBillRepository.closeAllOverdue(today, CreditCardBillStatus.OPEN, CreditCardBillStatus.CLOSED);
-
-        log.info("CreditCardBillClosingJob finished — {} bill(s) closed", closed);
+        try {
+            int closed = creditCardBillRepository.closeAllOverdue(
+                    today, CreditCardBillStatus.OPEN, CreditCardBillStatus.CLOSED);
+            log.info("CreditCardBillClosingJob finished — {} bill(s) closed", closed);
+        } catch (Exception e) {
+            log.error("CreditCardBillClosingJob failed for date {}: {}", today, e.getMessage(), e);
+            throw e;
+        }
     }
 }
