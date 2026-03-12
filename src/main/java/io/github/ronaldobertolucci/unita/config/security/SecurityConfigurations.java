@@ -30,6 +30,8 @@ public class SecurityConfigurations {
                 .authorizeHttpRequests(req -> req.requestMatchers("/auth/**", "/password/**").permitAll()
                         .requestMatchers("/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/**").hasAnyAuthority("USER", "ADMIN")
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
