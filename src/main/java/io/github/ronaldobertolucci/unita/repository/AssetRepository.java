@@ -22,4 +22,14 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     @Query("SELECT COUNT(a) > 0 FROM Asset a WHERE a.id = :assetId AND a.user.id = :userId AND a.status = 'ACTIVE'")
     boolean existsActiveByIdAndUserId(@Param("assetId") Long assetId, @Param("userId") Long userId);
+
+    @Query("""
+            SELECT a FROM Asset a
+            LEFT JOIN FETCH a.position
+            LEFT JOIN FETCH a.fixedIncomeDetails
+            LEFT JOIN FETCH a.pensionDetails
+            LEFT JOIN FETCH a.legalEntity
+            WHERE a.user.id = :userId
+            """)
+    List<Asset> findAllByUserIdWithDetails(@Param("userId") Long userId);
 }

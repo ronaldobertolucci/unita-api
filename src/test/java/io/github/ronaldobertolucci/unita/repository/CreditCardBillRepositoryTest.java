@@ -156,6 +156,35 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
         assertEquals(0, closed);
     }
 
+    @Test
+    void findAllByUserId_ShouldReturnOnlyBillsOfUserCards() {
+        saveBill(card, LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 2, 10), CreditCardBillStatus.CLOSED);
+        saveBill(otherCard, LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
+
+        List<CreditCardBill> result = billRepository.findAllByUserId(card.getUser().getId());
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(b -> b.getCreditCard().getId().equals(card.getId())));
+    }
+
+    @Test
+    void findAllByUserId_WhenNoBills_ShouldReturnEmpty() {
+        assertTrue(billRepository.findAllByUserId(card.getUser().getId()).isEmpty());
+    }
+
+    @Test
+    void findAllByUserId_ShouldReturnOrderedByClosingDateAsc() {
+        saveBill(card, LocalDate.of(2025, 3, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        List<CreditCardBill> result = billRepository.findAllByUserId(card.getUser().getId());
+
+        assertEquals(LocalDate.of(2025, 1, 10), result.get(0).getClosingDate());
+        assertEquals(LocalDate.of(2025, 3, 10), result.get(2).getClosingDate());
+    }
+
     private CreditCardBill saveBill(CreditCard card, LocalDate closingDate, CreditCardBillStatus status) {
         return billRepository.save(CreditCardBill.builder()
                 .creditCard(card)

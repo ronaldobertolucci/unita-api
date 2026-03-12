@@ -1,14 +1,15 @@
 package io.github.ronaldobertolucci.unita.repository;
 
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
-import io.github.ronaldobertolucci.unita.model.investment.Asset;
-import io.github.ronaldobertolucci.unita.model.investment.AssetCategory;
-import io.github.ronaldobertolucci.unita.model.investment.AssetStatus;
+import io.github.ronaldobertolucci.unita.model.investment.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,9 +19,10 @@ class AssetRepositoryTest extends BaseRepositoryTest {
 
     @Autowired private AssetRepository assetRepository;
     @Autowired private LegalEntityRepository legalEntityRepository;
-    @Autowired
-    private FixedIncomeDetailsRepository fixedIncomeDetailsRepository;
+    @Autowired private FixedIncomeDetailsRepository fixedIncomeDetailsRepository;
     @Autowired private InvestmentPositionRepository investmentPositionRepository;
+    @Autowired private TestEntityManager entityManager;
+
 
     private User user;
     private User otherUser;
@@ -114,6 +116,54 @@ class AssetRepositoryTest extends BaseRepositoryTest {
         assetRepository.save(saved);
 
         assertFalse(assetRepository.existsActiveByIdAndUserId(saved.getId(), user.getId()));
+    }
+
+    @Test
+    void findAllByUserIdWithDetails_ShouldReturnAssetsWithFetchedAssociations() {
+        Asset asset = saveAsset("CDB A", user);
+
+        InvestmentPosition position = InvestmentPosition.builder()
+                .asset(asset)
+                .totalInvested(new BigDecimal("1000.00"))
+                .currentValue(new BigDecimal("1050.00"))
+                .redeemedValue(BigDecimal.ZERO)
+                .build();
+        investmentPositionRepository.save(position);
+
+        FixedIncomeDetails details = FixedIncomeDetails.builder()
+                .asset(asset)
+                .indexer(Indexer.CDI)
+                .annualRate(new BigDecimal("0.10000000"))
+                .maturityDate(LocalDate.of(2027, 1, 1))
+                .taxFree(false)
+                .build();
+        fixedIncomeDetailsRepository.save(details);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        List<Asset> result = assetRepository.findAllByUserIdWithDetails(user.getId());
+
+        assertEquals(1, result.size());
+        assertNotNull(result.get(0).getPosition());
+        assertNotNull(result.get(0).getFixedIncomeDetails());
+        assertNotNull(result.get(0).getLegalEntity());
+    }
+
+    @Test
+    void findAllByUserIdWithDetails_WhenNoAssets_ShouldReturnEmpty() {
+        assertTrue(assetRepository.findAllByUserIdWithDetails(user.getId()).isEmpty());
+    }
+
+    @Test
+    void findAllByUserIdWithDetails_ShouldNotReturnOtherUsersAssets() {
+        saveAsset("CDB A", user);
+        saveAsset("CDB B", otherUser);
+
+        List<Asset> result = assetRepository.findAllByUserIdWithDetails(user.getId());
+
+        assertEquals(1, result.size());
+        assertEquals(user.getId(), result.get(0).getUser().getId());
     }
 
     // -------------------------------------------------------------------------

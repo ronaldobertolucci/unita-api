@@ -15,12 +15,12 @@ import java.util.Optional;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
     @Query(value = """
-        SELECT * FROM transactions t
-        WHERE t.pocket_id = :pocketId
-        AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
-        AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
-        ORDER BY t.transaction_date DESC
-        """, nativeQuery = true)
+            SELECT * FROM transactions t
+            WHERE t.pocket_id = :pocketId
+            AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
+            AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
+            ORDER BY t.transaction_date DESC
+            """, nativeQuery = true)
     List<Transaction> findAllByPocketIdAndPeriod(
             @Param("pocketId") Long pocketId,
             @Param("startDate") LocalDate startDate,
@@ -39,4 +39,23 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             WHERE t.pocket.id = :pocketId
             """)
     BigDecimal calculateBalanceByPocketId(@Param("pocketId") Long pocketId);
+
+    @Query(value = """
+            SELECT c.name AS categoryName, COALESCE(SUM(t.amount), 0) AS totalAmount
+            FROM transactions t
+            JOIN pockets p ON t.pocket_id = p.id
+            JOIN categories c ON t.category_id = c.id
+            WHERE p.user_id = :userId
+            AND t.direction = :direction
+            AND c.type != 'NEUTRAL'
+            AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
+            AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
+            GROUP BY c.name
+            ORDER BY c.name ASC
+            """, nativeQuery = true)
+    List<Object[]> sumAmountByCategoryAndUserIdAndDirection(
+            @Param("userId") Long userId,
+            @Param("direction") String direction,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

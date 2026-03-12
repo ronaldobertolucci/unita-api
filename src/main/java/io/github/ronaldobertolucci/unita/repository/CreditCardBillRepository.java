@@ -68,4 +68,12 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             @Param("newStatus") CreditCardBillStatus newStatus);
 
     boolean existsByIdAndCreditCardId(Long id, Long creditCardId);
+
+    @Query("""
+            SELECT b FROM CreditCardBill b
+            JOIN b.creditCard cc
+            WHERE cc.user.id = :userId
+            ORDER BY b.closingDate ASC
+            """)
+    List<CreditCardBill> findAllByUserId(@Param("userId") Long userId);
 }
