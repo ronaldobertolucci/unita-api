@@ -107,7 +107,7 @@ class GroupInvitationControllerTest {
     @Test
     void createInvitation_WhenDataIsValid_ShouldCreateInvitation() throws Exception {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(invitationService.createInvitation(any(GroupInvitationCreateDto.class), any()))
                 .thenReturn(invitationDto);
 
@@ -126,7 +126,7 @@ class GroupInvitationControllerTest {
     @Test
     void createInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(invitationService.createInvitation(any(GroupInvitationCreateDto.class), any()))
                 .thenReturn(invitationDto);
 
@@ -140,7 +140,7 @@ class GroupInvitationControllerTest {
     @Test
     void createInvitation_WhenGroupIdIsNull_ShouldReturnBadRequest() throws Exception {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(null, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(null, "user@email.com");
 
         // Act & Assert
         mockMvc.perform(post("/invitations")

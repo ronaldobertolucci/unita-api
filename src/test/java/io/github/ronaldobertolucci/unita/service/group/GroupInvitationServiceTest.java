@@ -101,10 +101,10 @@ class GroupInvitationServiceTest {
     @Test
     void createInvitation_WhenAllConditionsMet_ShouldCreateInvitation() {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(groupRepository.findById(1L)).thenReturn(Optional.of(testGroup));
         when(membershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(true);
-        when(userRepository.findById(2L)).thenReturn(Optional.of(invitedUser));
+        when(userRepository.findByEmailWithRoles("user@email.com")).thenReturn(Optional.of(invitedUser));
         when(membershipRepository.existsByUserIdAndGroupId(2L, 1L)).thenReturn(false);
         when(invitationRepository.existsByGroupIdAndInvitedUserIdAndStatus(1L, 2L, InvitationStatus.PENDING))
                 .thenReturn(false);
@@ -122,7 +122,7 @@ class GroupInvitationServiceTest {
     @Test
     void createInvitation_WhenGroupDoesNotExist_ShouldThrowException() {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(groupRepository.findById(1L)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -135,7 +135,7 @@ class GroupInvitationServiceTest {
     @Test
     void createInvitation_WhenInviterIsNotMember_ShouldThrowException() {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(groupRepository.findById(1L)).thenReturn(Optional.of(testGroup));
         when(membershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(false);
 
@@ -149,10 +149,10 @@ class GroupInvitationServiceTest {
     @Test
     void createInvitation_WhenInvitedUserDoesNotExist_ShouldThrowException() {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(groupRepository.findById(1L)).thenReturn(Optional.of(testGroup));
         when(membershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(true);
-        when(userRepository.findById(2L)).thenReturn(Optional.empty());
+        when(userRepository.findByEmailWithRoles("user@email.com")).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThrows(EntityNotFoundException.class,
@@ -164,10 +164,10 @@ class GroupInvitationServiceTest {
     @Test
     void createInvitation_WhenInvitedUserAlreadyMember_ShouldThrowException() {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(groupRepository.findById(1L)).thenReturn(Optional.of(testGroup));
         when(membershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(true);
-        when(userRepository.findById(2L)).thenReturn(Optional.of(invitedUser));
+        when(userRepository.findByEmailWithRoles("user@email.com")).thenReturn(Optional.of(invitedUser));
         when(membershipRepository.existsByUserIdAndGroupId(2L, 1L)).thenReturn(true);
 
         // Act & Assert
@@ -180,10 +180,10 @@ class GroupInvitationServiceTest {
     @Test
     void createInvitation_WhenPendingInvitationExists_ShouldThrowException() {
         // Arrange
-        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, 2L);
+        GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(groupRepository.findById(1L)).thenReturn(Optional.of(testGroup));
         when(membershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(true);
-        when(userRepository.findById(2L)).thenReturn(Optional.of(invitedUser));
+        when(userRepository.findByEmailWithRoles("user@email.com")).thenReturn(Optional.of(invitedUser));
         when(membershipRepository.existsByUserIdAndGroupId(2L, 1L)).thenReturn(false);
         when(invitationRepository.existsByGroupIdAndInvitedUserIdAndStatus(1L, 2L, InvitationStatus.PENDING))
                 .thenReturn(true);

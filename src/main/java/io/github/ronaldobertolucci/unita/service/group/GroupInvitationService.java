@@ -45,7 +45,7 @@ public class GroupInvitationService {
         }
 
         // Verifica se o usuário convidado existe
-        User invitedUser = userRepository.findById(dto.invitedUserId())
+        User invitedUser = userRepository.findByEmailWithRoles(dto.invitedUserEmail())
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         // Verifica se o usuário convidado já é membro
@@ -55,7 +55,7 @@ public class GroupInvitationService {
 
         // Verifica se já existe convite pendente
         if (invitationRepository.existsByGroupIdAndInvitedUserIdAndStatus(
-                dto.groupId(), dto.invitedUserId(), InvitationStatus.PENDING)) {
+                dto.groupId(), invitedUser.getId(), InvitationStatus.PENDING)) {
             throw new IllegalArgumentException("User already has a pending invitation to this group");
         }
 
