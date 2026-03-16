@@ -14,7 +14,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class Employer {
+public abstract class Employer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,4 +28,6 @@ public class Employer {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    public abstract String getName();
 }

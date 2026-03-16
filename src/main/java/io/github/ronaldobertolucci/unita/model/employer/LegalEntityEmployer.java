@@ -19,4 +19,9 @@ public class LegalEntityEmployer extends Employer {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "legal_entity_id", nullable = false)
     private LegalEntity legalEntity;
+
+    @Override
+    public String getName() {
+        return legalEntity.getCorporateName();
+    }
 }

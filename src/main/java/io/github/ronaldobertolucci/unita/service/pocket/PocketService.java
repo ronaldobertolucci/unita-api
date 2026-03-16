@@ -55,9 +55,9 @@ public class PocketService {
 
     private String resolvePocketLabel(Pocket pocket) {
         return switch (pocket) {
-            case BankAccount ba -> ba.getLegalEntity().getCorporateName() + " ..." + ba.getNumber().substring(Math.max(0, ba.getNumber().length() - 4));
+            case BankAccount ba -> ba.getLegalEntity().getCorporateName() + " - Ag. " + ba.getAgency() + " / " + ba.getNumber();
             case BenefitAccount ba -> ba.getLegalEntity().getCorporateName() + " - " + ba.getBenefitType().getName();
-            case FgtsEmployerAccount f -> "FGTS";
+            case FgtsEmployerAccount f -> f.getEmployer().getName();
             case Cash c -> "Dinheiro em espécie";
             default -> "Pocket";
         };
