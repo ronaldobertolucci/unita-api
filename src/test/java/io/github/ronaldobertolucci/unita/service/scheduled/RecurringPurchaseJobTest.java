@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -65,9 +66,11 @@ class RecurringPurchaseJobTest {
     @Test
     void execute_WhenAlreadyGeneratedThisMonth_ShouldSkip() {
         LocalDate today = LocalDate.now();
+        LocalDate startDate = YearMonth.from(today).minusMonths(1).atDay(
+                Math.min(today.getDayOfMonth(), YearMonth.from(today).minusMonths(1).lengthOfMonth())
+        );
         LocalDate lastGenerated = today.withDayOfMonth(1);
-        RecurringPurchase rp = buildRecurring(PeriodicityType.MONTHLY,
-                today.minusMonths(1).withDayOfMonth(today.getDayOfMonth()), null, lastGenerated);
+        RecurringPurchase rp = buildRecurring(PeriodicityType.MONTHLY, startDate, null, lastGenerated);
 
         when(recurringPurchaseRepository.findAllActive(today)).thenReturn(List.of(rp));
 
