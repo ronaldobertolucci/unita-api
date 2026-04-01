@@ -35,4 +35,9 @@ public class BankAccount extends Pocket {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private BankAccountStatus status;
+
+    @Override
+    public String getLabel() {
+        return this.getLegalEntity().getCorporateName() + " - Ag. " + this.getAgency() + " / " + this.getNumber();
+    }
 }

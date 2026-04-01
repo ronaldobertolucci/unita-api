@@ -333,6 +333,74 @@ class GroupShareServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // getPockets
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getPockets_WhenMembersHavePockets_ShouldReturnAll() {
+        when(groupRepository.existsById(1L)).thenReturn(true);
+        when(groupMembershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(true);
+        when(groupMembershipRepository.findByGroupIdWithUsers(1L))
+                .thenReturn(List.of(buildMembership(currentUser), buildMembership(otherUser)));
+
+        Cash cash1 = buildCash(10L, currentUser);
+        Cash cash2 = buildCash(20L, otherUser);
+
+        when(pocketRepository.findAllByUserId(1L)).thenReturn(List.of(cash1));
+        when(pocketRepository.findAllByUserId(2L)).thenReturn(List.of(cash2));
+
+        List<GroupMemberPocketDto> result = groupShareService.getPockets(1L, authentication);
+
+        assertEquals(2, result.size());
+
+        GroupMemberPocketDto first = result.get(0);
+        assertEquals(10L, first.id());
+        assertEquals("Cash", first.type());
+        assertEquals("Dinheiro em espécie", first.label());
+        assertEquals(1L, first.user().id());
+        assertEquals("Maria", first.user().firstName());
+        assertEquals("Souza", first.user().lastName());
+
+        GroupMemberPocketDto second = result.get(1);
+        assertEquals(20L, second.id());
+        assertEquals("Cash", second.type());
+        assertEquals("Dinheiro em espécie", second.label());
+        assertEquals(2L, second.user().id());
+        assertEquals("João", second.user().firstName());
+        assertEquals("Silva", second.user().lastName());
+    }
+
+    @Test
+    void getPockets_WhenMembersHaveNoPockets_ShouldReturnEmptyList() {
+        when(groupRepository.existsById(1L)).thenReturn(true);
+        when(groupMembershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(true);
+        when(groupMembershipRepository.findByGroupIdWithUsers(1L))
+                .thenReturn(List.of(buildMembership(currentUser)));
+        when(pocketRepository.findAllByUserId(1L)).thenReturn(List.of());
+
+        List<GroupMemberPocketDto> result = groupShareService.getPockets(1L, authentication);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void getPockets_WhenGroupNotFound_ShouldThrow() {
+        when(groupRepository.existsById(99L)).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class,
+                () -> groupShareService.getPockets(99L, authentication));
+    }
+
+    @Test
+    void getPockets_WhenNotMember_ShouldThrow() {
+        when(groupRepository.existsById(1L)).thenReturn(true);
+        when(groupMembershipRepository.existsByUserIdAndGroupId(1L, 1L)).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> groupShareService.getPockets(1L, authentication));
+    }
+
+    // -------------------------------------------------------------------------
     // Builders
     // -------------------------------------------------------------------------
 

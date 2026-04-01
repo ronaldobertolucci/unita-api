@@ -11,4 +11,9 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 public class Cash extends Pocket {
+
+    @Override
+    public String getLabel() {
+        return "Dinheiro em espécie";
+    }
 }

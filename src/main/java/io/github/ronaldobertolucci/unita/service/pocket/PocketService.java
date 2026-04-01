@@ -47,20 +47,9 @@ public class PocketService {
                 .stream()
                 .map(pocket -> {
                     BigDecimal balance = transactionRepository.calculateBalanceByPocketId(pocket.getId());
-                    String label = resolvePocketLabel(pocket);
-                    return PocketSummaryDto.of(pocket, label, balance);
+                    return PocketSummaryDto.of(pocket, balance);
                 })
                 .toList();
-    }
-
-    private String resolvePocketLabel(Pocket pocket) {
-        return switch (pocket) {
-            case BankAccount ba -> ba.getLegalEntity().getCorporateName() + " - Ag. " + ba.getAgency() + " / " + ba.getNumber();
-            case BenefitAccount ba -> ba.getLegalEntity().getCorporateName() + " - " + ba.getBenefitType().getName();
-            case FgtsEmployerAccount f -> f.getEmployer().getName();
-            case Cash c -> "Dinheiro em espécie";
-            default -> "Pocket";
-        };
     }
 
     // -------------------------------------------------------------------------

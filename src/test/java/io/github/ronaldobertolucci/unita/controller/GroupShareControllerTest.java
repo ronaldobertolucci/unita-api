@@ -365,4 +365,66 @@ class GroupShareControllerTest {
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isNotFound());
     }
+
+    // -------------------------------------------------------------------------
+    // getPockets
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getPockets_ShouldReturn200WithList() throws Exception {
+        when(groupShareService.getPockets(eq(1L), any())).thenReturn(List.of(memberPocketDto()));
+
+        mockMvc.perform(get("/groups/1/share/pockets")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(10))
+                .andExpect(jsonPath("$[0].type").value("Cash"))
+                .andExpect(jsonPath("$[0].label").value("Carteira"))
+                .andExpect(jsonPath("$[0].user.id").value(2))
+                .andExpect(jsonPath("$[0].user.firstName").value("João"))
+                .andExpect(jsonPath("$[0].user.lastName").value("Silva"))
+                .andExpect(jsonPath("$[0].user.email").value("joao@example.com"));
+    }
+
+    @Test
+    void getPockets_WhenNoneFound_ShouldReturn200WithEmptyList() throws Exception {
+        when(groupShareService.getPockets(eq(1L), any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/groups/1/share/pockets")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void getPockets_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(get("/groups/1/share/pockets"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getPockets_WhenNotMember_ShouldReturn400() throws Exception {
+        when(groupShareService.getPockets(eq(1L), any()))
+                .thenThrow(new IllegalArgumentException("User is not a member of this group"));
+
+        mockMvc.perform(get("/groups/1/share/pockets")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getPockets_WhenGroupNotFound_ShouldReturn404() throws Exception {
+        when(groupShareService.getPockets(eq(99L), any()))
+                .thenThrow(new EntityNotFoundException("Group not found"));
+
+        mockMvc.perform(get("/groups/99/share/pockets")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isNotFound());
+    }
+
+    private GroupMemberPocketDto memberPocketDto() {
+        GroupMemberPocketUserDto user = new GroupMemberPocketUserDto(2L, "João", "Silva", "joao@example.com");
+        return new GroupMemberPocketDto(10L, "Cash", "Carteira", user);
+    }
 }

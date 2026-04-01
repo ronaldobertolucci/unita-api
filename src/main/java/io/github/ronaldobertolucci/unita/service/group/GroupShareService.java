@@ -3,8 +3,7 @@ package io.github.ronaldobertolucci.unita.service.group;
 import io.github.ronaldobertolucci.unita.dto.group.*;
 import io.github.ronaldobertolucci.unita.dto.investment.AssetDetailDto;
 import io.github.ronaldobertolucci.unita.model.card.CreditCardBill;
-import io.github.ronaldobertolucci.unita.model.employer.IndividualEmployer;
-import io.github.ronaldobertolucci.unita.model.employer.LegalEntityEmployer;
+import io.github.ronaldobertolucci.unita.model.group.GroupMembership;
 import io.github.ronaldobertolucci.unita.model.group.GroupSharePermission;
 import io.github.ronaldobertolucci.unita.model.group.ShareType;
 import io.github.ronaldobertolucci.unita.model.pocket.Pocket;
@@ -225,5 +224,25 @@ public class GroupShareService {
                     .toList();
             return new GroupMemberCategoryAmountDto(memberNames.get(userId), categories);
         }).toList();
+    }
+
+    public List<GroupMemberPocketDto> getPockets(Long groupId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+
+        if (!groupRepository.existsById(groupId)) {
+            throw new EntityNotFoundException("Group not found");
+        }
+
+        if (!groupMembershipRepository.existsByUserIdAndGroupId(user.getId(), groupId)) {
+            throw new IllegalArgumentException("User is not a member of this group");
+        }
+
+        List<GroupMembership> members = groupMembershipRepository.findByGroupIdWithUsers(groupId);
+
+        return members.stream()
+                .flatMap(member -> pocketRepository.findAllByUserId(member.getUser().getId())
+                        .stream()
+                        .map(pocket -> GroupMemberPocketDto.from(pocket, member.getUser())))
+                .toList();
     }
 }

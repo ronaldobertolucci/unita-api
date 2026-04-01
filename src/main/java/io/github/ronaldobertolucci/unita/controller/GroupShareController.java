@@ -1,7 +1,6 @@
 package io.github.ronaldobertolucci.unita.controller;
 
 import io.github.ronaldobertolucci.unita.dto.group.*;
-import io.github.ronaldobertolucci.unita.dto.investment.AssetDetailDto;
 import io.github.ronaldobertolucci.unita.service.group.GroupShareService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -65,5 +64,12 @@ public class GroupShareController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Authentication authentication) {
         return ResponseEntity.ok(groupShareService.getIncome(id, startDate, endDate, authentication));
+    }
+
+    @GetMapping("/pockets")
+    public ResponseEntity<List<GroupMemberPocketDto>> getPockets(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(groupShareService.getPockets(id, authentication));
     }
 }

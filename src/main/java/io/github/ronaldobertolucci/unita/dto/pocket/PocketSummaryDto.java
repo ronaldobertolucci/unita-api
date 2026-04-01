@@ -10,11 +10,11 @@ public record PocketSummaryDto(
         String label,
         BigDecimal balance
 ) {
-    public static PocketSummaryDto of(Pocket pocket, String label, BigDecimal balance) {
+    public static PocketSummaryDto of(Pocket pocket, BigDecimal balance) {
         return new PocketSummaryDto(
                 pocket.getId(),
                 pocket.getClass().getSimpleName(),
-                label,
+                pocket.getLabel(),
                 balance
         );
     }

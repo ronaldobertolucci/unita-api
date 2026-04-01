@@ -31,4 +31,9 @@ public class BenefitAccount extends Pocket {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private BenefitAccountStatus status;
+
+    @Override
+    public String getLabel() {
+        return this.getLegalEntity().getCorporateName() + " - " + this.getBenefitType().getName();
+    }
 }

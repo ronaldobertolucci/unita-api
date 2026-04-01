@@ -34,4 +34,9 @@ public class FgtsEmployerAccount extends Pocket {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private FgtsEmployerAccountStatus status;
+
+    @Override
+    public String getLabel() {
+        return this.getEmployer().getName();
+    }
 }
