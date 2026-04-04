@@ -185,6 +185,50 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
         assertEquals(LocalDate.of(2025, 3, 10), result.get(2).getClosingDate());
     }
 
+    @Test
+    void findOpenBillsFromToday_ShouldReturnOnlyOpenBillsFromTodayOnwards() {
+        LocalDate today = LocalDate.now();
+        saveBill(card, today.minusDays(1), CreditCardBillStatus.OPEN);   // passado → não retorna
+        saveBill(card, today, CreditCardBillStatus.OPEN);                 // hoje → retorna
+        saveBill(card, today.plusMonths(1), CreditCardBillStatus.OPEN);   // futuro → retorna
+        saveBill(card, today.plusMonths(2), CreditCardBillStatus.CLOSED); // CLOSED → não retorna
+        saveBill(card, today.plusMonths(3), CreditCardBillStatus.PAID);   // PAID → não retorna
+        saveBill(otherCard, today, CreditCardBillStatus.OPEN);            // outro cartão → não retorna
+
+        List<CreditCardBill> result = billRepository.findOpenBillsFromToday(card.getId(), today);
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(b -> b.getStatus() == CreditCardBillStatus.OPEN));
+        assertTrue(result.stream().allMatch(b -> !b.getClosingDate().isBefore(today)));
+        assertTrue(result.stream().allMatch(b -> b.getCreditCard().getId().equals(card.getId())));
+    }
+
+    @Test
+    void findOpenBillsFromToday_ShouldReturnOrderedByClosingDateAsc() {
+        LocalDate today = LocalDate.now();
+        saveBill(card, today.plusMonths(2), CreditCardBillStatus.OPEN);
+        saveBill(card, today, CreditCardBillStatus.OPEN);
+        saveBill(card, today.plusMonths(1), CreditCardBillStatus.OPEN);
+
+        List<CreditCardBill> result = billRepository.findOpenBillsFromToday(card.getId(), today);
+
+        assertEquals(3, result.size());
+        assertEquals(today, result.get(0).getClosingDate());
+        assertEquals(today.plusMonths(1), result.get(1).getClosingDate());
+        assertEquals(today.plusMonths(2), result.get(2).getClosingDate());
+    }
+
+    @Test
+    void findOpenBillsFromToday_WhenNoOpenBills_ShouldReturnEmpty() {
+        LocalDate today = LocalDate.now();
+        saveBill(card, today, CreditCardBillStatus.CLOSED);
+        saveBill(card, today.plusMonths(1), CreditCardBillStatus.PAID);
+
+        List<CreditCardBill> result = billRepository.findOpenBillsFromToday(card.getId(), today);
+
+        assertTrue(result.isEmpty());
+    }
+
     private CreditCardBill saveBill(CreditCard card, LocalDate closingDate, CreditCardBillStatus status) {
         return billRepository.save(CreditCardBill.builder()
                 .creditCard(card)

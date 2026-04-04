@@ -59,6 +59,17 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             Pageable pageable);
 
     @Query("""
+        SELECT b FROM CreditCardBill b
+        WHERE b.creditCard.id = :creditCardId
+        AND b.status = 'OPEN'
+        AND b.closingDate >= :today
+        ORDER BY b.closingDate ASC
+        """)
+    List<CreditCardBill> findOpenBillsFromToday(
+            @Param("creditCardId") Long creditCardId,
+            @Param("today") LocalDate today);
+
+    @Query("""
             SELECT b FROM CreditCardBill b
             WHERE b.id = :id
             AND b.creditCard.id = :creditCardId

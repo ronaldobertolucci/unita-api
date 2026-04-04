@@ -196,6 +196,139 @@ class CreditCardServiceTest {
     }
 
     @Test
+    void updateCreditCard_WhenOpenFutureBillsExist_ShouldRecalculateDatesFromSecondBillOnwards() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        // card atual: closingDay=10, dueDay=20
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+
+        LocalDate today = LocalDate.now();
+
+        // Fatura do ciclo atual — deve ser congelada
+        CreditCardBill currentBill = CreditCardBill.builder()
+                .creditCard(card)
+                .closingDate(today.withDayOfMonth(15))
+                .dueDate(today.withDayOfMonth(25))
+                .status(CreditCardBillStatus.OPEN)
+                .build();
+        currentBill.setId(1L);
+
+        // Faturas futuras — devem ser recalculadas
+        CreditCardBill futureBill1 = CreditCardBill.builder()
+                .creditCard(card)
+                .closingDate(today.plusMonths(1).withDayOfMonth(10))
+                .dueDate(today.plusMonths(1).withDayOfMonth(20))
+                .status(CreditCardBillStatus.OPEN)
+                .build();
+        futureBill1.setId(2L);
+
+        CreditCardBill futureBill2 = CreditCardBill.builder()
+                .creditCard(card)
+                .closingDate(today.plusMonths(2).withDayOfMonth(10))
+                .dueDate(today.plusMonths(2).withDayOfMonth(20))
+                .status(CreditCardBillStatus.OPEN)
+                .build();
+        futureBill2.setId(3L);
+
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any()))
+                .thenReturn(List.of(currentBill, futureBill1, futureBill2));
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        // Fatura atual não deve ser alterada
+        assertEquals(today.withDayOfMonth(15), currentBill.getClosingDate());
+        assertEquals(today.withDayOfMonth(25), currentBill.getDueDate());
+
+        // futureBill1: mês original mantido, closingDay=15, dueDay=25 > closingDay=15 → mesmo mês
+        LocalDate expectedClosing1 = today.plusMonths(1).withDayOfMonth(15);
+        LocalDate expectedDue1 = today.plusMonths(1).withDayOfMonth(25);
+        assertEquals(expectedClosing1, futureBill1.getClosingDate());
+        assertEquals(expectedDue1, futureBill1.getDueDate());
+
+        // futureBill2: mesmo raciocínio
+        LocalDate expectedClosing2 = today.plusMonths(2).withDayOfMonth(15);
+        LocalDate expectedDue2 = today.plusMonths(2).withDayOfMonth(25);
+        assertEquals(expectedClosing2, futureBill2.getClosingDate());
+        assertEquals(expectedDue2, futureBill2.getDueDate());
+
+        verify(creditCardBillRepository).saveAll(List.of(futureBill1, futureBill2));
+    }
+
+    @Test
+    void updateCreditCard_WhenNoOpenBillsExist_ShouldNotCallSaveAll() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any())).thenReturn(List.of());
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        verify(creditCardBillRepository).saveAll(List.of());
+    }
+
+    @Test
+    void updateCreditCard_WhenOnlyCurrentCycleBillExists_ShouldNotUpdateAnyBill() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+
+        CreditCardBill currentBill = CreditCardBill.builder()
+                .creditCard(card)
+                .closingDate(LocalDate.now().withDayOfMonth(10))
+                .dueDate(LocalDate.now().withDayOfMonth(20))
+                .status(CreditCardBillStatus.OPEN)
+                .build();
+        currentBill.setId(1L);
+
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any()))
+                .thenReturn(List.of(currentBill));
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        verify(creditCardBillRepository).saveAll(List.of());
+    }
+
+    @Test
+    void updateCreditCard_WhenDueDayLessThanOrEqualClosingDay_ShouldSetDueDateInNextMonth() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        // novo closingDay=20, dueDay=5 → dueDay <= closingDay → vence mês seguinte
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(20, 5);
+
+        LocalDate today = LocalDate.now();
+        CreditCardBill currentBill = CreditCardBill.builder()
+                .creditCard(card)
+                .closingDate(today.withDayOfMonth(10))
+                .dueDate(today.withDayOfMonth(20))
+                .status(CreditCardBillStatus.OPEN)
+                .build();
+        currentBill.setId(1L);
+
+        CreditCardBill futureBill = CreditCardBill.builder()
+                .creditCard(card)
+                .closingDate(today.plusMonths(1).withDayOfMonth(10))
+                .dueDate(today.plusMonths(1).withDayOfMonth(20))
+                .status(CreditCardBillStatus.OPEN)
+                .build();
+        futureBill.setId(2L);
+
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any()))
+                .thenReturn(List.of(currentBill, futureBill));
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        LocalDate expectedClosing = today.plusMonths(1).withDayOfMonth(20);
+        LocalDate expectedDue = today.plusMonths(2).withDayOfMonth(5);
+        assertEquals(expectedClosing, futureBill.getClosingDate());
+        assertEquals(expectedDue, futureBill.getDueDate());
+    }
+
+    @Test
     void deleteCreditCard_WhenOwner_ShouldDelete() {
         when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
 

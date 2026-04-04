@@ -96,7 +96,36 @@ public class CreditCardService {
             creditCard.setDueDay(dto.dueDay());
         }
 
-        return new CreditCardDto(creditCardRepository.save(creditCard));
+        creditCardRepository.save(creditCard);
+
+        int newClosingDay = creditCard.getClosingDay();
+        int newDueDay = creditCard.getDueDay();
+
+        List<CreditCardBill> openBills = creditCardBillRepository
+                .findOpenBillsFromToday(creditCard.getId(), LocalDate.now());
+
+        List<CreditCardBill> billsToUpdate = openBills.isEmpty()
+                ? List.of()
+                : openBills.subList(1, openBills.size());
+
+        for (CreditCardBill bill : billsToUpdate) {
+            LocalDate originalClosing = bill.getClosingDate();
+            LocalDate newClosingDate = originalClosing.withDayOfMonth(
+                    Math.min(newClosingDay, originalClosing.lengthOfMonth()));
+
+            LocalDate dueDateMonth = newDueDay > newClosingDay
+                    ? newClosingDate
+                    : newClosingDate.plusMonths(1);
+            LocalDate newDueDate = dueDateMonth.withDayOfMonth(
+                    Math.min(newDueDay, dueDateMonth.lengthOfMonth()));
+
+            bill.setClosingDate(newClosingDate);
+            bill.setDueDate(newDueDate);
+        }
+
+        creditCardBillRepository.saveAll(billsToUpdate);
+
+        return new CreditCardDto(creditCard);
     }
 
     @Transactional
