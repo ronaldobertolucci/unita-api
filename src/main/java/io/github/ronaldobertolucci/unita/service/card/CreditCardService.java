@@ -289,7 +289,14 @@ public class CreditCardService {
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
 
-        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, purchase.getPurchaseDate());
+        LocalDate installmentMonth = purchase
+                .getPurchaseDate()
+                .plusMonths(dto.installmentNumber() - 1);
+        LocalDate installmentDate = installmentMonth
+                .withDayOfMonth(Math.min(purchase.getPurchaseDate().getDayOfMonth(), installmentMonth.lengthOfMonth()));
+        LocalDate limitDate = installmentDate.plusMonths(2).withDayOfMonth(1);
+
+        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, installmentDate, limitDate);
 
         CreditCardInstallment installment = CreditCardInstallment.builder()
                 .purchase(purchase)

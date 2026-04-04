@@ -46,6 +46,19 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             Pageable pageable);
 
     @Query("""
+        SELECT b FROM CreditCardBill b
+        WHERE b.creditCard.id = :creditCardId
+        AND b.closingDate >= :purchaseDate
+        AND b.closingDate < :limitDate
+        ORDER BY b.closingDate ASC
+        """)
+    List<CreditCardBill> findBillForPurchaseDate(
+            @Param("creditCardId") Long creditCardId,
+            @Param("purchaseDate") LocalDate purchaseDate,
+            @Param("limitDate") LocalDate limitDate,
+            Pageable pageable);
+
+    @Query("""
             SELECT b FROM CreditCardBill b
             WHERE b.id = :id
             AND b.creditCard.id = :creditCardId

@@ -25,6 +25,14 @@ public class CreditCardBillResolverService {
                 .orElseGet(() -> createForDate(creditCard, purchaseDate));
     }
 
+    @Transactional
+    public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate purchaseDate, LocalDate limitDate) {
+        return creditCardBillRepository
+                .findBillForPurchaseDate(creditCard.getId(), purchaseDate, limitDate, PageRequest.of(0, 1))
+                .stream().findFirst()
+                .orElseGet(() -> createForDate(creditCard, purchaseDate));
+    }
+
     private CreditCardBill createForDate(CreditCard creditCard, LocalDate purchaseDate) {
         int closingDay = creditCard.getClosingDay();
         int dueDay    = creditCard.getDueDay();
