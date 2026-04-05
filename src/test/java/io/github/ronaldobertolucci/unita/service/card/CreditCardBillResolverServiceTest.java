@@ -10,10 +10,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
-import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,16 +47,18 @@ class CreditCardBillResolverServiceTest {
     @Test
     void findOrCreateForDate_WhenBillAlreadyExists_ShouldReturnExistingBillWithoutSaving() {
         LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
+        LocalDate expectedClosingDate = LocalDate.of(2025, 1, 10);
+
         CreditCardBill existingBill = CreditCardBill.builder()
                 .id(1L)
                 .creditCard(creditCard)
-                .closingDate(LocalDate.of(2025, 1, 10))
+                .closingDate(expectedClosingDate)
                 .dueDate(LocalDate.of(2025, 2, 5))
                 .status(CreditCardBillStatus.OPEN)
                 .build();
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                eq(1L), eq(purchaseDate), any(PageRequest.class)))
-                .thenReturn(List.of(existingBill));
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(eq(1L), eq(expectedClosingDate)))
+                .thenReturn(Optional.of(existingBill));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate);
 
@@ -74,8 +75,9 @@ class CreditCardBillResolverServiceTest {
     void findOrCreateForDate_WhenNoBillExists_AndPurchaseBeforeClosingDay_ShouldCreateBillClosingInSameMonth() {
         // Compra dia 05/Jan, fechamento dia 10 → fecha em Jan, vence em Fev
         LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate);
@@ -91,8 +93,9 @@ class CreditCardBillResolverServiceTest {
     void findOrCreateForDate_WhenNoBillExists_AndPurchaseOnClosingDay_ShouldCreateBillClosingInNextMonth() {
         // Compra no próprio dia de fechamento (10/Jan) → deve empurrar para o mês seguinte
         LocalDate purchaseDate = LocalDate.of(2025, 1, 10);
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate);
@@ -106,8 +109,9 @@ class CreditCardBillResolverServiceTest {
     void findOrCreateForDate_WhenNoBillExists_AndPurchaseAfterClosingDay_ShouldCreateBillClosingInNextMonth() {
         // Compra dia 15/Jan, fechamento dia 10 → closingDate inicial não é depois da compra → avança
         LocalDate purchaseDate = LocalDate.of(2025, 1, 15);
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate);
@@ -125,8 +129,9 @@ class CreditCardBillResolverServiceTest {
                 .dueDay(5)
                 .build();
         LocalDate purchaseDate = LocalDate.of(2025, 2, 5);
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(cardWith31, purchaseDate);
@@ -147,8 +152,9 @@ class CreditCardBillResolverServiceTest {
                 .dueDay(31)
                 .build();
         LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(cardWithDue31, purchaseDate);
@@ -169,8 +175,9 @@ class CreditCardBillResolverServiceTest {
                 .dueDay(15)
                 .build();
         LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
-        when(creditCardBillRepository.findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(
-                any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(cardWithDueDayAfterClosing, purchaseDate);
@@ -182,23 +189,25 @@ class CreditCardBillResolverServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // findOrCreateForDate com limitDate
+    // findOrCreateForDate com limitDate (nova implementação repassa a chamada)
     // -------------------------------------------------------------------------
 
     @Test
     void findOrCreateForDate_WithLimitDate_WhenBillExistsInWindow_ShouldReturnExistingBillWithoutSaving() {
         LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
         LocalDate limitDate = LocalDate.of(2025, 3, 1);
+        LocalDate expectedClosingDate = LocalDate.of(2025, 1, 10);
+
         CreditCardBill existingBill = CreditCardBill.builder()
                 .id(1L)
                 .creditCard(creditCard)
-                .closingDate(LocalDate.of(2025, 1, 10))
+                .closingDate(expectedClosingDate)
                 .dueDate(LocalDate.of(2025, 2, 5))
                 .status(CreditCardBillStatus.OPEN)
                 .build();
-        when(creditCardBillRepository.findBillForPurchaseDate(
-                eq(1L), eq(purchaseDate), eq(limitDate), any(PageRequest.class)))
-                .thenReturn(List.of(existingBill));
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(eq(1L), eq(expectedClosingDate)))
+                .thenReturn(Optional.of(existingBill));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate, limitDate);
 
@@ -209,11 +218,12 @@ class CreditCardBillResolverServiceTest {
 
     @Test
     void findOrCreateForDate_WithLimitDate_WhenNoBillInWindow_ShouldCreateBill() {
-        // Compra dia 05/Jan, limitDate 01/Mar → cria fatura fechando em Jan
+        // Compra dia 05/Jan, cria fatura fechando em Jan
         LocalDate purchaseDate = LocalDate.of(2025, 1, 5);
         LocalDate limitDate = LocalDate.of(2025, 3, 1);
-        when(creditCardBillRepository.findBillForPurchaseDate(
-                any(), any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate, limitDate);
@@ -226,33 +236,16 @@ class CreditCardBillResolverServiceTest {
 
     @Test
     void findOrCreateForDate_WithLimitDate_WhenPurchaseAfterClosingDay_ShouldCreateBillInNextMonth() {
-        // Compra dia 15/Jan, fechamento dia 10 → fatura fecha em Fev, fora do limite Mar
-        // Mas como não existe fatura, cria com base na purchaseDate
+        // Compra dia 15/Jan, fechamento dia 10 → fatura fecha em Fev
         LocalDate purchaseDate = LocalDate.of(2025, 1, 15);
         LocalDate limitDate = LocalDate.of(2025, 3, 1);
-        when(creditCardBillRepository.findBillForPurchaseDate(
-                any(), any(), any(), any())).thenReturn(List.of());
+
+        when(creditCardBillRepository.findByCreditCardIdAndClosingDate(any(), any()))
+                .thenReturn(Optional.empty());
         when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate, limitDate);
 
-        assertThat(result.getClosingDate()).isEqualTo(LocalDate.of(2025, 2, 10));
-        assertThat(result.getDueDate()).isEqualTo(LocalDate.of(2025, 3, 5));
-        verify(creditCardBillRepository).save(any(CreditCardBill.class));
-    }
-
-    @Test
-    void findOrCreateForDate_WithLimitDate_WhenBillExistsOutsideWindow_ShouldCreateNewBill() {
-        // Existe fatura em Abr, mas limitDate é Mar → não é encontrada → cria nova
-        LocalDate purchaseDate = LocalDate.of(2025, 1, 31);
-        LocalDate limitDate = LocalDate.of(2025, 3, 1);
-        when(creditCardBillRepository.findBillForPurchaseDate(
-                any(), any(), any(), any())).thenReturn(List.of());
-        when(creditCardBillRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        CreditCardBill result = creditCardBillResolverService.findOrCreateForDate(creditCard, purchaseDate, limitDate);
-
-        // purchaseDate 31/Jan, closingDay 10 → closingDate inicial Jan 10 → NOT isAfter Jan 31 → avança para Fev 10
         assertThat(result.getClosingDate()).isEqualTo(LocalDate.of(2025, 2, 10));
         assertThat(result.getDueDate()).isEqualTo(LocalDate.of(2025, 3, 5));
         verify(creditCardBillRepository).save(any(CreditCardBill.class));

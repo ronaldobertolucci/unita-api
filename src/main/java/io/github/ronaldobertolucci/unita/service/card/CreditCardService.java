@@ -326,9 +326,8 @@ public class CreditCardService {
                 .plusMonths(dto.installmentNumber() - 1);
         LocalDate installmentDate = installmentMonth
                 .withDayOfMonth(Math.min(purchase.getPurchaseDate().getDayOfMonth(), installmentMonth.lengthOfMonth()));
-        LocalDate limitDate = installmentDate.plusMonths(2).withDayOfMonth(1);
 
-        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, installmentDate, limitDate);
+        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, installmentDate);
 
         if (bill.getStatus() == CreditCardBillStatus.PAID) {
             throw new IllegalStateException("Cannot add installment to a paid bill");

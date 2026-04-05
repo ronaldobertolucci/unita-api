@@ -630,7 +630,7 @@ class CreditCardServiceTest {
         when(creditCardPurchaseRepository.findByIdAndCreditCardId(2L, 1L)).thenReturn(Optional.of(purchase));
         when(categoryService.resolveCategory(eq(1L), any(), any()))
                 .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
-        when(billResolverService.findOrCreateForDate(any(), any(), any())).thenReturn(paidBill);
+        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(paidBill);
 
         assertThrows(IllegalStateException.class,
                 () -> creditCardService.createInstallment(1L, 2L,
@@ -649,7 +649,7 @@ class CreditCardServiceTest {
         when(creditCardPurchaseRepository.findByIdAndCreditCardId(2L, 1L)).thenReturn(Optional.of(purchase));
         when(categoryService.resolveCategory(eq(1L), any(), any()))
                 .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
-        when(billResolverService.findOrCreateForDate(any(), any(), any())).thenReturn(closedBill);
+        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(closedBill);
 
         assertThrows(IllegalStateException.class,
                 () -> creditCardService.createInstallment(1L, 2L,

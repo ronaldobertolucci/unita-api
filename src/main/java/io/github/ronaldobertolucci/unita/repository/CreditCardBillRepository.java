@@ -100,4 +100,6 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             ORDER BY b.closingDate ASC
             """)
     List<CreditCardBill> findAllByUserId(@Param("userId") Long userId);
+
+    Optional<CreditCardBill> findByCreditCardIdAndClosingDate(Long creditCardId, LocalDate closingDate);
 }
