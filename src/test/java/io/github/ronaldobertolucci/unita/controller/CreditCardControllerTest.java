@@ -184,7 +184,7 @@ class CreditCardControllerTest {
 
     @Test
     void updateCreditCard_WhenBothFieldsProvided_ShouldReturn200() throws Exception {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20, null);
         CreditCardDto updated = new CreditCardDto(1L, "Banco do Brasil", "1234", "Visa",
                 new BigDecimal("5000.00"), 15, 20);
         when(creditCardService.updateCreditCard(eq(1L), any(), any())).thenReturn(updated);
@@ -199,7 +199,7 @@ class CreditCardControllerTest {
 
     @Test
     void updateCreditCard_WhenOnlyClosingDayProvided_ShouldReturn200() throws Exception {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null, null);
         CreditCardDto updated = new CreditCardDto(1L, "Banco do Brasil", "1234", "Visa",
                 new BigDecimal("5000.00"), 15, 15);
         when(creditCardService.updateCreditCard(eq(1L), any(), any())).thenReturn(updated);
@@ -213,7 +213,7 @@ class CreditCardControllerTest {
 
     @Test
     void updateCreditCard_WhenOnlyDueDayProvided_ShouldReturn200() throws Exception {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, 20);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, 20, null);
         CreditCardDto updated = new CreditCardDto(1L, "Banco do Brasil", "1234", "Visa",
                 new BigDecimal("5000.00"), 10, 20);
         when(creditCardService.updateCreditCard(eq(1L), any(), any())).thenReturn(updated);
@@ -227,7 +227,7 @@ class CreditCardControllerTest {
 
     @Test
     void updateCreditCard_WhenBothFieldsAreNull_ShouldReturn400() throws Exception {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null, null);
         when(creditCardService.updateCreditCard(eq(1L), any(), any()))
                 .thenThrow(new IllegalArgumentException("At least one field must be provided"));
 
@@ -239,7 +239,7 @@ class CreditCardControllerTest {
 
     @Test
     void updateCreditCard_WhenNotFound_ShouldReturn404() throws Exception {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null, null);
         when(creditCardService.updateCreditCard(eq(99L), any(), any()))
                 .thenThrow(new EntityNotFoundException("Credit card not found"));
 
@@ -251,7 +251,7 @@ class CreditCardControllerTest {
 
     @Test
     void updateCreditCard_WhenUnauthenticated_ShouldReturn403() throws Exception {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20, null);
 
         mockMvc.perform(patch("/credit-cards/1")
                         .contentType(MediaType.APPLICATION_JSON)

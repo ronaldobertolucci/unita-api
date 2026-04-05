@@ -85,7 +85,7 @@ public class CreditCardService {
         CreditCard creditCard = creditCardRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
 
-        if (dto.closingDay() == null && dto.dueDay() == null) {
+        if (dto.closingDay() == null && dto.dueDay() == null && dto.creditLimit() == null) {
             throw new IllegalArgumentException("At least one field must be provided");
         }
 
@@ -94,6 +94,9 @@ public class CreditCardService {
         }
         if (dto.dueDay() != null) {
             creditCard.setDueDay(dto.dueDay());
+        }
+        if (dto.creditLimit() != null) {
+            creditCard.setCreditLimit(dto.creditLimit());
         }
 
         creditCardRepository.save(creditCard);

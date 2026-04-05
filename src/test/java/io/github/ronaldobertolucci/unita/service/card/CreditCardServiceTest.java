@@ -132,7 +132,7 @@ class CreditCardServiceTest {
     @Test
     void updateCreditCard_WhenBothFieldsProvided_ShouldUpdateAndReturn() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(creditCardRepository.save(any())).thenReturn(card);
 
@@ -148,7 +148,7 @@ class CreditCardServiceTest {
     void updateCreditCard_WhenOnlyClosingDayProvided_ShouldUpdateOnlyClosingDay() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         int originalDueDay = card.getDueDay();
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null, null);
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(creditCardRepository.save(any())).thenReturn(card);
 
@@ -163,7 +163,7 @@ class CreditCardServiceTest {
     void updateCreditCard_WhenOnlyDueDayProvided_ShouldUpdateOnlyDueDay() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         int originalClosingDay = card.getClosingDay();
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, 25);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, 25, null);
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(creditCardRepository.save(any())).thenReturn(card);
 
@@ -177,7 +177,7 @@ class CreditCardServiceTest {
     @Test
     void updateCreditCard_WhenBothFieldsAreNull_ShouldThrowIllegalArgumentException() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null, null);
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
 
         assertThrows(IllegalArgumentException.class,
@@ -187,7 +187,7 @@ class CreditCardServiceTest {
 
     @Test
     void updateCreditCard_WhenNotFound_ShouldThrow() {
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, null, null);
         when(creditCardRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class,
@@ -199,7 +199,7 @@ class CreditCardServiceTest {
     void updateCreditCard_WhenOpenFutureBillsExist_ShouldRecalculateDatesFromSecondBillOnwards() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         // card atual: closingDay=10, dueDay=20
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
 
         LocalDate today = LocalDate.now();
 
@@ -258,7 +258,7 @@ class CreditCardServiceTest {
     @Test
     void updateCreditCard_WhenNoOpenBillsExist_ShouldNotCallSaveAll() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
 
         when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
         when(creditCardRepository.save(any())).thenReturn(card);
@@ -272,7 +272,7 @@ class CreditCardServiceTest {
     @Test
     void updateCreditCard_WhenOnlyCurrentCycleBillExists_ShouldNotUpdateAnyBill() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
 
         CreditCardBill currentBill = CreditCardBill.builder()
                 .creditCard(card)
@@ -296,7 +296,7 @@ class CreditCardServiceTest {
     void updateCreditCard_WhenDueDayLessThanOrEqualClosingDay_ShouldSetDueDateInNextMonth() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         // novo closingDay=20, dueDay=5 → dueDay <= closingDay → vence mês seguinte
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(20, 5);
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(20, 5, null);
 
         LocalDate today = LocalDate.now();
         CreditCardBill currentBill = CreditCardBill.builder()
@@ -326,6 +326,35 @@ class CreditCardServiceTest {
         LocalDate expectedDue = today.plusMonths(2).withDayOfMonth(5);
         assertEquals(expectedClosing, futureBill.getClosingDate());
         assertEquals(expectedDue, futureBill.getDueDate());
+    }
+
+    @Test
+    void updateCreditCard_WhenOnlyCreditLimitProvided_ShouldUpdateOnlyCreditLimit() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        int originalClosingDay = card.getClosingDay();
+        int originalDueDay = card.getDueDay();
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null, new BigDecimal("8000"));
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardRepository.save(any())).thenReturn(card);
+        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any())).thenReturn(List.of());
+
+        creditCardService.updateCreditCard(1L, dto, authentication);
+
+        assertEquals(originalClosingDay, card.getClosingDay());
+        assertEquals(originalDueDay, card.getDueDay());
+        assertEquals(0, new BigDecimal("8000").compareTo(card.getCreditLimit()));
+        verify(creditCardRepository).save(card);
+    }
+
+    @Test
+    void updateCreditCard_WhenAllThreeFieldsAreNull_ShouldThrowIllegalArgumentException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardUpdateDto dto = new CreditCardUpdateDto(null, null, null);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> creditCardService.updateCreditCard(1L, dto, authentication));
+        verify(creditCardRepository, never()).save(any());
     }
 
     @Test
