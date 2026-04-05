@@ -620,6 +620,44 @@ class CreditCardServiceTest {
     }
 
     @Test
+    void createInstallment_WhenResolvedBillIsPaid_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill paidBill = buildBill(5L, card, CreditCardBillStatus.PAID);
+        CreditCardPurchase purchase = buildPurchase(2L, card);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardPurchaseRepository.findByIdAndCreditCardId(2L, 1L)).thenReturn(Optional.of(purchase));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
+        when(billResolverService.findOrCreateForDate(any(), any(), any())).thenReturn(paidBill);
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.createInstallment(1L, 2L,
+                        new CreditCardInstallmentCreateDto(1, new BigDecimal("100"), 1L), authentication));
+        verify(creditCardInstallmentRepository, never()).save(any());
+    }
+
+    @Test
+    void createInstallment_WhenResolvedBillIsClosed_ShouldThrowIllegalStateException() {
+        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+        CreditCardBill closedBill = buildBill(5L, card, CreditCardBillStatus.CLOSED);
+        CreditCardPurchase purchase = buildPurchase(2L, card);
+
+        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+        when(creditCardPurchaseRepository.findByIdAndCreditCardId(2L, 1L)).thenReturn(Optional.of(purchase));
+        when(categoryService.resolveCategory(eq(1L), any(), any()))
+                .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
+        when(billResolverService.findOrCreateForDate(any(), any(), any())).thenReturn(closedBill);
+
+        assertThrows(IllegalStateException.class,
+                () -> creditCardService.createInstallment(1L, 2L,
+                        new CreditCardInstallmentCreateDto(1, new BigDecimal("100"), 1L), authentication));
+        verify(creditCardInstallmentRepository, never()).save(any());
+    }
+
+    @Test
     void updateInstallment_WhenCurrentBillIsPaid_ShouldThrowIllegalStateException() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         CreditCardBill paidBill = buildBill(5L, card, CreditCardBillStatus.PAID);

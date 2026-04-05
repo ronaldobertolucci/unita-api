@@ -330,6 +330,13 @@ public class CreditCardService {
 
         CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, installmentDate, limitDate);
 
+        if (bill.getStatus() == CreditCardBillStatus.PAID) {
+            throw new IllegalStateException("Cannot add installment to a paid bill");
+        }
+        if (bill.getStatus() == CreditCardBillStatus.CLOSED) {
+            throw new IllegalStateException("Bill is closed. Reopen it before adding installments");
+        }
+
         CreditCardInstallment installment = CreditCardInstallment.builder()
                 .purchase(purchase)
                 .installmentNumber(dto.installmentNumber())
