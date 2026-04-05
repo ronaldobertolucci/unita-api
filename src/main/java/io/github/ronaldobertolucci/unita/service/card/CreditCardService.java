@@ -107,11 +107,11 @@ public class CreditCardService {
         List<CreditCardBill> openBills = creditCardBillRepository
                 .findOpenBillsFromToday(creditCard.getId(), LocalDate.now());
 
-        List<CreditCardBill> billsToUpdate = openBills.isEmpty()
-                ? List.of()
-                : openBills.subList(1, openBills.size());
+//        List<CreditCardBill> billsToUpdate = openBills.isEmpty()
+//                ? List.of()
+//                : openBills.subList(1, openBills.size());
 
-        for (CreditCardBill bill : billsToUpdate) {
+        for (CreditCardBill bill : openBills) {
             LocalDate originalClosing = bill.getClosingDate();
             LocalDate newClosingDate = originalClosing.withDayOfMonth(
                     Math.min(newClosingDay, originalClosing.lengthOfMonth()));
@@ -126,7 +126,7 @@ public class CreditCardService {
             bill.setDueDate(newDueDate);
         }
 
-        creditCardBillRepository.saveAll(billsToUpdate);
+        creditCardBillRepository.saveAll(openBills);
 
         return new CreditCardDto(creditCard);
     }

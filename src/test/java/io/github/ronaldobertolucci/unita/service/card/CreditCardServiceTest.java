@@ -196,14 +196,13 @@ class CreditCardServiceTest {
     }
 
     @Test
-    void updateCreditCard_WhenOpenFutureBillsExist_ShouldRecalculateDatesFromSecondBillOnwards() {
+    void updateCreditCard_WhenOpenFutureBillsExist_ShouldRecalculateDates() {
         CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
         // card atual: closingDay=10, dueDay=20
         CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
 
         LocalDate today = LocalDate.now();
 
-        // Fatura do ciclo atual — deve ser congelada
         CreditCardBill currentBill = CreditCardBill.builder()
                 .creditCard(card)
                 .closingDate(today.withDayOfMonth(15))
@@ -212,7 +211,6 @@ class CreditCardServiceTest {
                 .build();
         currentBill.setId(1L);
 
-        // Faturas futuras — devem ser recalculadas
         CreditCardBill futureBill1 = CreditCardBill.builder()
                 .creditCard(card)
                 .closingDate(today.plusMonths(1).withDayOfMonth(10))
@@ -236,7 +234,7 @@ class CreditCardServiceTest {
 
         creditCardService.updateCreditCard(1L, dto, authentication);
 
-        // Fatura atual não deve ser alterada
+        // Fatura atual
         assertEquals(today.withDayOfMonth(15), currentBill.getClosingDate());
         assertEquals(today.withDayOfMonth(25), currentBill.getDueDate());
 
@@ -252,7 +250,7 @@ class CreditCardServiceTest {
         assertEquals(expectedClosing2, futureBill2.getClosingDate());
         assertEquals(expectedDue2, futureBill2.getDueDate());
 
-        verify(creditCardBillRepository).saveAll(List.of(futureBill1, futureBill2));
+        verify(creditCardBillRepository).saveAll(List.of(currentBill, futureBill1, futureBill2));
     }
 
     @Test
@@ -269,28 +267,28 @@ class CreditCardServiceTest {
         verify(creditCardBillRepository).saveAll(List.of());
     }
 
-    @Test
-    void updateCreditCard_WhenOnlyCurrentCycleBillExists_ShouldNotUpdateAnyBill() {
-        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
-
-        CreditCardBill currentBill = CreditCardBill.builder()
-                .creditCard(card)
-                .closingDate(LocalDate.now().withDayOfMonth(10))
-                .dueDate(LocalDate.now().withDayOfMonth(20))
-                .status(CreditCardBillStatus.OPEN)
-                .build();
-        currentBill.setId(1L);
-
-        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
-        when(creditCardRepository.save(any())).thenReturn(card);
-        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any()))
-                .thenReturn(List.of(currentBill));
-
-        creditCardService.updateCreditCard(1L, dto, authentication);
-
-        verify(creditCardBillRepository).saveAll(List.of());
-    }
+//    @Test
+//    void updateCreditCard_WhenOnlyCurrentCycleBillExists_ShouldNotUpdateAnyBill() {
+//        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
+//        CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 25, null);
+//
+//        CreditCardBill currentBill = CreditCardBill.builder()
+//                .creditCard(card)
+//                .closingDate(LocalDate.now().withDayOfMonth(10))
+//                .dueDate(LocalDate.now().withDayOfMonth(20))
+//                .status(CreditCardBillStatus.OPEN)
+//                .build();
+//        currentBill.setId(1L);
+//
+//        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
+//        when(creditCardRepository.save(any())).thenReturn(card);
+//        when(creditCardBillRepository.findOpenBillsFromToday(eq(1L), any()))
+//                .thenReturn(List.of(currentBill));
+//
+//        creditCardService.updateCreditCard(1L, dto, authentication);
+//
+//        verify(creditCardBillRepository).saveAll(List.of());
+//    }
 
     @Test
     void updateCreditCard_WhenDueDayLessThanOrEqualClosingDay_ShouldSetDueDateInNextMonth() {
