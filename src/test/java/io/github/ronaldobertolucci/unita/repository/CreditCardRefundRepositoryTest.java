@@ -51,11 +51,15 @@ class CreditCardRefundRepositoryTest extends BaseRepositoryTest {
                 .cardBrand(brand).creditLimit(new BigDecimal("5000")).closingDay(10).dueDay(20).build());
 
         bill = billRepository.save(CreditCardBill.builder()
+                .periodStart(LocalDate.of(2023, 12, 10))
                 .creditCard(card).closingDate(LocalDate.of(2024, 1, 10))
-                .dueDate(LocalDate.of(2024, 2, 10)).status(CreditCardBillStatus.OPEN).build());
+                .closingDay(10).dueDate(LocalDate.of(2024, 2, 10))
+                .dueDay(10).status(CreditCardBillStatus.OPEN).build());
         otherBill = billRepository.save(CreditCardBill.builder()
+                .periodStart(LocalDate.of(2024, 1, 10))
                 .creditCard(card).closingDate(LocalDate.of(2024, 2, 10))
-                .dueDate(LocalDate.of(2024, 3, 10)).status(CreditCardBillStatus.OPEN).build());
+                .closingDay(10).dueDate(LocalDate.of(2024, 3, 10))
+                .dueDay(10).status(CreditCardBillStatus.OPEN).build());
 
         category = categoryRepository.save(Category.builder()
                 .user(user)

@@ -17,8 +17,11 @@ CREATE TABLE credit_card_bills
 (
     id                     BIGSERIAL PRIMARY KEY,
     credit_card_id         BIGINT      NOT NULL,
+    period_start           DATE        NOT NULL,
     closing_date           DATE        NOT NULL,
     due_date               DATE        NOT NULL,
+    closing_day            SMALLINT    NOT NULL,
+    due_day                SMALLINT    NOT NULL,
     status                 VARCHAR(10) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'CLOSED', 'PAID')),
     payment_transaction_id BIGINT UNIQUE,
     CONSTRAINT fk_credit_card_bills_card FOREIGN KEY (credit_card_id) REFERENCES credit_cards (id) ON DELETE CASCADE,

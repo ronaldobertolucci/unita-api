@@ -61,7 +61,10 @@ public class CreditCardService {
                 .dueDay(dto.dueDay())
                 .build();
 
-        return new CreditCardDto(creditCardRepository.save(creditCard));
+        CreditCard saved = creditCardRepository.save(creditCard);
+        billResolverService.createInitialBill(saved, LocalDate.now());
+
+        return new CreditCardDto(saved);
     }
 
     public List<CreditCardDto> findMyCreditCards(Authentication authentication) {
@@ -107,26 +110,30 @@ public class CreditCardService {
         List<CreditCardBill> openBills = creditCardBillRepository
                 .findOpenBillsFromToday(creditCard.getId(), LocalDate.now());
 
-//        List<CreditCardBill> billsToUpdate = openBills.isEmpty()
-//                ? List.of()
-//                : openBills.subList(1, openBills.size());
+        List<CreditCardBill> billsToUpdate = openBills.isEmpty()
+                ? List.of()
+                : openBills.subList(1, openBills.size());
 
-        for (CreditCardBill bill : openBills) {
-            LocalDate originalClosing = bill.getClosingDate();
-            LocalDate newClosingDate = originalClosing.withDayOfMonth(
-                    Math.min(newClosingDay, originalClosing.lengthOfMonth()));
+        CreditCardBill previous = openBills.isEmpty() ? null : openBills.get(0);
 
-            LocalDate dueDateMonth = newDueDay > newClosingDay
-                    ? newClosingDate
-                    : newClosingDate.plusMonths(1);
-            LocalDate newDueDate = dueDateMonth.withDayOfMonth(
-                    Math.min(newDueDay, dueDateMonth.lengthOfMonth()));
+        for (CreditCardBill bill : billsToUpdate) {
+            LocalDate periodStart = previous.getClosingDate();
+            LocalDate newClosingDate = periodStart.plusMonths(1)
+                    .withDayOfMonth(Math.min(newClosingDay, periodStart.plusMonths(1).lengthOfMonth()));
 
+            LocalDate dueDateMonth = newDueDay > newClosingDay ? newClosingDate : newClosingDate.plusMonths(1);
+            LocalDate newDueDate = dueDateMonth.withDayOfMonth(Math.min(newDueDay, dueDateMonth.lengthOfMonth()));
+
+            bill.setPeriodStart(periodStart);
             bill.setClosingDate(newClosingDate);
             bill.setDueDate(newDueDate);
+            bill.setClosingDay(newClosingDay);
+            bill.setDueDay(newDueDay);
+
+            previous = bill;
         }
 
-        creditCardBillRepository.saveAll(openBills);
+        creditCardBillRepository.saveAll(billsToUpdate);
 
         return new CreditCardDto(creditCard);
     }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -17,55 +18,123 @@ public class CreditCardBillResolverService {
     private final CreditCardBillRepository creditCardBillRepository;
 
     @Transactional
-    public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate purchaseDate) {
-        LocalDate expectedClosingDate = calculateExpectedClosingDate(creditCard, purchaseDate);
-
+    public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate installmentDate) {
         return creditCardBillRepository
-                .findByCreditCardIdAndClosingDate(creditCard.getId(), expectedClosingDate)
-                .orElseGet(() -> createForDate(creditCard, expectedClosingDate));
+                .findByPeriod(creditCard.getId(), installmentDate)
+                .orElseGet(() -> createChainForDate(creditCard, installmentDate));
     }
 
-    // Mantido para compatibilidade com o CreditCardService,
-    // mas o limitDate não é mais necessário com essa nova abordagem.
     @Transactional
-    public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate purchaseDate, LocalDate limitDate) {
-        return findOrCreateForDate(creditCard, purchaseDate);
+    public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate installmentDate, LocalDate limitDate) {
+        return findOrCreateForDate(creditCard, installmentDate);
     }
 
-    /**
-     * Calcula a data exata de fechamento com base na data da compra e no dia de fechamento do cartão.
-     */
-    private LocalDate calculateExpectedClosingDate(CreditCard creditCard, LocalDate purchaseDate) {
-        int closingDay = creditCard.getClosingDay();
-        LocalDate closingDate = purchaseDate.withDayOfMonth(
-                Math.min(closingDay, purchaseDate.lengthOfMonth()));
+    private CreditCardBill createChainForDate(CreditCard creditCard, LocalDate installmentDate) {
+        LocalDate today = LocalDate.now();
 
-        if (!closingDate.isAfter(purchaseDate)) {
-            LocalDate next = closingDate.plusMonths(1);
-            return next.withDayOfMonth(Math.min(closingDay, next.lengthOfMonth()));
+        Optional<CreditCardBill> latestBefore = creditCardBillRepository
+                .findLatestBeforeDate(creditCard.getId(), installmentDate);
+
+        Optional<CreditCardBill> latest = creditCardBillRepository
+                .findLatestByCreditCardId(creditCard.getId());
+
+        if (latestBefore.isPresent()) {
+            return createChainForward(creditCard, latestBefore.get(), installmentDate, today);
+        } else if (latest.isPresent()) {
+            return createChainBackward(creditCard, latest.get(), installmentDate);
+        } else {
+            return createInitialBill(creditCard, installmentDate);
         }
-
-        return closingDate;
     }
 
-    /**
-     * Cria a fatura baseada em uma data de fechamento já pré-calculada.
-     */
-    private CreditCardBill createForDate(CreditCard creditCard, LocalDate closingDate) {
+    private CreditCardBill createChainForward(CreditCard creditCard, CreditCardBill reference,
+                                              LocalDate installmentDate, LocalDate today) {
+        CreditCardBill current = reference;
+        while (!installmentDate.isBefore(current.getClosingDate())) {
+            boolean isFuture = current.getClosingDate().isAfter(today);
+            int closingDay = isFuture ? creditCard.getClosingDay() : current.getClosingDay();
+            int dueDay = isFuture ? creditCard.getDueDay() : current.getDueDay();
+            current = createNext(creditCard, current, closingDay, dueDay);
+        }
+        return current;
+    }
+
+    private CreditCardBill createChainBackward(CreditCard creditCard, CreditCardBill reference,
+                                               LocalDate installmentDate) {
+        CreditCardBill current = reference;
+        while (installmentDate.isBefore(current.getPeriodStart())) {
+            current = createPrevious(creditCard, current);
+        }
+        return current;
+    }
+
+    private CreditCardBill createNext(CreditCard creditCard, CreditCardBill previous,
+                                      int closingDay, int dueDay) {
+        LocalDate periodStart = previous.getClosingDate();
+        LocalDate nextClosing = periodStart.plusMonths(1)
+                .withDayOfMonth(Math.min(closingDay, periodStart.plusMonths(1).lengthOfMonth()));
+
+        LocalDate dueDateMonth = dueDay > closingDay ? nextClosing : nextClosing.plusMonths(1);
+        LocalDate dueDate = dueDateMonth.withDayOfMonth(Math.min(dueDay, dueDateMonth.lengthOfMonth()));
+
+        return creditCardBillRepository.save(CreditCardBill.builder()
+                .creditCard(creditCard)
+                .periodStart(periodStart)
+                .closingDate(nextClosing)
+                .dueDate(dueDate)
+                .closingDay(closingDay)
+                .dueDay(dueDay)
+                .status(CreditCardBillStatus.OPEN)
+                .build());
+    }
+
+    private CreditCardBill createPrevious(CreditCard creditCard, CreditCardBill reference) {
+        int closingDay = reference.getClosingDay();
+        int dueDay = reference.getDueDay();
+
+        LocalDate prevClosing = reference.getPeriodStart();
+        LocalDate prevPeriodStart = prevClosing.minusMonths(1)
+                .withDayOfMonth(Math.min(closingDay, prevClosing.minusMonths(1).lengthOfMonth()));
+
+        LocalDate dueDateMonth = dueDay > closingDay ? prevClosing : prevClosing.plusMonths(1);
+        LocalDate dueDate = dueDateMonth.withDayOfMonth(Math.min(dueDay, dueDateMonth.lengthOfMonth()));
+
+        return creditCardBillRepository.save(CreditCardBill.builder()
+                .creditCard(creditCard)
+                .periodStart(prevPeriodStart)
+                .closingDate(prevClosing)
+                .dueDate(dueDate)
+                .closingDay(closingDay)
+                .dueDay(dueDay)
+                .status(CreditCardBillStatus.OPEN)
+                .build());
+    }
+
+    public CreditCardBill createInitialBill(CreditCard creditCard, LocalDate referenceDate) {
         int closingDay = creditCard.getClosingDay();
         int dueDay = creditCard.getDueDay();
 
-        LocalDate dueDateMonth = dueDay > closingDay ? closingDate : closingDate.plusMonths(1);
-        LocalDate dueDate = dueDateMonth.withDayOfMonth(
-                Math.min(dueDay, dueDateMonth.lengthOfMonth()));
+        LocalDate closingDate = referenceDate.withDayOfMonth(
+                Math.min(closingDay, referenceDate.lengthOfMonth()));
+        if (!closingDate.isAfter(referenceDate)) {
+            LocalDate next = closingDate.plusMonths(1);
+            closingDate = next.withDayOfMonth(Math.min(closingDay, next.lengthOfMonth()));
+        }
 
-        CreditCardBill bill = CreditCardBill.builder()
+        LocalDate periodStart = closingDate.minusMonths(1)
+                .withDayOfMonth(Math.min(closingDay, closingDate.minusMonths(1).lengthOfMonth()));
+
+        LocalDate dueDateMonth = dueDay > closingDay ? closingDate : closingDate.plusMonths(1);
+        LocalDate dueDate = dueDateMonth.withDayOfMonth(Math.min(dueDay, dueDateMonth.lengthOfMonth()));
+
+        return creditCardBillRepository.save(CreditCardBill.builder()
                 .creditCard(creditCard)
+                .periodStart(periodStart)
                 .closingDate(closingDate)
                 .dueDate(dueDate)
+                .closingDay(closingDay)
+                .dueDay(dueDay)
                 .status(CreditCardBillStatus.OPEN)
-                .build();
-
-        return creditCardBillRepository.save(bill);
+                .build());
     }
 }

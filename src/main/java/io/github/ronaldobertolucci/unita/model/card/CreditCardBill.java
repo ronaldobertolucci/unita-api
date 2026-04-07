@@ -30,6 +30,15 @@ public class CreditCardBill {
     @Column(name = "due_date", nullable = false)
     private LocalDate dueDate;
 
+    @Column(name = "period_start", nullable = false)
+    private LocalDate periodStart;
+
+    @Column(name = "closing_day", nullable = false)
+    private Integer closingDay;
+
+    @Column(name = "due_day", nullable = false)
+    private Integer dueDay;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private CreditCardBillStatus status;

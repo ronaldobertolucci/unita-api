@@ -169,8 +169,14 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
 
     private CreditCardBill saveBill(LocalDate closingDate) {
         return billRepository.save(CreditCardBill.builder()
-                .creditCard(card).closingDate(closingDate)
-                .dueDate(closingDate.plusMonths(1)).status(CreditCardBillStatus.OPEN).build());
+                .creditCard(card)
+                .periodStart(closingDate.plusMonths(-1))
+                .closingDate(closingDate)
+                .closingDay(closingDate.getDayOfMonth())
+                .dueDate(closingDate.plusMonths(1))
+                .dueDay(closingDate.plusMonths(1).getDayOfMonth())
+                .status(CreditCardBillStatus.OPEN)
+                .build());
     }
 
     private CreditCardPurchase savePurchase() {

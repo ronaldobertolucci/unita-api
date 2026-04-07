@@ -102,4 +102,33 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
     List<CreditCardBill> findAllByUserId(@Param("userId") Long userId);
 
     Optional<CreditCardBill> findByCreditCardIdAndClosingDate(Long creditCardId, LocalDate closingDate);
+
+    @Query("""
+        SELECT b FROM CreditCardBill b
+        WHERE b.creditCard.id = :creditCardId
+        AND b.periodStart <= :installmentDate
+        AND b.closingDate > :installmentDate
+        """)
+    Optional<CreditCardBill> findByPeriod(
+            @Param("creditCardId") Long creditCardId,
+            @Param("installmentDate") LocalDate installmentDate);
+
+    @Query("""
+        SELECT b FROM CreditCardBill b
+        WHERE b.creditCard.id = :creditCardId
+        ORDER BY b.closingDate DESC
+        LIMIT 1
+        """)
+    Optional<CreditCardBill> findLatestByCreditCardId(@Param("creditCardId") Long creditCardId);
+
+    @Query("""
+        SELECT b FROM CreditCardBill b
+        WHERE b.creditCard.id = :creditCardId
+        AND b.closingDate <= :installmentDate
+        ORDER BY b.closingDate DESC
+        LIMIT 1
+        """)
+    Optional<CreditCardBill> findLatestBeforeDate(
+            @Param("creditCardId") Long creditCardId,
+            @Param("installmentDate") LocalDate installmentDate);
 }

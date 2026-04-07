@@ -55,9 +55,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findAllByCreditCardId_ShouldReturnOnlyCardBills() {
-        saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.PAID);
-        saveBill(card, LocalDate.of(2024, 2, 10), CreditCardBillStatus.CLOSED);
-        saveBill(otherCard, LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.PAID);
+        saveBill(card, LocalDate.of(2024, 1, 10), LocalDate.of(2024, 2, 10), CreditCardBillStatus.CLOSED);
+        saveBill(otherCard, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
 
         List<CreditCardBill> bills = billRepository.findAllByCreditCardId(card.getId());
 
@@ -67,9 +67,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findAllByCreditCardId_ShouldReturnOrderedByClosingDateAsc() {
-        saveBill(card, LocalDate.of(2024, 3, 10), CreditCardBillStatus.OPEN);
-        saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.PAID);
-        saveBill(card, LocalDate.of(2024, 2, 10), CreditCardBillStatus.CLOSED);
+        saveBill(card, LocalDate.of(2024, 2, 10), LocalDate.of(2024, 3, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.PAID);
+        saveBill(card, LocalDate.of(2024, 1, 10), LocalDate.of(2024, 2, 10), CreditCardBillStatus.CLOSED);
 
         List<CreditCardBill> bills = billRepository.findAllByCreditCardId(card.getId());
 
@@ -79,9 +79,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findAllByCreditCardIdAndStatus_ShouldFilterByStatus() {
-        saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.PAID);
-        saveBill(card, LocalDate.of(2024, 2, 10), CreditCardBillStatus.CLOSED);
-        saveBill(card, LocalDate.of(2024, 3, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.PAID);
+        saveBill(card, LocalDate.of(2024, 1, 10), LocalDate.of(2024, 2, 10), CreditCardBillStatus.CLOSED);
+        saveBill(card, LocalDate.of(2024, 2, 10), LocalDate.of(2024, 3, 10), CreditCardBillStatus.OPEN);
 
         List<CreditCardBill> closed = billRepository.findAllByCreditCardIdAndStatus(card.getId(), CreditCardBillStatus.CLOSED);
 
@@ -91,9 +91,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findFirstByCreditCardIdAndClosingDateAfterPurchaseDate_WhenExists_ShouldReturnEarliestFutureBill() {
-        saveBill(card, LocalDate.of(2024, 3, 10), CreditCardBillStatus.OPEN);
-        saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
-        saveBill(card, LocalDate.of(2024, 2, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2024, 2, 10), LocalDate.of(2024, 3, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2024, 1, 10), LocalDate.of(2024, 2, 10), CreditCardBillStatus.OPEN);
 
         Optional<CreditCardBill> found = billRepository
                 .findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(card.getId(), LocalDate.of(2024, 1, 15), PageRequest.of(0, 1))
@@ -105,7 +105,7 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findFirstByCreditCardIdAndClosingDateAfterPurchaseDate_WhenNoBillAfterDate_ShouldReturnEmpty() {
-        saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
 
         Optional<CreditCardBill> found = billRepository
                 .findFirstByCreditCardIdAndClosingDateAfterPurchaseDate(card.getId(), LocalDate.of(2024, 1, 15), PageRequest.of(0, 1))
@@ -116,7 +116,7 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findByIdAndCreditCardId_WhenMatch_ShouldReturnBill() {
-        CreditCardBill saved = saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
+        CreditCardBill saved = saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
 
         Optional<CreditCardBill> found = billRepository.findByIdAndCreditCardId(saved.getId(), card.getId());
 
@@ -125,7 +125,7 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findByIdAndCreditCardId_WhenWrongCard_ShouldReturnEmpty() {
-        CreditCardBill saved = saveBill(card, LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
+        CreditCardBill saved = saveBill(card, LocalDate.of(2023, 12, 10), LocalDate.of(2024, 1, 10), CreditCardBillStatus.OPEN);
 
         assertTrue(billRepository.findByIdAndCreditCardId(saved.getId(), otherCard.getId()).isEmpty());
     }
@@ -133,10 +133,10 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
     @Test
     void closeAllOverdue_ShouldCloseOnlyOpenBillsBeforeToday() {
         LocalDate today = LocalDate.now();
-        saveBill(card, today.minusDays(1), CreditCardBillStatus.OPEN);   // deve fechar
-        saveBill(card, today.minusDays(5), CreditCardBillStatus.OPEN);   // deve fechar
-        saveBill(card, today.plusDays(5), CreditCardBillStatus.OPEN);    // não deve fechar
-        saveBill(card, today.minusDays(1), CreditCardBillStatus.PAID);   // não deve alterar (já PAID)
+        saveBill(card, today.minusDays(1).minusMonths(1), today.minusDays(1), CreditCardBillStatus.OPEN);   // deve fechar
+        saveBill(card, today.minusDays(5).minusMonths(1), today.minusDays(5), CreditCardBillStatus.OPEN);   // deve fechar
+        saveBill(card, today.plusDays(5).minusMonths(1), today.plusDays(5), CreditCardBillStatus.OPEN);    // não deve fechar
+        saveBill(card, today.minusDays(1).minusMonths(1), today.minusDays(1), CreditCardBillStatus.PAID);   // não deve alterar (já PAID)
 
         int closed = billRepository.closeAllOverdue(today, CreditCardBillStatus.OPEN, CreditCardBillStatus.CLOSED);
 
@@ -149,7 +149,7 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void closeAllOverdue_WhenNoOverdueBills_ShouldReturnZero() {
-        saveBill(card, LocalDate.now().plusDays(10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.now().plusDays(10).minusMonths(1), LocalDate.now().plusDays(10), CreditCardBillStatus.OPEN);
 
         int closed = billRepository.closeAllOverdue(LocalDate.now(), CreditCardBillStatus.OPEN, CreditCardBillStatus.CLOSED);
 
@@ -158,9 +158,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findAllByUserId_ShouldReturnOnlyBillsOfUserCards() {
-        saveBill(card, LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
-        saveBill(card, LocalDate.of(2025, 2, 10), CreditCardBillStatus.CLOSED);
-        saveBill(otherCard, LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2024, 12, 10), LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.CLOSED);
+        saveBill(otherCard, LocalDate.of(2024, 12, 10), LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
 
         List<CreditCardBill> result = billRepository.findAllByUserId(card.getUser().getId());
 
@@ -175,9 +175,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
 
     @Test
     void findAllByUserId_ShouldReturnOrderedByClosingDateAsc() {
-        saveBill(card, LocalDate.of(2025, 3, 10), CreditCardBillStatus.OPEN);
-        saveBill(card, LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
-        saveBill(card, LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 2, 10), LocalDate.of(2025, 3, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2024, 12, 10), LocalDate.of(2025, 1, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
 
         List<CreditCardBill> result = billRepository.findAllByUserId(card.getUser().getId());
 
@@ -188,12 +188,12 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
     @Test
     void findOpenBillsFromToday_ShouldReturnOnlyOpenBillsFromTodayOnwards() {
         LocalDate today = LocalDate.now();
-        saveBill(card, today.minusDays(1), CreditCardBillStatus.OPEN);   // passado → não retorna
-        saveBill(card, today, CreditCardBillStatus.OPEN);                 // hoje → retorna
-        saveBill(card, today.plusMonths(1), CreditCardBillStatus.OPEN);   // futuro → retorna
-        saveBill(card, today.plusMonths(2), CreditCardBillStatus.CLOSED); // CLOSED → não retorna
-        saveBill(card, today.plusMonths(3), CreditCardBillStatus.PAID);   // PAID → não retorna
-        saveBill(otherCard, today, CreditCardBillStatus.OPEN);            // outro cartão → não retorna
+        saveBill(card, today.minusDays(1).minusMonths(1), today.minusDays(1), CreditCardBillStatus.OPEN);   // passado → não retorna
+        saveBill(card, today.minusMonths(1), today, CreditCardBillStatus.OPEN);                 // hoje → retorna
+        saveBill(card, today, today.plusMonths(1), CreditCardBillStatus.OPEN);   // futuro → retorna
+        saveBill(card, today.plusMonths(1), today.plusMonths(2), CreditCardBillStatus.CLOSED); // CLOSED → não retorna
+        saveBill(card, today.plusMonths(2), today.plusMonths(3), CreditCardBillStatus.PAID);   // PAID → não retorna
+        saveBill(otherCard, today.minusMonths(1), today, CreditCardBillStatus.OPEN);            // outro cartão → não retorna
 
         List<CreditCardBill> result = billRepository.findOpenBillsFromToday(card.getId(), today);
 
@@ -206,9 +206,9 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
     @Test
     void findOpenBillsFromToday_ShouldReturnOrderedByClosingDateAsc() {
         LocalDate today = LocalDate.now();
-        saveBill(card, today.plusMonths(2), CreditCardBillStatus.OPEN);
-        saveBill(card, today, CreditCardBillStatus.OPEN);
-        saveBill(card, today.plusMonths(1), CreditCardBillStatus.OPEN);
+        saveBill(card, today.plusMonths(1), today.plusMonths(2), CreditCardBillStatus.OPEN);
+        saveBill(card, today.minusMonths(1), today, CreditCardBillStatus.OPEN);
+        saveBill(card, today, today.plusMonths(1), CreditCardBillStatus.OPEN);
 
         List<CreditCardBill> result = billRepository.findOpenBillsFromToday(card.getId(), today);
 
@@ -221,20 +221,125 @@ class CreditCardBillRepositoryTest extends BaseRepositoryTest {
     @Test
     void findOpenBillsFromToday_WhenNoOpenBills_ShouldReturnEmpty() {
         LocalDate today = LocalDate.now();
-        saveBill(card, today, CreditCardBillStatus.CLOSED);
-        saveBill(card, today.plusMonths(1), CreditCardBillStatus.PAID);
+        saveBill(card, today.minusMonths(1), today, CreditCardBillStatus.CLOSED);
+        saveBill(card, today, today.plusMonths(1), CreditCardBillStatus.PAID);
 
         List<CreditCardBill> result = billRepository.findOpenBillsFromToday(card.getId(), today);
 
         assertTrue(result.isEmpty());
     }
 
-    private CreditCardBill saveBill(CreditCard card, LocalDate closingDate, CreditCardBillStatus status) {
+    @Test
+    void findByPeriod_WhenInstallmentDateIsWithinPeriod_ShouldReturnBill() {
+        // período: 10/Jan (periodStart) até 10/Fev (closingDate, exclusivo)
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findByPeriod(card.getId(), LocalDate.of(2025, 1, 15));
+
+        assertTrue(result.isPresent());
+        assertEquals(LocalDate.of(2025, 2, 10), result.get().getClosingDate());
+    }
+
+    @Test
+    void findByPeriod_WhenInstallmentDateIsOnPeriodStart_ShouldReturnBill() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findByPeriod(card.getId(), LocalDate.of(2025, 1, 10));
+
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    void findByPeriod_WhenInstallmentDateIsOnClosingDate_ShouldReturnEmpty() {
+        // closingDate é exclusivo
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findByPeriod(card.getId(), LocalDate.of(2025, 2, 10));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findByPeriod_WhenInstallmentDateIsOutsidePeriod_ShouldReturnEmpty() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findByPeriod(card.getId(), LocalDate.of(2024, 12, 15));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findByPeriod_WhenWrongCard_ShouldReturnEmpty() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findByPeriod(otherCard.getId(), LocalDate.of(2025, 1, 15));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findLatestByCreditCardId_ShouldReturnBillWithHighestClosingDate() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.PAID);
+        saveBill(card, LocalDate.of(2025, 2, 10), LocalDate.of(2025, 3, 10), CreditCardBillStatus.CLOSED);
+        saveBill(card, LocalDate.of(2025, 3, 10), LocalDate.of(2025, 4, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findLatestByCreditCardId(card.getId());
+
+        assertTrue(result.isPresent());
+        assertEquals(LocalDate.of(2025, 4, 10), result.get().getClosingDate());
+    }
+
+    @Test
+    void findLatestByCreditCardId_WhenNoBills_ShouldReturnEmpty() {
+        assertTrue(billRepository.findLatestByCreditCardId(card.getId()).isEmpty());
+    }
+
+    @Test
+    void findLatestByCreditCardId_WhenWrongCard_ShouldReturnEmpty() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        assertTrue(billRepository.findLatestByCreditCardId(otherCard.getId()).isEmpty());
+    }
+
+    @Test
+    void findLatestBeforeDate_ShouldReturnBillWithHighestClosingDateBeforeOrOnDate() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.PAID);
+        saveBill(card, LocalDate.of(2025, 2, 10), LocalDate.of(2025, 3, 10), CreditCardBillStatus.OPEN);
+        saveBill(card, LocalDate.of(2025, 3, 10), LocalDate.of(2025, 4, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findLatestBeforeDate(card.getId(), LocalDate.of(2025, 2, 15));
+
+        assertTrue(result.isPresent());
+        assertEquals(LocalDate.of(2025, 2, 10), result.get().getClosingDate());
+    }
+
+    @Test
+    void findLatestBeforeDate_WhenNoBillBeforeDate_ShouldReturnEmpty() {
+        saveBill(card, LocalDate.of(2025, 3, 10), LocalDate.of(2025, 4, 10), CreditCardBillStatus.OPEN);
+
+        Optional<CreditCardBill> result = billRepository.findLatestBeforeDate(card.getId(), LocalDate.of(2025, 1, 15));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findLatestBeforeDate_WhenWrongCard_ShouldReturnEmpty() {
+        saveBill(card, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 2, 10), CreditCardBillStatus.OPEN);
+
+        assertTrue(billRepository.findLatestBeforeDate(otherCard.getId(), LocalDate.of(2025, 2, 15)).isEmpty());
+    }
+
+    private CreditCardBill saveBill(CreditCard card, LocalDate periodStart, LocalDate closingDate,
+                                    CreditCardBillStatus status) {
         return billRepository.save(CreditCardBill.builder()
                 .creditCard(card)
+                .periodStart(periodStart)
                 .closingDate(closingDate)
                 .dueDate(closingDate.plusMonths(1))
+                .closingDay(closingDate.getDayOfMonth())
+                .dueDay(closingDate.plusMonths(1).getDayOfMonth())
                 .status(status)
                 .build());
     }
+
 }
