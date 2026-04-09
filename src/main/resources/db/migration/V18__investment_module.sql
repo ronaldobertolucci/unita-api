@@ -25,7 +25,7 @@ CREATE TABLE fixed_income_details
 CREATE TABLE pension_details
 (
     asset_id     BIGINT PRIMARY KEY,
-    pension_type VARCHAR(5)  NOT NULL CHECK (pension_type IN ('PGBL', 'VGBL', 'ENTIDADE_FECHADA')),
+    pension_type VARCHAR(20)  NOT NULL CHECK (pension_type IN ('PGBL', 'VGBL', 'ENTIDADE_FECHADA')),
     tax_regime   VARCHAR(12) NOT NULL CHECK (tax_regime IN ('PROGRESSIVO', 'REGRESSIVO')),
     CONSTRAINT fk_pension_details_asset FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
 );
