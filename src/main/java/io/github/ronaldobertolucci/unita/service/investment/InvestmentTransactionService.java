@@ -81,8 +81,9 @@ public class InvestmentTransactionService {
         InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
-        BigDecimal newTotalInvested = position.getTotalInvested().add(dto.amount());
         BigDecimal newQuantity = position.getQuantity().add(dto.quantity());
+        BigDecimal multiplied = dto.amount().multiply(dto.quantity());
+        BigDecimal newTotalInvested = position.getTotalInvested().add(multiplied);
         BigDecimal newAveragePrice = newQuantity.compareTo(BigDecimal.ZERO) > 0
                 ? newTotalInvested.divide(newQuantity, 8, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
@@ -90,7 +91,7 @@ public class InvestmentTransactionService {
         position.setTotalInvested(newTotalInvested);
         position.setQuantity(newQuantity);
         position.setAveragePrice(newAveragePrice);
-        position.setCurrentValue(position.getCurrentValue().add(dto.amount()));
+        position.setCurrentValue(position.getCurrentValue().add(multiplied));
         investmentPositionRepository.save(position);
 
         return new InvestmentTransactionDto(investmentTransaction);
