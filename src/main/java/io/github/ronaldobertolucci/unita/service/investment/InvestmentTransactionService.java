@@ -56,10 +56,12 @@ public class InvestmentTransactionService {
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
 
+        BigDecimal multiplied = dto.amount().multiply(dto.quantity());
+
         // Cria Transaction EXPENSE no pocket
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
                 .pocket(pocket)
-                .amount(dto.amount())
+                .amount(multiplied)
                 .direction(Direction.EXPENSE)
                 .transactionDate(dto.transactionDate())
                 .description("Aporte em " + asset.getName())
@@ -72,7 +74,7 @@ public class InvestmentTransactionService {
                         .asset(asset)
                         .transaction(pocketTransaction)
                         .type(InvestmentTransactionType.BUY)
-                        .amount(dto.amount())
+                        .amount(multiplied)
                         .transactionDate(dto.transactionDate())
                         .notes(dto.notes())
                         .build());
@@ -82,7 +84,6 @@ public class InvestmentTransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
         BigDecimal newQuantity = position.getQuantity().add(dto.quantity());
-        BigDecimal multiplied = dto.amount().multiply(dto.quantity());
         BigDecimal newTotalInvested = position.getTotalInvested().add(multiplied);
         BigDecimal newAveragePrice = newQuantity.compareTo(BigDecimal.ZERO) > 0
                 ? newTotalInvested.divide(newQuantity, 8, RoundingMode.HALF_UP)
