@@ -6,10 +6,7 @@ import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
 import io.github.ronaldobertolucci.unita.model.finance.Category;
 import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.finance.Direction;
-import io.github.ronaldobertolucci.unita.model.pocket.BankAccount;
-import io.github.ronaldobertolucci.unita.model.pocket.Cash;
-import io.github.ronaldobertolucci.unita.model.pocket.Pocket;
-import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
+import io.github.ronaldobertolucci.unita.model.pocket.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.GroupMembershipRepository;
 import io.github.ronaldobertolucci.unita.repository.PocketRepository;
@@ -108,7 +105,7 @@ public class TransferService {
         Pocket source = pocketRepository.findByIdAndUserId(dto.sourcePocketId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Source pocket not found"));
 
-        if (!(source instanceof BankAccount) && !(source instanceof Cash)) {
+        if (!(source instanceof FgtsEmployerAccount)) {
             throw new IllegalArgumentException("Source pocket must be a FgtsEmployerAccount");
         }
 
