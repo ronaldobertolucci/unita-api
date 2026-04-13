@@ -100,4 +100,63 @@ public class TransferService {
                 new TransactionDto(transactionRepository.save(targetTransaction))
         );
     }
+
+    @Transactional
+    public TransferDto fgtsWithdrawal(TransferCreateDto dto, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+
+        Pocket source = pocketRepository.findByIdAndUserId(dto.sourcePocketId(), currentUser.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Source pocket not found"));
+
+        if (!(source instanceof BankAccount) && !(source instanceof Cash)) {
+            throw new IllegalArgumentException("Source pocket must be a FgtsEmployerAccount");
+        }
+
+        Pocket target = pocketRepository.findByIdAndUserId(dto.targetPocketId(), currentUser.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Target pocket not found"));
+
+        if (!(target instanceof BankAccount) && !(target instanceof Cash)) {
+            throw new IllegalArgumentException("Target pocket must be a BankAccount or Cash");
+        }
+
+        BigDecimal balance = transactionRepository.calculateBalanceByPocketId(source.getId());
+        if (balance.compareTo(dto.amount()) < 0) {
+            throw new IllegalArgumentException("Insufficient balance in source pocket");
+        }
+
+        LocalDate today = LocalDate.now();
+
+        Category sentCategory = categoryService.findSystemByName("Transferência Enviada");
+        if (!EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL).contains(sentCategory.getType())) {
+            throw new IllegalArgumentException("Category type " + sentCategory.getType() + " is not allowed in this context");
+        }
+
+        Category receivedCategory = categoryService.findSystemByName("Transferência Recebida");
+        if (!EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL).contains(receivedCategory.getType())) {
+            throw new IllegalArgumentException("Category type " + receivedCategory.getType() + " is not allowed in this context");
+        }
+
+        Transaction sourceTransaction = Transaction.builder()
+                .pocket(source)
+                .amount(dto.amount())
+                .direction(Direction.EXPENSE)
+                .transactionDate(today)
+                .description(dto.description())
+                .category(sentCategory)
+                .build();
+
+        Transaction targetTransaction = Transaction.builder()
+                .pocket(target)
+                .amount(dto.amount())
+                .direction(Direction.INCOME)
+                .transactionDate(today)
+                .description(dto.description())
+                .category(receivedCategory)
+                .build();
+
+        return new TransferDto(
+                new TransactionDto(transactionRepository.save(sourceTransaction)),
+                new TransactionDto(transactionRepository.save(targetTransaction))
+        );
+    }
 }

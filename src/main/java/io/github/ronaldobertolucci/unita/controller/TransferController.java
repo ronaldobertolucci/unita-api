@@ -27,4 +27,12 @@ public class TransferController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transferService.transfer(dto, authentication));
     }
+
+    @PostMapping("/fgts/withdrawal")
+    public ResponseEntity<TransferDto> fgtsWithdrawal(
+            @RequestBody @Valid TransferCreateDto dto,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transferService.fgtsWithdrawal(dto, authentication));
+    }
 }

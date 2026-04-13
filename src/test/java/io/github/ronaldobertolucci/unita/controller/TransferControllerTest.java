@@ -190,4 +190,130 @@ class TransferControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isForbidden());
     }
+
+    // -------------------------------------------------------------------------
+    // Fgts
+    // -------------------------------------------------------------------------
+
+    @Test
+    void fgts_WhenDataIsValid_ShouldReturn201() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 2L,
+                new BigDecimal("200.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any())).thenReturn(transferDto());
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sourceTransaction.direction").value("EXPENSE"))
+                .andExpect(jsonPath("$.targetTransaction.direction").value("INCOME"))
+                .andExpect(jsonPath("$.sourceTransaction.amount").value(200.00));
+    }
+
+    @Test
+    void fgts_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(null, null, null, "");
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void fgts_WhenSourcePocketNotFound_ShouldReturn404() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(99L, 2L,
+                new BigDecimal("200.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any()))
+                .thenThrow(new EntityNotFoundException("Source pocket not found"));
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void fgts_WhenTargetPocketNotFound_ShouldReturn404() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 99L,
+                new BigDecimal("200.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any()))
+                .thenThrow(new EntityNotFoundException("Target pocket not found"));
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void fgts_WhenInvalidPocketType_ShouldReturn400() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 2L,
+                new BigDecimal("200.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any()))
+                .thenThrow(new IllegalArgumentException("Source pocket must be a BankAccount or Cash"));
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void fgts_WhenSamePocket_ShouldReturn400() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 1L,
+                new BigDecimal("200.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any()))
+                .thenThrow(new IllegalArgumentException("Source and target pockets must be different"));
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void fgts_WhenNoSharedGroup_ShouldReturn400() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 2L,
+                new BigDecimal("200.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any()))
+                .thenThrow(new IllegalArgumentException("Source and target pocket owners must share a group"));
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void fgts_WhenInsufficientBalance_ShouldReturn400() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 2L,
+                new BigDecimal("9999.00"), "Transferência");
+        when(transferService.fgtsWithdrawal(any(), any()))
+                .thenThrow(new IllegalArgumentException("Insufficient balance in source pocket"));
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void fgts_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        TransferCreateDto dto = new TransferCreateDto(1L, 2L,
+                new BigDecimal("200.00"), "Transferência");
+
+        mockMvc.perform(post("/transfers/fgts/withdrawal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
 }
