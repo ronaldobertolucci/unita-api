@@ -346,6 +346,7 @@ public class CreditCardService {
         CreditCardInstallment installment = CreditCardInstallment.builder()
                 .purchase(purchase)
                 .installmentNumber(dto.installmentNumber())
+                .installmentDate(installmentDate)
                 .amount(dto.amount())
                 .creditCardBill(bill)
                 .category(category)

@@ -9,6 +9,7 @@ import java.time.LocalDate;
 public record CreditCardInstallmentDto(
         Long id,
         Integer installmentNumber,
+        LocalDate installmentDate,
         BigDecimal amount,
         Long creditCardBillId,
         LocalDate billDueDate,
@@ -18,6 +19,7 @@ public record CreditCardInstallmentDto(
         this(
                 installment.getId(),
                 installment.getInstallmentNumber(),
+                installment.getInstallmentDate(),
                 installment.getAmount(),
                 installment.getCreditCardBill().getId(),
                 installment.getCreditCardBill().getDueDate(),

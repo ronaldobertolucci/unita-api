@@ -187,6 +187,7 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
 
     private CreditCardInstallment saveInstallment(CreditCardPurchase purchase, int number, BigDecimal amount, CreditCardBill bill) {
         return installmentRepository.save(CreditCardInstallment.builder()
-                .purchase(purchase).installmentNumber(number).amount(amount).creditCardBill(bill).category(category).build());
+                .purchase(purchase).installmentNumber(number).installmentDate(LocalDate.now())
+                .amount(amount).creditCardBill(bill).category(category).build());
     }
 }

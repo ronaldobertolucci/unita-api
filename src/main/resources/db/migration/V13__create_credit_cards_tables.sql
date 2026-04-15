@@ -44,6 +44,7 @@ CREATE TABLE credit_card_installments
     id                  BIGSERIAL PRIMARY KEY,
     purchase_id         BIGINT         NOT NULL,
     installment_number  INT            NOT NULL,
+    installment_date    DATE           NOT NULL,
     amount              NUMERIC(15, 2) NOT NULL,
     credit_card_bill_id BIGINT         NOT NULL,
     CONSTRAINT fk_credit_card_installments_purchase FOREIGN KEY (purchase_id) REFERENCES credit_card_purchases (id) ON DELETE CASCADE,

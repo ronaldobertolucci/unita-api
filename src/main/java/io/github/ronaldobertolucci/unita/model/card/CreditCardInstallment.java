@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "credit_card_installments")
@@ -26,6 +27,9 @@ public class CreditCardInstallment {
 
     @Column(name = "installment_number", nullable = false)
     private Integer installmentNumber;
+
+    @Column(name = "installment_date", nullable = false)
+    private LocalDate installmentDate;
 
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;

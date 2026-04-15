@@ -73,8 +73,8 @@ class CreditCardControllerTest {
     }
 
     private CreditCardInstallmentDto installmentDto() {
-        return new CreditCardInstallmentDto(1L, 1, new BigDecimal("300.00"),
-                1L, LocalDate.of(2025, 2, 5), categoryDto());
+        return new CreditCardInstallmentDto(1L, 1, LocalDate.of(2025, 2, 5),
+                new BigDecimal("300.00"), 1L, LocalDate.of(2025, 2, 5), categoryDto());
     }
 
     private CreditCardRefundDto refundDto() {
@@ -657,7 +657,7 @@ class CreditCardControllerTest {
     void updateInstallment_WhenDataIsValid_ShouldReturn200() throws Exception {
         CreditCardInstallmentUpdateDto dto = new CreditCardInstallmentUpdateDto(
                 new BigDecimal("300.00"), 2L);
-        CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1,
+        CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1, LocalDate.of(2025, 3, 5),
                 new BigDecimal("300.00"), 2L, LocalDate.of(2025, 3, 5), categoryDto());
         when(creditCardService.updateInstallment(eq(1L), eq(1L), eq(1L), any(), any()))
                 .thenReturn(updated);
@@ -673,7 +673,7 @@ class CreditCardControllerTest {
     void updateInstallment_WhenUnauthenticated_ShouldReturn403() throws Exception {
         CreditCardInstallmentUpdateDto dto = new CreditCardInstallmentUpdateDto(
                 new BigDecimal("300.00"), 2L);
-        CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1,
+        CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1, LocalDate.of(2025, 3, 5),
                 new BigDecimal("300.00"), 2L, LocalDate.of(2025, 3, 5), categoryDto());
         when(creditCardService.updateInstallment(eq(1L), eq(1L), eq(1L), any(), any()))
                 .thenReturn(updated);
