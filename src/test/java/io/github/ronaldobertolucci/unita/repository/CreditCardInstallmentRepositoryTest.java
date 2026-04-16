@@ -167,6 +167,100 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
         assertEquals(1, installmentRepository.findAllByPurchaseId(otherPurchase.getId()).size());
     }
 
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WhenExpense_ShouldReturnAggregated() {
+        saveInstallment(purchase, 1, new BigDecimal("100.00"), bill);
+        saveInstallment(purchase, 2, new BigDecimal("200.00"), otherBill);
+
+        List<Object[]> result = installmentRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                card.getUser().getId(), "EXPENSE", null, null);
+
+        assertEquals(1, result.size());
+        assertEquals(0, new BigDecimal("300.00").compareTo((BigDecimal) result.get(0)[1]));
+    }
+
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WithDateFilter_ShouldReturnOnlyInPeriod() {
+        saveInstallment(purchase, 1, new BigDecimal("100.00"), bill, LocalDate.of(2025, 1, 10));
+        saveInstallment(purchase, 2, new BigDecimal("200.00"), otherBill, LocalDate.of(2025, 3, 10));
+
+        List<Object[]> result = installmentRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                card.getUser().getId(), "EXPENSE",
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertEquals(1, result.size());
+        assertEquals(0, new BigDecimal("100.00").compareTo((BigDecimal) result.get(0)[1]));
+    }
+
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WhenNoInstallments_ShouldReturnEmpty() {
+        List<Object[]> result = installmentRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                card.getUser().getId(), "EXPENSE", null, null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void sumInstallmentsByUserIdAndOpenBills_ShouldSumOnlyOpenBills() {
+        CreditCardBill paidBill = billRepository.save(CreditCardBill.builder()
+                .creditCard(card)
+                .periodStart(LocalDate.of(2023, 11, 10))
+                .closingDate(LocalDate.of(2023, 12, 10))
+                .closingDay(10)
+                .dueDate(LocalDate.of(2024, 1, 10))
+                .dueDay(10)
+                .status(CreditCardBillStatus.PAID)
+                .build());
+
+        saveInstallment(purchase, 1, new BigDecimal("100.00"), bill);
+        saveInstallment(purchase, 2, new BigDecimal("200.00"), paidBill);
+
+        BigDecimal result = installmentRepository.sumInstallmentsByUserIdAndOpenBills(card.getUser().getId());
+
+        assertEquals(0, new BigDecimal("100.00").compareTo(result));
+    }
+
+    @Test
+    void sumInstallmentsByUserIdAndOpenBills_WhenNoOpenBills_ShouldReturnZero() {
+        BigDecimal result = installmentRepository.sumInstallmentsByUserIdAndOpenBills(card.getUser().getId());
+
+        assertEquals(0, BigDecimal.ZERO.compareTo(result));
+    }
+
+    @Test
+    void sumExpenseAmountByMonthAndUserIdAndPeriod_ShouldGroupByMonth() {
+        saveInstallment(purchase, 1, new BigDecimal("100.00"), bill, LocalDate.of(2025, 1, 10));
+        saveInstallment(purchase, 2, new BigDecimal("200.00"), otherBill, LocalDate.of(2025, 2, 10));
+
+        List<Object[]> result = installmentRepository.sumExpenseAmountByMonthAndUserIdAndPeriod(
+                card.getUser().getId(), null, null);
+
+        assertEquals(2, result.size());
+        assertEquals("2025-01", result.get(0)[0]);
+        assertEquals(0, new BigDecimal("100.00").compareTo((BigDecimal) result.get(0)[1]));
+        assertEquals("2025-02", result.get(1)[0]);
+    }
+
+    @Test
+    void sumExpenseAmountByMonthAndUserIdAndPeriod_WithDateFilter_ShouldReturnOnlyInPeriod() {
+        saveInstallment(purchase, 1, new BigDecimal("100.00"), bill, LocalDate.of(2025, 1, 10));
+        saveInstallment(purchase, 2, new BigDecimal("200.00"), otherBill, LocalDate.of(2025, 3, 10));
+
+        List<Object[]> result = installmentRepository.sumExpenseAmountByMonthAndUserIdAndPeriod(
+                card.getUser().getId(), LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertEquals(1, result.size());
+        assertEquals("2025-01", result.get(0)[0]);
+    }
+
+    @Test
+    void sumExpenseAmountByMonthAndUserIdAndPeriod_WhenNoInstallments_ShouldReturnEmpty() {
+        List<Object[]> result = installmentRepository.sumExpenseAmountByMonthAndUserIdAndPeriod(
+                card.getUser().getId(), null, null);
+
+        assertTrue(result.isEmpty());
+    }
+
     private CreditCardBill saveBill(LocalDate closingDate) {
         return billRepository.save(CreditCardBill.builder()
                 .creditCard(card)
@@ -188,6 +282,14 @@ class CreditCardInstallmentRepositoryTest extends BaseRepositoryTest {
     private CreditCardInstallment saveInstallment(CreditCardPurchase purchase, int number, BigDecimal amount, CreditCardBill bill) {
         return installmentRepository.save(CreditCardInstallment.builder()
                 .purchase(purchase).installmentNumber(number).installmentDate(LocalDate.now())
+                .amount(amount).creditCardBill(bill).category(category).build());
+    }
+
+    private CreditCardInstallment saveInstallment(CreditCardPurchase purchase, int number,
+                                                  BigDecimal amount, CreditCardBill bill,
+                                                  LocalDate installmentDate) {
+        return installmentRepository.save(CreditCardInstallment.builder()
+                .purchase(purchase).installmentNumber(number).installmentDate(installmentDate)
                 .amount(amount).creditCardBill(bill).category(category).build());
     }
 }

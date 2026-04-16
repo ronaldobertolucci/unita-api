@@ -35,4 +35,12 @@ public interface CreditCardRefundRepository extends JpaRepository<CreditCardRefu
     Optional<CreditCardRefund> findByIdAndBillId(
             @Param("id") Long id,
             @Param("billId") Long billId);
+
+    @Query("""
+        SELECT COALESCE(SUM(r.amount), 0)
+        FROM CreditCardRefund r
+        WHERE r.creditCardBill.creditCard.user.id = :userId
+        AND r.creditCardBill.status = 'OPEN'
+        """)
+    BigDecimal sumRefundsByUserIdAndOpenBills(@Param("userId") Long userId);
 }

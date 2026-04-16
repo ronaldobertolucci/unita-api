@@ -255,6 +255,148 @@ class TransactionRepositoryTest extends BaseRepositoryTest {
         assertFalse(hasNeutral);
     }
 
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WhenIncome_ShouldReturnAggregated() {
+        Category incomeCategory = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Salário")
+                .type(CategoryType.INCOME)
+                .system(false)
+                .build());
+
+        transactionRepository.save(Transaction.builder()
+                .pocket(pocket).amount(new BigDecimal("1000.00")).direction(Direction.INCOME)
+                .transactionDate(LocalDate.of(2025, 1, 10)).category(incomeCategory)
+                .description("Salário").build());
+        transactionRepository.save(Transaction.builder()
+                .pocket(pocket).amount(new BigDecimal("500.00")).direction(Direction.INCOME)
+                .transactionDate(LocalDate.of(2025, 1, 15)).category(incomeCategory)
+                .description("Freelance").build());
+
+        List<Object[]> result = transactionRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                user.getId(), "INCOME", null, null);
+
+        assertEquals(1, result.size());
+        assertEquals("Salário", result.get(0)[0]);
+        assertEquals(0, new BigDecimal("1500.00").compareTo((BigDecimal) result.get(0)[2]));
+    }
+
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WhenExpense_ShouldReturnAggregated() {
+        Category incomeCategory = categoryRepository.save(Category.builder()
+                .user(user)
+                .name("Salário")
+                .type(CategoryType.INCOME)
+                .system(false)
+                .build());
+
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("200.00"), LocalDate.of(2025, 1, 15));
+        transactionRepository.save(Transaction.builder()
+                .pocket(pocket).amount(new BigDecimal("500.00")).direction(Direction.INCOME)
+                .transactionDate(LocalDate.of(2025, 1, 10)).category(incomeCategory)
+                .description("Salário").build());
+
+        List<Object[]> result = transactionRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                user.getId(), "EXPENSE", null, null);
+
+        assertEquals(1, result.size());
+        assertEquals(0, new BigDecimal("300.00").compareTo((BigDecimal) result.get(0)[2]));
+    }
+
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WithDateFilter_ShouldReturnOnlyInPeriod() {
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("200.00"), LocalDate.of(2025, 3, 10));
+
+        List<Object[]> result = transactionRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                user.getId(), "EXPENSE", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertEquals(1, result.size());
+        assertEquals(0, new BigDecimal("100.00").compareTo((BigDecimal) result.get(0)[2]));
+    }
+
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_ShouldNotReturnOtherUsersTransactions() {
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(otherPocket, Direction.EXPENSE, new BigDecimal("999.00"), LocalDate.of(2025, 1, 10));
+
+        List<Object[]> result = transactionRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                user.getId(), "EXPENSE", null, null);
+
+        assertEquals(1, result.size());
+        assertEquals(0, new BigDecimal("100.00").compareTo((BigDecimal) result.get(0)[2]));
+    }
+
+    @Test
+    void sumAmountByCategoryTypeAndUserIdAndPeriod_WhenNoTransactions_ShouldReturnEmpty() {
+        List<Object[]> result = transactionRepository.sumAmountByCategoryTypeAndUserIdAndPeriod(
+                user.getId(), "EXPENSE", null, null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod_ShouldGroupByMonth() {
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("200.00"), LocalDate.of(2025, 1, 20));
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("300.00"), LocalDate.of(2025, 2, 10));
+
+        List<Object[]> result = transactionRepository.sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod(
+                user.getId(), null, null);
+
+        assertEquals(2, result.size());
+        assertEquals("2025-01", result.get(0)[0]);
+        assertEquals(0, new BigDecimal("300.00").compareTo((BigDecimal) result.get(0)[2]));
+        assertEquals("2025-02", result.get(1)[0]);
+        assertEquals(0, new BigDecimal("300.00").compareTo((BigDecimal) result.get(1)[2]));
+    }
+
+    @Test
+    void sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod_WithDateFilter_ShouldReturnOnlyInPeriod() {
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("100.00"), LocalDate.of(2025, 1, 10));
+        saveTransaction(pocket, Direction.EXPENSE, new BigDecimal("200.00"), LocalDate.of(2025, 3, 10));
+
+        List<Object[]> result = transactionRepository.sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod(
+                user.getId(), LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertEquals(1, result.size());
+        assertEquals("2025-01", result.get(0)[0]);
+    }
+
+    @Test
+    void sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod_ShouldExcludeNeutralCategories() {
+        Category neutralCategory = categoryRepository.save(Category.builder()
+                .name("Transferência")
+                .type(CategoryType.NEUTRAL)
+                .build());
+
+        transactionRepository.save(Transaction.builder()
+                .pocket(pocket)
+                .amount(new BigDecimal("500.00"))
+                .description("Transferência")
+                .direction(Direction.EXPENSE)
+                .transactionDate(LocalDate.of(2025, 1, 10))
+                .category(neutralCategory)
+                .build());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        List<Object[]> result = transactionRepository.sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod(
+                user.getId(), null, null);
+
+        assertTrue(result.stream().noneMatch(row -> "NEUTRAL".equals(row[1])));
+    }
+
+    @Test
+    void sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod_WhenNoTransactions_ShouldReturnEmpty() {
+        List<Object[]> result = transactionRepository.sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod(
+                user.getId(), null, null);
+
+        assertTrue(result.isEmpty());
+    }
+
     private Transaction saveTransaction(Cash pocket, Direction direction, BigDecimal amount) {
         return saveTransaction(pocket, direction, amount, LocalDate.now());
     }

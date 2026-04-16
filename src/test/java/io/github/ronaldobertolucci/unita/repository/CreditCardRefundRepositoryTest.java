@@ -142,4 +142,33 @@ class CreditCardRefundRepositoryTest extends BaseRepositoryTest {
                 .creditCardBill(bill).description("Estorno teste")
                 .amount(amount).refundDate(date).category(category).build());
     }
+
+    @Test
+    void sumRefundsByUserIdAndOpenBills_ShouldSumOnlyOpenBills() {
+        CreditCardBill paidBill = billRepository.save(CreditCardBill.builder()
+                .creditCard(bill.getCreditCard())
+                .periodStart(LocalDate.of(2023, 11, 10))
+                .closingDate(LocalDate.of(2023, 12, 10))
+                .closingDay(10)
+                .dueDate(LocalDate.of(2024, 1, 10))
+                .dueDay(10)
+                .status(CreditCardBillStatus.PAID)
+                .build());
+
+        saveRefund(bill, new BigDecimal("50.00"), LocalDate.now());
+        saveRefund(paidBill, new BigDecimal("999.00"), LocalDate.now());
+
+        BigDecimal result = refundRepository.sumRefundsByUserIdAndOpenBills(
+                bill.getCreditCard().getUser().getId());
+
+        assertEquals(0, new BigDecimal("50.00").compareTo(result));
+    }
+
+    @Test
+    void sumRefundsByUserIdAndOpenBills_WhenNoRefunds_ShouldReturnZero() {
+        BigDecimal result = refundRepository.sumRefundsByUserIdAndOpenBills(
+                bill.getCreditCard().getUser().getId());
+
+        assertEquals(0, BigDecimal.ZERO.compareTo(result));
+    }
 }

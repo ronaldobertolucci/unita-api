@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.repository;
 
+import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
 import io.github.ronaldobertolucci.unita.model.pocket.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -56,6 +57,41 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Object[]> sumAmountByCategoryAndUserIdAndDirection(
             @Param("userId") Long userId,
             @Param("direction") String direction,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query(value = """
+        SELECT c.name, c.type, COALESCE(SUM(t.amount), 0)
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id
+        JOIN pockets p ON p.id = t.pocket_id
+        WHERE p.user_id = :userId
+        AND c.type = :categoryType
+        AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
+        AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
+        GROUP BY c.name, c.type
+        ORDER BY c.name ASC
+        """, nativeQuery = true)
+    List<Object[]> sumAmountByCategoryTypeAndUserIdAndPeriod(
+            @Param("userId") Long userId,
+            @Param("categoryType") String categoryType,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query(value = """
+        SELECT TO_CHAR(t.transaction_date, 'YYYY-MM'), c.type, COALESCE(SUM(t.amount), 0)
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id
+        JOIN pockets p ON p.id = t.pocket_id
+        WHERE p.user_id = :userId
+        AND c.type <> 'NEUTRAL'
+        AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
+        AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
+        GROUP BY TO_CHAR(t.transaction_date, 'YYYY-MM'), c.type
+        ORDER BY TO_CHAR(t.transaction_date, 'YYYY-MM') ASC
+        """, nativeQuery = true)
+    List<Object[]> sumAmountByMonthAndCategoryTypeAndUserIdAndPeriod(
+            @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 }
