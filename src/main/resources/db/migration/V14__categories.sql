@@ -11,13 +11,11 @@ CREATE TABLE categories
 
 CREATE INDEX idx_categories_user_id ON categories (user_id);
 
--- Categorias de sistema (is_system = true, user_id = null)
 INSERT INTO categories (user_id, name, type, is_system)
 VALUES (NULL, 'Pagamento de Cartão', 'NEUTRAL', true),
        (NULL, 'Transferência Enviada', 'NEUTRAL', true),
        (NULL, 'Transferência Recebida', 'NEUTRAL', true);
 
--- Categorias globais padrão (is_system = false, user_id = null)
 INSERT INTO categories (user_id, name, type, is_system)
 VALUES (NULL, 'Alimentação', 'EXPENSE', false),
        (NULL, 'Transporte', 'EXPENSE', false),
@@ -54,7 +52,6 @@ VALUES (NULL, 'Alimentação', 'EXPENSE', false),
        (NULL, 'Pensão / Mesada', 'INCOME', false),
        (NULL, 'Ajuste de Saldo', 'NEUTRAL', false);
 
--- Adiciona category_id nas tabelas de movimentos financeiros
 ALTER TABLE transactions
     ADD COLUMN category_id BIGINT NOT NULL
         CONSTRAINT fk_transactions_category REFERENCES categories (id);
@@ -66,7 +63,3 @@ ALTER TABLE credit_card_installments
 ALTER TABLE credit_card_refunds
     ADD COLUMN category_id BIGINT NOT NULL
         CONSTRAINT fk_credit_card_refunds_category REFERENCES categories (id);
-
-ALTER TABLE recurring_transactions
-    ADD COLUMN category_id BIGINT NOT NULL
-        CONSTRAINT fk_recurring_transactions_category REFERENCES categories (id);

@@ -11,7 +11,6 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -34,25 +33,13 @@ class PocketServiceTest {
     @Mock
     private BankAccountRepository bankAccountRepository;
     @Mock
-    private BenefitAccountRepository benefitAccountRepository;
-    @Mock
-    private FgtsEmployerAccountRepository fgtsEmployerAccountRepository;
-    @Mock
     private CashRepository cashRepository;
     @Mock
     private TransactionRepository transactionRepository;
     @Mock
-    private RecurringTransactionRepository recurringTransactionRepository;
-    @Mock
     private LegalEntityRepository legalEntityRepository;
     @Mock
     private BankAccountTypeRepository bankAccountTypeRepository;
-    @Mock
-    private BenefitTypeRepository benefitTypeRepository;
-    @Mock
-    private EmployerRepository employerRepository;
-    @Mock
-    private RecurrencePeriodicityRepository recurrencePeriodicityRepository;
     @Mock
     private CategoryService categoryService;
     @Mock
@@ -382,132 +369,6 @@ class PocketServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // RecurringTransaction
-    // -------------------------------------------------------------------------
-
-    @Test
-    void createRecurringTransaction_WhenValid_ShouldSaveRecurringAndGenerateFirstTransactionWithStartDate() {
-        Cash pocket = buildCash(5L);
-        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
-        LocalDate startDate = LocalDate.of(2025, 1, 1);
-        RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
-                new BigDecimal("200.00"), Direction.EXPENSE, 1L, startDate, null, "Netflix", 1L);
-
-        when(categoryService.resolveCategory(eq(1L), any(), any()))
-                .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
-        when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
-        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
-
-        RecurringTransaction saved = RecurringTransaction.builder()
-                .pocket(pocket).amount(dto.amount()).direction(dto.direction())
-                .periodicity(periodicity).startDate(startDate).description(dto.description()).build();
-        saved.setId(1L);
-        when(recurringTransactionRepository.save(any())).thenReturn(saved);
-
-        ArgumentCaptor<Transaction> transactionCaptor = ArgumentCaptor.forClass(Transaction.class);
-        when(transactionRepository.save(transactionCaptor.capture())).thenReturn(mock(Transaction.class));
-
-        pocketService.createRecurringTransaction(5L, dto, authentication);
-
-        verify(recurringTransactionRepository).save(any(RecurringTransaction.class));
-        verify(transactionRepository).save(any(Transaction.class));
-        assertEquals(startDate, transactionCaptor.getValue().getTransactionDate());
-    }
-
-    @Test
-    void createRecurringTransaction_WhenCategoryTypeIncompatible_ShouldThrow() {
-        when(authentication.getPrincipal()).thenReturn(currentUser);
-        Pocket pocket = buildCash(1L);
-        when(pocketRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(pocket));
-        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(buildPeriodicity(1L)));
-        when(categoryService.resolveCategory(eq(1L), any(), any()))
-                .thenThrow(new IllegalArgumentException("Category type EXPENSE is not allowed in this context"));
-
-        RecurringTransactionCreateDto dto = new RecurringTransactionCreateDto(
-                new BigDecimal("200.00"), Direction.INCOME, 1L, LocalDate.now(), null, "Salário", 1L);
-
-        assertThrows(IllegalArgumentException.class,
-                () -> pocketService.createRecurringTransaction(1L, dto, authentication));
-    }
-
-    @Test
-    void createRecurringTransaction_WhenPeriodicityNotFound_ShouldThrow() {
-        Cash pocket = buildCash(5L);
-        when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
-        when(recurrencePeriodicityRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThrows(EntityNotFoundException.class,
-                () -> pocketService.createRecurringTransaction(5L,
-                        new RecurringTransactionCreateDto(BigDecimal.TEN, Direction.EXPENSE, 99L, LocalDate.now(), null, "Desc", 1L),
-                        authentication));
-    }
-
-    @Test
-    void updateRecurringTransaction_WhenOwned_ShouldUpdateAmountAndReturn() {
-        Cash pocket = buildCash(5L);
-        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
-        RecurringTransaction rt = RecurringTransaction.builder()
-                .pocket(pocket).amount(new BigDecimal("50.00")).direction(Direction.EXPENSE)
-                .periodicity(periodicity).startDate(LocalDate.of(2025, 1, 1)).description("Academia").build();
-        rt.setId(3L);
-        RecurringTransactionUpdateDto dto = new RecurringTransactionUpdateDto(new BigDecimal("75.00"));
-
-        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
-        when(recurringTransactionRepository.findByIdAndPocketId(3L, 5L)).thenReturn(Optional.of(rt));
-        when(recurringTransactionRepository.save(rt)).thenReturn(rt);
-
-        RecurringTransactionDto result = pocketService.updateRecurringTransaction(5L, 3L, dto, authentication);
-
-        assertNotNull(result);
-        assertEquals(0, new BigDecimal("75.00").compareTo(rt.getAmount()));
-        verify(recurringTransactionRepository).save(rt);
-    }
-
-    @Test
-    void updateRecurringTransaction_WhenPocketNotOwned_ShouldThrow() {
-        when(pocketRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
-
-        assertThrows(EntityNotFoundException.class,
-                () -> pocketService.updateRecurringTransaction(99L, 1L,
-                        new RecurringTransactionUpdateDto(new BigDecimal("75.00")), authentication));
-        verify(recurringTransactionRepository, never()).save(any());
-    }
-
-    @Test
-    void updateRecurringTransaction_WhenRecurringNotFound_ShouldThrow() {
-        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
-        when(recurringTransactionRepository.findByIdAndPocketId(99L, 5L)).thenReturn(Optional.empty());
-
-        assertThrows(EntityNotFoundException.class,
-                () -> pocketService.updateRecurringTransaction(5L, 99L,
-                        new RecurringTransactionUpdateDto(new BigDecimal("75.00")), authentication));
-        verify(recurringTransactionRepository, never()).save(any());
-    }
-
-    @Test
-    void deleteRecurringTransaction_WhenOwned_ShouldDelete() {
-        Cash pocket = buildCash(5L);
-        RecurringTransaction rt = RecurringTransaction.builder().pocket(pocket).build();
-        rt.setId(3L);
-
-        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
-        when(recurringTransactionRepository.findByIdAndPocketId(3L, 5L)).thenReturn(Optional.of(rt));
-
-        pocketService.deleteRecurringTransaction(5L, 3L, authentication);
-
-        verify(recurringTransactionRepository).delete(rt);
-    }
-
-    @Test
-    void deleteRecurringTransaction_WhenNotFound_ShouldThrow() {
-        when(pocketRepository.existsByIdAndUserId(5L, currentUser.getId())).thenReturn(true);
-        when(recurringTransactionRepository.findByIdAndPocketId(99L, 5L)).thenReturn(Optional.empty());
-
-        assertThrows(EntityNotFoundException.class,
-                () -> pocketService.deleteRecurringTransaction(5L, 99L, authentication));
-    }
-
-    // -------------------------------------------------------------------------
     // Builders
     // -------------------------------------------------------------------------
 
@@ -544,14 +405,6 @@ class PocketServiceTest {
         cash.setId(id);
         cash.setUser(currentUser);
         return cash;
-    }
-
-    private RecurrencePeriodicity buildPeriodicity(Long id) {
-        RecurrencePeriodicity p = new RecurrencePeriodicity();
-        p.setId(id);
-        p.setName("Mensal");
-        p.setType(PeriodicityType.MONTHLY);
-        return p;
     }
 
     private Category buildCategory(Long id, CategoryType type) {

@@ -204,7 +204,6 @@ public class CategoryService {
     private boolean isCategoryInUse(Long categoryId) {
         return categoryRepository.existsTransactionByCategoryId(categoryId)
                 || categoryRepository.existsInstallmentByCategoryId(categoryId)
-                || categoryRepository.existsRefundByCategoryId(categoryId)
-                || categoryRepository.existsRecurringTransactionByCategoryId(categoryId);
+                || categoryRepository.existsRefundByCategoryId(categoryId);
     }
 }

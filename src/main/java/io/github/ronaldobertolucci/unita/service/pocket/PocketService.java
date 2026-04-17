@@ -29,12 +29,10 @@ public class PocketService {
     private final FgtsEmployerAccountRepository fgtsEmployerAccountRepository;
     private final CashRepository cashRepository;
     private final TransactionRepository transactionRepository;
-    private final RecurringTransactionRepository recurringTransactionRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final BankAccountTypeRepository bankAccountTypeRepository;
     private final BenefitTypeRepository benefitTypeRepository;
     private final EmployerRepository employerRepository;
-    private final RecurrencePeriodicityRepository recurrencePeriodicityRepository;
     private final CategoryService categoryService;
 
     // -------------------------------------------------------------------------
@@ -289,94 +287,5 @@ public class PocketService {
         Transaction transaction = transactionRepository.findByIdAndPocketId(transactionId, pocketId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
         transactionRepository.delete(transaction);
-    }
-
-    // -------------------------------------------------------------------------
-    // RecurringTransaction
-    // -------------------------------------------------------------------------
-
-    @Transactional
-    public RecurringTransactionDto createRecurringTransaction(Long pocketId, RecurringTransactionCreateDto dto,
-                                                              Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        Pocket pocket = pocketRepository.findByIdAndUserId(pocketId, currentUser.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Pocket not found"));
-
-        RecurrencePeriodicity periodicity = recurrencePeriodicityRepository.findById(dto.periodicityId())
-                .orElseThrow(() -> new EntityNotFoundException("Periodicity not found"));
-
-        Set<CategoryType> allowed = dto.direction() == Direction.INCOME
-                ? EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL)
-                : EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL);
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser, allowed);
-
-        RecurringTransaction recurringTransaction = RecurringTransaction.builder()
-                .pocket(pocket)
-                .amount(dto.amount())
-                .direction(dto.direction())
-                .periodicity(periodicity)
-                .startDate(dto.startDate())
-                .endDate(dto.endDate())
-                .description(dto.description())
-                .category(category)
-                .build();
-
-        recurringTransactionRepository.save(recurringTransaction);
-        generateCurrentTransaction(recurringTransaction, pocket);
-
-        return new RecurringTransactionDto(recurringTransaction);
-    }
-
-    public List<RecurringTransactionDto> findRecurringTransactions(Long pocketId, Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {
-            throw new EntityNotFoundException("Pocket not found");
-        }
-        return recurringTransactionRepository.findAllByPocketId(pocketId)
-                .stream()
-                .map(RecurringTransactionDto::new)
-                .toList();
-    }
-
-    @Transactional
-    public RecurringTransactionDto updateRecurringTransaction(Long pocketId, Long recurringId,
-                                                              RecurringTransactionUpdateDto dto, Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {
-            throw new EntityNotFoundException("Pocket not found");
-        }
-        RecurringTransaction recurringTransaction = recurringTransactionRepository
-                .findByIdAndPocketId(recurringId, pocketId)
-                .orElseThrow(() -> new EntityNotFoundException("Recurring transaction not found"));
-
-        recurringTransaction.setAmount(dto.amount());
-        return new RecurringTransactionDto(recurringTransactionRepository.save(recurringTransaction));
-    }
-
-    @Transactional
-    public void deleteRecurringTransaction(Long pocketId, Long recurringId, Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {
-            throw new EntityNotFoundException("Pocket not found");
-        }
-        RecurringTransaction recurringTransaction = recurringTransactionRepository.findByIdAndPocketId(recurringId, pocketId)
-                .orElseThrow(() -> new EntityNotFoundException("Recurring transaction not found"));
-        recurringTransactionRepository.delete(recurringTransaction);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private void generateCurrentTransaction(RecurringTransaction recurringTransaction, Pocket pocket) {
-        Transaction transaction = Transaction.builder()
-                .pocket(pocket)
-                .amount(recurringTransaction.getAmount())
-                .direction(recurringTransaction.getDirection())
-                .transactionDate(recurringTransaction.getStartDate())
-                .description(recurringTransaction.getDescription())
-                .category(recurringTransaction.getCategory())
-                .build();
-        transactionRepository.save(transaction);
     }
 }

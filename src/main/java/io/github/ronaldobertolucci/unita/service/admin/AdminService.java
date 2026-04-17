@@ -14,7 +14,6 @@ public class AdminService {
     private final BankAccountTypeRepository bankAccountTypeRepository;
     private final BenefitTypeRepository benefitTypeRepository;
     private final CardBrandRepository cardBrandRepository;
-    private final RecurrencePeriodicityRepository recurrencePeriodicityRepository;
 
     public List<BankAccountTypeDto> findAllBankAccountTypes() {
         return bankAccountTypeRepository.findAll()
@@ -34,13 +33,6 @@ public class AdminService {
         return cardBrandRepository.findAll()
                 .stream()
                 .map(CardBrandDto::new)
-                .toList();
-    }
-
-    public List<RecurrencePeriodicityDto> findAllRecurrencePeriodicities() {
-        return recurrencePeriodicityRepository.findAll()
-                .stream()
-                .map(RecurrencePeriodicityDto::new)
                 .toList();
     }
 }

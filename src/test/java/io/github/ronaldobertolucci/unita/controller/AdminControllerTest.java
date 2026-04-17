@@ -6,12 +6,10 @@ import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
 import io.github.ronaldobertolucci.unita.dto.admin.BankAccountTypeDto;
 import io.github.ronaldobertolucci.unita.dto.admin.BenefitTypeDto;
 import io.github.ronaldobertolucci.unita.dto.admin.CardBrandDto;
-import io.github.ronaldobertolucci.unita.dto.admin.RecurrencePeriodicityDto;
 import io.github.ronaldobertolucci.unita.dto.category.CategoryAdminCreateDto;
 import io.github.ronaldobertolucci.unita.dto.category.CategoryDto;
 import io.github.ronaldobertolucci.unita.dto.category.CategoryUpdateDto;
 import io.github.ronaldobertolucci.unita.model.finance.CategoryType;
-import io.github.ronaldobertolucci.unita.model.finance.PeriodicityType;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
 import io.github.ronaldobertolucci.unita.service.admin.AdminService;
 import io.github.ronaldobertolucci.unita.service.category.CategoryService;
@@ -93,17 +91,6 @@ class AdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("Visa"));
-    }
-
-    @Test
-    void findAllRecurrencePeriodicities_ShouldReturn200WithList() throws Exception {
-        when(adminService.findAllRecurrencePeriodicities())
-                .thenReturn(List.of(new RecurrencePeriodicityDto(1L, "Mensal", PeriodicityType.MONTHLY)));
-
-        mockMvc.perform(get("/admin/recurrence-periodicities").with(user("test").authorities(List.of(new SimpleGrantedAuthority("ADMIN")))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Mensal"))
-                .andExpect(jsonPath("$[0].type").value("MONTHLY"));
     }
 
     @Test

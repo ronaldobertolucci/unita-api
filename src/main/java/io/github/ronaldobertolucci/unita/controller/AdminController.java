@@ -37,11 +37,6 @@ public class AdminController {
         return ResponseEntity.ok(adminService.findAllCardBrands());
     }
 
-    @GetMapping("/recurrence-periodicities")
-    public ResponseEntity<List<RecurrencePeriodicityDto>> findAllRecurrencePeriodicities() {
-        return ResponseEntity.ok(adminService.findAllRecurrencePeriodicities());
-    }
-
     @PostMapping("/categories")
     public ResponseEntity<CategoryDto> createGlobalCategory(
             @RequestBody @Valid CategoryAdminCreateDto dto) {

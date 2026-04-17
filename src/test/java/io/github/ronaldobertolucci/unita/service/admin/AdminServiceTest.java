@@ -20,7 +20,6 @@ class AdminServiceTest {
     @Mock private BankAccountTypeRepository bankAccountTypeRepository;
     @Mock private BenefitTypeRepository benefitTypeRepository;
     @Mock private CardBrandRepository cardBrandRepository;
-    @Mock private RecurrencePeriodicityRepository recurrencePeriodicityRepository;
 
     @InjectMocks private AdminService adminService;
 
@@ -83,27 +82,5 @@ class AdminServiceTest {
         when(cardBrandRepository.findAll()).thenReturn(List.of());
 
         assertTrue(adminService.findAllCardBrands().isEmpty());
-    }
-
-    @Test
-    void findAllRecurrencePeriodicities_ShouldReturnMappedDtos() {
-        RecurrencePeriodicity p = new RecurrencePeriodicity();
-        p.setId(1L);
-        p.setName("Mensal");
-        p.setType(PeriodicityType.MONTHLY);
-        when(recurrencePeriodicityRepository.findAll()).thenReturn(List.of(p));
-
-        List<RecurrencePeriodicityDto> result = adminService.findAllRecurrencePeriodicities();
-
-        assertEquals(1, result.size());
-        assertEquals("Mensal", result.get(0).name());
-        assertEquals(PeriodicityType.MONTHLY, result.get(0).type());
-    }
-
-    @Test
-    void findAllRecurrencePeriodicities_WhenEmpty_ShouldReturnEmptyList() {
-        when(recurrencePeriodicityRepository.findAll()).thenReturn(List.of());
-
-        assertTrue(adminService.findAllRecurrencePeriodicities().isEmpty());
     }
 }

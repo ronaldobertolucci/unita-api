@@ -186,43 +186,4 @@ public class PocketController {
         pocketService.deleteTransaction(id, transactionId, authentication);
         return ResponseEntity.noContent().build();
     }
-
-    // -------------------------------------------------------------------------
-    // RecurringTransaction
-    // -------------------------------------------------------------------------
-
-    @PostMapping("/{id}/recurring")
-    public ResponseEntity<RecurringTransactionDto> createRecurringTransaction(
-            @PathVariable Long id,
-            @RequestBody @Valid RecurringTransactionCreateDto dto,
-            Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(pocketService.createRecurringTransaction(id, dto, authentication));
-    }
-
-    @GetMapping("/{id}/recurring")
-    public ResponseEntity<List<RecurringTransactionDto>> findRecurringTransactions(
-            @PathVariable Long id,
-            Authentication authentication) {
-        return ResponseEntity.ok(pocketService.findRecurringTransactions(id, authentication));
-    }
-
-    @PatchMapping("/{id}/recurring/{recurringId}")
-    public ResponseEntity<RecurringTransactionDto> updateRecurringTransaction(
-            @PathVariable Long id,
-            @PathVariable Long recurringId,
-            @RequestBody @Valid RecurringTransactionUpdateDto dto,
-            Authentication authentication) {
-        return ResponseEntity.ok(
-                pocketService.updateRecurringTransaction(id, recurringId, dto, authentication));
-    }
-
-    @DeleteMapping("/{id}/recurring/{recurringId}")
-    public ResponseEntity<Void> deleteRecurringTransaction(
-            @PathVariable Long id,
-            @PathVariable Long recurringId,
-            Authentication authentication) {
-        pocketService.deleteRecurringTransaction(id, recurringId, authentication);
-        return ResponseEntity.noContent().build();
-    }
 }
