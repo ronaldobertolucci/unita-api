@@ -213,43 +213,4 @@ public class CreditCardController {
         creditCardService.deleteRefund(id, billId, refundId, authentication);
         return ResponseEntity.noContent().build();
     }
-
-    // -------------------------------------------------------------------------
-    // RecurringPurchase
-    // -------------------------------------------------------------------------
-
-    @PostMapping("/{id}/recurring")
-    public ResponseEntity<RecurringPurchaseDto> createRecurringPurchase(
-            @PathVariable Long id,
-            @RequestBody @Valid RecurringPurchaseCreateDto dto,
-            Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(creditCardService.createRecurringPurchase(id, dto, authentication));
-    }
-
-    @GetMapping("/{id}/recurring")
-    public ResponseEntity<List<RecurringPurchaseDto>> findRecurringPurchases(
-            @PathVariable Long id,
-            Authentication authentication) {
-        return ResponseEntity.ok(creditCardService.findRecurringPurchases(id, authentication));
-    }
-
-    @PatchMapping("/{id}/recurring/{recurringId}")
-    public ResponseEntity<RecurringPurchaseDto> updateRecurringPurchase(
-            @PathVariable Long id,
-            @PathVariable Long recurringId,
-            @RequestBody @Valid RecurringPurchaseUpdateDto dto,
-            Authentication authentication) {
-        return ResponseEntity.ok(
-                creditCardService.updateRecurringPurchase(id, recurringId, dto, authentication));
-    }
-
-    @DeleteMapping("/{id}/recurring/{recurringId}")
-    public ResponseEntity<Void> deleteRecurringPurchase(
-            @PathVariable Long id,
-            @PathVariable Long recurringId,
-            Authentication authentication) {
-        creditCardService.deleteRecurringPurchase(id, recurringId, authentication);
-        return ResponseEntity.noContent().build();
-    }
 }

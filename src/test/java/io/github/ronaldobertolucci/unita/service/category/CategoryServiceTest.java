@@ -222,7 +222,6 @@ class CategoryServiceTest {
         when(categoryRepository.existsInstallmentByCategoryId(1L)).thenReturn(false);
         when(categoryRepository.existsRefundByCategoryId(1L)).thenReturn(false);
         when(categoryRepository.existsRecurringTransactionByCategoryId(1L)).thenReturn(false);
-        when(categoryRepository.existsRecurringPurchaseByCategoryId(1L)).thenReturn(false);
 
         categoryService.deleteCategory(1L, authentication);
 
@@ -372,7 +371,6 @@ class CategoryServiceTest {
         when(categoryRepository.existsInstallmentByCategoryId(1L)).thenReturn(false);
         when(categoryRepository.existsRefundByCategoryId(1L)).thenReturn(false);
         when(categoryRepository.existsRecurringTransactionByCategoryId(1L)).thenReturn(false);
-        when(categoryRepository.existsRecurringPurchaseByCategoryId(1L)).thenReturn(false);
 
         categoryService.deleteGlobalCategory(1L);
 

@@ -28,11 +28,9 @@ public class CreditCardService {
     private final CreditCardPurchaseRepository creditCardPurchaseRepository;
     private final CreditCardInstallmentRepository creditCardInstallmentRepository;
     private final CreditCardRefundRepository creditCardRefundRepository;
-    private final RecurringPurchaseRepository recurringPurchaseRepository;
     private final PocketRepository pocketRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final CardBrandRepository cardBrandRepository;
-    private final RecurrencePeriodicityRepository recurrencePeriodicityRepository;
     private final TransactionRepository transactionRepository;
     private final CreditCardBillResolverService billResolverService;
     private final CategoryService categoryService;
@@ -463,75 +461,6 @@ public class CreditCardService {
     }
 
     // -------------------------------------------------------------------------
-    // RecurringPurchase
-    // -------------------------------------------------------------------------
-
-    @Transactional
-    public RecurringPurchaseDto createRecurringPurchase(Long creditCardId, RecurringPurchaseCreateDto dto,
-                                                        Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        CreditCard creditCard = creditCardRepository.findByIdAndUserId(creditCardId, currentUser.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
-
-        RecurrencePeriodicity periodicity = recurrencePeriodicityRepository.findById(dto.periodicityId())
-                .orElseThrow(() -> new EntityNotFoundException("Periodicity not found"));
-
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
-                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
-
-        RecurringPurchase recurringPurchase = RecurringPurchase.builder()
-                .creditCard(creditCard)
-                .description(dto.description())
-                .amount(dto.amount())
-                .periodicity(periodicity)
-                .startDate(dto.startDate())
-                .endDate(dto.endDate())
-                .category(category)
-                .build();
-
-        recurringPurchaseRepository.save(recurringPurchase);
-
-        generateCurrentMonthPurchase(recurringPurchase, creditCard);
-
-        return new RecurringPurchaseDto(recurringPurchase);
-    }
-
-    public List<RecurringPurchaseDto> findRecurringPurchases(Long creditCardId, Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        validateCreditCardOwnership(creditCardId, currentUser.getId());
-
-        return recurringPurchaseRepository.findAllByCreditCardId(creditCardId)
-                .stream()
-                .map(RecurringPurchaseDto::new)
-                .toList();
-    }
-
-    @Transactional
-    public RecurringPurchaseDto updateRecurringPurchase(Long creditCardId, Long recurringId,
-                                                        RecurringPurchaseUpdateDto dto, Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        validateCreditCardOwnership(creditCardId, currentUser.getId());
-
-        RecurringPurchase recurringPurchase = recurringPurchaseRepository
-                .findByIdAndCreditCardId(recurringId, creditCardId)
-                .orElseThrow(() -> new EntityNotFoundException("Recurring purchase not found"));
-
-        recurringPurchase.setAmount(dto.amount());
-        return new RecurringPurchaseDto(recurringPurchaseRepository.save(recurringPurchase));
-    }
-
-    @Transactional
-    public void deleteRecurringPurchase(Long creditCardId, Long recurringId, Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        validateCreditCardOwnership(creditCardId, currentUser.getId());
-
-        RecurringPurchase recurringPurchase = recurringPurchaseRepository.findByIdAndCreditCardId(recurringId, creditCardId)
-                .orElseThrow(() -> new EntityNotFoundException("Recurring purchase not found"));
-
-        recurringPurchaseRepository.delete(recurringPurchase);
-    }
-
-    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -547,29 +476,4 @@ public class CreditCardService {
         return new CreditCardBillDto(bill, totalInstallments, totalRefunds);
     }
 
-    private void generateCurrentMonthPurchase(RecurringPurchase recurringPurchase, CreditCard creditCard) {
-        LocalDate startDate = recurringPurchase.getStartDate();
-
-        CreditCardPurchase purchase = CreditCardPurchase.builder()
-                .creditCard(creditCard)
-                .description(recurringPurchase.getDescription())
-                .totalValue(recurringPurchase.getAmount())
-                .purchaseDate(startDate)
-                .installmentsCount(1)
-                .build();
-
-        creditCardPurchaseRepository.save(purchase);
-
-        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, startDate);
-
-        CreditCardInstallment installment = CreditCardInstallment.builder()
-                .purchase(purchase)
-                .installmentNumber(1)
-                .amount(recurringPurchase.getAmount())
-                .creditCardBill(bill)
-                .category(recurringPurchase.getCategory())
-                .build();
-
-        creditCardInstallmentRepository.save(installment);
-    }
 }

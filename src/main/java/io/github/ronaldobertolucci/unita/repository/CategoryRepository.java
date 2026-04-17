@@ -71,10 +71,4 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             WHERE rt.category.id = :categoryId
             """)
     boolean existsRecurringTransactionByCategoryId(@Param("categoryId") Long categoryId);
-
-    @Query("""
-            SELECT COUNT(rp) > 0 FROM RecurringPurchase rp
-            WHERE rp.category.id = :categoryId
-            """)
-    boolean existsRecurringPurchaseByCategoryId(@Param("categoryId") Long categoryId);
 }

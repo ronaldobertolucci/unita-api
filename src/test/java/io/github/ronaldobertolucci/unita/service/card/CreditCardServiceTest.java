@@ -12,7 +12,6 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -41,15 +40,11 @@ class CreditCardServiceTest {
     @Mock
     private CreditCardRefundRepository creditCardRefundRepository;
     @Mock
-    private RecurringPurchaseRepository recurringPurchaseRepository;
-    @Mock
     private PocketRepository pocketRepository;
     @Mock
     private LegalEntityRepository legalEntityRepository;
     @Mock
     private CardBrandRepository cardBrandRepository;
-    @Mock
-    private RecurrencePeriodicityRepository recurrencePeriodicityRepository;
     @Mock
     private TransactionRepository transactionRepository;
     @Mock
@@ -674,125 +669,6 @@ class CreditCardServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // RecurringPurchase
-    // -------------------------------------------------------------------------
-
-    @Test
-    void createRecurringPurchase_WhenValid_ShouldSaveAndGenerateCurrentMonthPurchaseWithStartDate() {
-        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
-        LocalDate startDate = LocalDate.of(2025, 1, 1);
-        RecurringPurchaseCreateDto dto = new RecurringPurchaseCreateDto(
-                "Netflix", new BigDecimal("49.90"), 1L, startDate, null, 1L);
-        CreditCardBill bill = buildBill(5L, card, CreditCardBillStatus.OPEN);
-
-        when(categoryService.resolveCategory(eq(1L), any(), any()))
-                .thenReturn(buildCategory(1L, CategoryType.EXPENSE));
-        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
-        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
-
-        RecurringPurchase savedRp = RecurringPurchase.builder()
-                .creditCard(card).description("Netflix").amount(new BigDecimal("49.90"))
-                .periodicity(periodicity).startDate(startDate).build();
-        savedRp.setId(1L);
-        when(recurringPurchaseRepository.save(any())).thenReturn(savedRp);
-
-        ArgumentCaptor<CreditCardPurchase> purchaseCaptor = ArgumentCaptor.forClass(CreditCardPurchase.class);
-        when(creditCardPurchaseRepository.save(purchaseCaptor.capture())).thenReturn(buildPurchase(2L, card));
-        when(billResolverService.findOrCreateForDate(any(), any())).thenReturn(bill);
-        when(creditCardInstallmentRepository.save(any())).thenReturn(mock(CreditCardInstallment.class));
-
-        RecurringPurchaseDto result = creditCardService.createRecurringPurchase(1L, dto, authentication);
-
-        assertNotNull(result);
-        verify(recurringPurchaseRepository).save(any(RecurringPurchase.class));
-        verify(creditCardPurchaseRepository).save(any(CreditCardPurchase.class));
-        verify(billResolverService).findOrCreateForDate(any(), any());
-        assertEquals(startDate, purchaseCaptor.getValue().getPurchaseDate());
-    }
-
-    @Test
-    void createRecurringPurchase_WhenCategoryTypeIncompatible_ShouldThrow() {
-        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
-        when(creditCardRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(card));
-        when(recurrencePeriodicityRepository.findById(1L)).thenReturn(Optional.of(periodicity));
-        when(categoryService.resolveCategory(eq(1L), any(), any()))
-                .thenThrow(new IllegalArgumentException("Category type INCOME is not allowed in this context"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> creditCardService.createRecurringPurchase(1L,
-                        new RecurringPurchaseCreateDto("Netflix", new BigDecimal("49.90"),
-                                1L, LocalDate.now(), null, 1L),
-                        authentication));
-    }
-
-    @Test
-    void updateRecurringPurchase_WhenOwned_ShouldUpdateAmountAndReturn() {
-        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        RecurrencePeriodicity periodicity = buildPeriodicity(1L);
-        RecurringPurchase rp = RecurringPurchase.builder()
-                .creditCard(card).description("Streaming").amount(new BigDecimal("49.90"))
-                .periodicity(periodicity).startDate(LocalDate.of(2025, 1, 1)).build();
-        rp.setId(3L);
-        RecurringPurchaseUpdateDto dto = new RecurringPurchaseUpdateDto(new BigDecimal("59.90"));
-
-        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
-        when(recurringPurchaseRepository.findByIdAndCreditCardId(3L, 1L)).thenReturn(Optional.of(rp));
-        when(recurringPurchaseRepository.save(rp)).thenReturn(rp);
-
-        RecurringPurchaseDto result = creditCardService.updateRecurringPurchase(1L, 3L, dto, authentication);
-
-        assertNotNull(result);
-        assertEquals(0, new BigDecimal("59.90").compareTo(rp.getAmount()));
-        verify(recurringPurchaseRepository).save(rp);
-    }
-
-    @Test
-    void updateRecurringPurchase_WhenCardNotOwned_ShouldThrow() {
-        when(creditCardRepository.existsByIdAndUserId(99L, currentUser.getId())).thenReturn(false);
-
-        assertThrows(EntityNotFoundException.class,
-                () -> creditCardService.updateRecurringPurchase(99L, 1L,
-                        new RecurringPurchaseUpdateDto(new BigDecimal("59.90")), authentication));
-        verify(recurringPurchaseRepository, never()).save(any());
-    }
-
-    @Test
-    void updateRecurringPurchase_WhenRecurringNotFound_ShouldThrow() {
-        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
-        when(recurringPurchaseRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
-
-        assertThrows(EntityNotFoundException.class,
-                () -> creditCardService.updateRecurringPurchase(1L, 99L,
-                        new RecurringPurchaseUpdateDto(new BigDecimal("59.90")), authentication));
-        verify(recurringPurchaseRepository, never()).save(any());
-    }
-
-    @Test
-    void deleteRecurringPurchase_WhenOwned_ShouldDelete() {
-        CreditCard card = buildCard(1L, buildLegalEntity(10L), buildCardBrand(20L));
-        RecurringPurchase rp = RecurringPurchase.builder().creditCard(card).build();
-        rp.setId(3L);
-
-        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
-        when(recurringPurchaseRepository.findByIdAndCreditCardId(3L, 1L)).thenReturn(Optional.of(rp));
-
-        creditCardService.deleteRecurringPurchase(1L, 3L, authentication);
-
-        verify(recurringPurchaseRepository).delete(rp);
-    }
-
-    @Test
-    void deleteRecurringPurchase_WhenNotFound_ShouldThrow() {
-        when(creditCardRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
-        when(recurringPurchaseRepository.findByIdAndCreditCardId(99L, 1L)).thenReturn(Optional.empty());
-
-        assertThrows(EntityNotFoundException.class,
-                () -> creditCardService.deleteRecurringPurchase(1L, 99L, authentication));
-    }
-
-    // -------------------------------------------------------------------------
     // CreditCardRefund
     // -------------------------------------------------------------------------
 
@@ -911,14 +787,6 @@ class CreditCardServiceTest {
         cash.setId(id);
         cash.setUser(currentUser);
         return cash;
-    }
-
-    private RecurrencePeriodicity buildPeriodicity(Long id) {
-        RecurrencePeriodicity p = new RecurrencePeriodicity();
-        p.setId(id);
-        p.setName("Mensal");
-        p.setType(PeriodicityType.MONTHLY);
-        return p;
     }
 
     private Category buildCategory(Long id, CategoryType type) {

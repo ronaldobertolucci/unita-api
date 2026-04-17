@@ -205,7 +205,6 @@ public class CategoryService {
         return categoryRepository.existsTransactionByCategoryId(categoryId)
                 || categoryRepository.existsInstallmentByCategoryId(categoryId)
                 || categoryRepository.existsRefundByCategoryId(categoryId)
-                || categoryRepository.existsRecurringTransactionByCategoryId(categoryId)
-                || categoryRepository.existsRecurringPurchaseByCategoryId(categoryId);
+                || categoryRepository.existsRecurringTransactionByCategoryId(categoryId);
     }
 }

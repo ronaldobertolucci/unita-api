@@ -70,7 +70,3 @@ ALTER TABLE credit_card_refunds
 ALTER TABLE recurring_transactions
     ADD COLUMN category_id BIGINT NOT NULL
         CONSTRAINT fk_recurring_transactions_category REFERENCES categories (id);
-
-ALTER TABLE recurring_purchases
-    ADD COLUMN category_id BIGINT NOT NULL
-        CONSTRAINT fk_recurring_purchases_category REFERENCES categories (id);
