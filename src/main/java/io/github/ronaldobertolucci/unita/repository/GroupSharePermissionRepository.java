@@ -15,8 +15,6 @@ public interface GroupSharePermissionRepository extends JpaRepository<GroupShare
 
     Optional<GroupSharePermission> findByGroupIdAndUserIdAndShareType(Long groupId, Long userId, ShareType shareType);
 
-    List<Long> findUserIdsByGroupIdAndShareTypeAndEnabledTrue(Long groupId, ShareType shareType);
-
     @Query("""
             SELECT gsp.user.id FROM GroupSharePermission gsp
             WHERE gsp.group.id = :groupId
