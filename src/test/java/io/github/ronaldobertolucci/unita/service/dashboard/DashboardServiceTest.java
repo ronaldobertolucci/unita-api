@@ -5,15 +5,14 @@ import io.github.ronaldobertolucci.unita.dto.dashboard.DashboardDto;
 import io.github.ronaldobertolucci.unita.dto.dashboard.FinancialSummaryDto;
 import io.github.ronaldobertolucci.unita.dto.dashboard.MonthlyFinancialSummaryDto;
 import io.github.ronaldobertolucci.unita.dto.investment.AssetSummaryDto;
-import io.github.ronaldobertolucci.unita.dto.pocket.PocketSummaryDto;
+import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
+import io.github.ronaldobertolucci.unita.model.investment.Asset;
 import io.github.ronaldobertolucci.unita.model.investment.AssetCategory;
 import io.github.ronaldobertolucci.unita.model.investment.AssetStatus;
+import io.github.ronaldobertolucci.unita.model.investment.InvestmentPosition;
+import io.github.ronaldobertolucci.unita.model.pocket.Cash;
 import io.github.ronaldobertolucci.unita.model.user.User;
-import io.github.ronaldobertolucci.unita.repository.CreditCardInstallmentRepository;
-import io.github.ronaldobertolucci.unita.repository.CreditCardRefundRepository;
-import io.github.ronaldobertolucci.unita.repository.TransactionRepository;
-import io.github.ronaldobertolucci.unita.service.investment.AssetService;
-import io.github.ronaldobertolucci.unita.service.pocket.PocketService;
+import io.github.ronaldobertolucci.unita.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,8 +32,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
 
-    @Mock private PocketService pocketService;
-    @Mock private AssetService assetService;
+    @Mock private PocketRepository pocketRepository;
+    @Mock private AssetRepository assetRepository;
     @Mock private TransactionRepository transactionRepository;
     @Mock private CreditCardInstallmentRepository creditCardInstallmentRepository;
     @Mock private CreditCardRefundRepository creditCardRefundRepository;
@@ -59,30 +57,31 @@ class DashboardServiceTest {
 
     @Test
     void getDashboard_ShouldGroupPocketsByType() {
-        when(pocketService.findMyPockets(any())).thenReturn(List.of(
-                new PocketSummaryDto(1L, "BankAccount", "Banco A", new BigDecimal("1000.00")),
-                new PocketSummaryDto(2L, "BankAccount", "Banco B", new BigDecimal("500.00")),
-                new PocketSummaryDto(3L, "Cash", "Espécie", new BigDecimal("200.00"))
-        ));
-        when(assetService.findAll(any())).thenReturn(List.of());
+        Cash cash1 = buildCash(1L);
+        Cash cash2 = buildCash(2L);
+        Cash cash3 = buildCash(3L);
+
+        when(pocketRepository.findAllByUserId(currentUser.getId()))
+                .thenReturn(List.of(cash1, cash2, cash3));
+        when(transactionRepository.calculateBalanceByPocketId(1L)).thenReturn(new BigDecimal("1000.00"));
+        when(transactionRepository.calculateBalanceByPocketId(2L)).thenReturn(new BigDecimal("500.00"));
+        when(transactionRepository.calculateBalanceByPocketId(3L)).thenReturn(new BigDecimal("200.00"));
         when(creditCardInstallmentRepository.sumInstallmentsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
         when(creditCardRefundRepository.sumRefundsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
 
         DashboardDto result = dashboardService.getDashboard(authentication);
 
-        assertEquals(2, result.pockets().size());
-        CategorySummaryDto bankAccount = result.pockets().stream()
-                .filter(p -> "BankAccount".equals(p.category())).findFirst().orElseThrow();
-        assertEquals(0, new BigDecimal("1500.00").compareTo(bankAccount.total()));
+        assertEquals(1, result.pockets().size());
+        assertEquals(0, new BigDecimal("1700.00").compareTo(result.pockets().get(0).total()));
     }
 
     @Test
     void getDashboard_ShouldGroupInvestmentsByCategory() {
-        when(pocketService.findMyPockets(any())).thenReturn(List.of());
-        when(assetService.findAll(any())).thenReturn(List.of(
-                buildAssetSummary("RENDA_FIXA", new BigDecimal("1000.00")),
-                buildAssetSummary("RENDA_FIXA", new BigDecimal("500.00")),
-                buildAssetSummary("PREVIDENCIA", new BigDecimal("3000.00"))
+        when(pocketRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of(
+                buildAsset(1L, AssetCategory.RENDA_FIXA, new BigDecimal("1000.00")),
+                buildAsset(2L, AssetCategory.RENDA_FIXA, new BigDecimal("500.00")),
+                buildAsset(3L, AssetCategory.PREVIDENCIA, new BigDecimal("3000.00"))
         ));
         when(creditCardInstallmentRepository.sumInstallmentsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
         when(creditCardRefundRepository.sumRefundsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
@@ -91,14 +90,14 @@ class DashboardServiceTest {
 
         assertEquals(2, result.investments().size());
         CategorySummaryDto rendaFixa = result.investments().stream()
-                .filter(i -> "RENDA_FIXA".equals(i.category())).findFirst().orElseThrow();
+                .filter(i -> AssetCategory.RENDA_FIXA.name().equals(i.category())).findFirst().orElseThrow();
         assertEquals(0, new BigDecimal("1500.00").compareTo(rendaFixa.total()));
     }
 
     @Test
     void getDashboard_ShouldCalculateTotalOpenBillsAsInstallmentsMinusRefunds() {
-        when(pocketService.findMyPockets(any())).thenReturn(List.of());
-        when(assetService.findAll(any())).thenReturn(List.of());
+        when(pocketRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
         when(creditCardInstallmentRepository.sumInstallmentsByUserIdAndOpenBills(currentUser.getId()))
                 .thenReturn(new BigDecimal("1000.00"));
         when(creditCardRefundRepository.sumRefundsByUserIdAndOpenBills(currentUser.getId()))
@@ -111,8 +110,8 @@ class DashboardServiceTest {
 
     @Test
     void getDashboard_WhenNoPocketsOrInvestments_ShouldReturnEmptyLists() {
-        when(pocketService.findMyPockets(any())).thenReturn(List.of());
-        when(assetService.findAll(any())).thenReturn(List.of());
+        when(pocketRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
         when(creditCardInstallmentRepository.sumInstallmentsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
         when(creditCardRefundRepository.sumRefundsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
 
@@ -259,8 +258,32 @@ class DashboardServiceTest {
     // Builders
     // -------------------------------------------------------------------------
 
-    private AssetSummaryDto buildAssetSummary(String category, BigDecimal currentValue) {
-        return new AssetSummaryDto(1L, "Asset", AssetCategory.valueOf(category), AssetStatus.ACTIVE, "Banco", currentValue,
-                BigDecimal.ZERO, BigDecimal.ZERO);
+    private Cash buildCash(Long id) {
+        Cash cash = new Cash();
+        cash.setId(id);
+        cash.setUser(currentUser);
+        return cash;
+    }
+
+    private Asset buildAsset(Long id, AssetCategory category, BigDecimal currentValue) {
+        LegalEntity le = new LegalEntity();
+        le.setCorporateName("Banco");
+
+        InvestmentPosition position = InvestmentPosition.builder()
+                .currentValue(currentValue)
+                .totalInvested(BigDecimal.ZERO)
+                .redeemedValue(BigDecimal.ZERO)
+                .build();
+
+        Asset asset = Asset.builder()
+                .user(currentUser)
+                .legalEntity(le)
+                .name("Asset")
+                .category(category)
+                .status(AssetStatus.ACTIVE)
+                .position(position)
+                .build();
+        asset.setId(id);
+        return asset;
     }
 }
