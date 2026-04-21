@@ -17,6 +17,13 @@ public class GroupShareController {
 
     private final GroupShareService groupShareService;
 
+    @GetMapping("/permissions")
+    public ResponseEntity<List<GroupSharePermissionDto>> getPermissions(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(groupShareService.getPermissions(id, authentication));
+    }
+
     @PutMapping("/permissions")
     public ResponseEntity<List<GroupSharePermissionDto>> updatePermissions(
             @PathVariable Long id,

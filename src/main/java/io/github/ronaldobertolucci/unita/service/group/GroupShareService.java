@@ -27,6 +27,17 @@ public class GroupShareService {
     private final GroupSharePermissionRepository groupSharePermissionRepository;
     private final PocketRepository pocketRepository;
 
+    public List<GroupSharePermissionDto> getPermissions(Long groupId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateGroupExists(groupId);
+        validateMembership(currentUser.getId(), groupId);
+
+        return groupSharePermissionRepository
+                .findAllByGroupIdAndUserId(groupId, currentUser.getId())
+                .stream().map(GroupSharePermissionDto::new)
+                .toList();
+    }
+
     @Transactional
     public List<GroupSharePermissionDto> updatePermissions(Long groupId,
                                                            GroupSharePermissionsUpdateDto dto,

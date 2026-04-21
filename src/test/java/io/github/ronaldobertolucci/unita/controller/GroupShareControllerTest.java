@@ -56,6 +56,66 @@ class GroupShareControllerTest {
     }
 
     // -------------------------------------------------------------------------
+    // getPermissions
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getPermissions_WhenDataIsValid_ShouldReturn200() throws Exception {
+        GroupSharePermissionsUpdateDto dto = new GroupSharePermissionsUpdateDto(
+                List.of(new GroupSharePermissionUpdateItemDto(ShareType.BALANCE, true)));
+        when(groupShareService.getPermissions(eq(1L), any()))
+                .thenReturn(List.of(permissionDto(ShareType.BALANCE, true)));
+
+        mockMvc.perform(get("/groups/1/share/permissions")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].shareType").value("BALANCE"))
+                .andExpect(jsonPath("$[0].enabled").value(true));
+    }
+
+    @Test
+    void getPermissions_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        GroupSharePermissionsUpdateDto dto = new GroupSharePermissionsUpdateDto(
+                List.of(new GroupSharePermissionUpdateItemDto(ShareType.BALANCE, true)));
+
+        mockMvc.perform(get("/groups/1/share/permissions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getPermissions_WhenNotMember_ShouldReturn400() throws Exception {
+        GroupSharePermissionsUpdateDto dto = new GroupSharePermissionsUpdateDto(
+                List.of(new GroupSharePermissionUpdateItemDto(ShareType.BALANCE, true)));
+        when(groupShareService.getPermissions(eq(1L), any()))
+                .thenThrow(new IllegalArgumentException("User is not a member of this group"));
+
+        mockMvc.perform(get("/groups/1/share/permissions")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getPermissions_WhenGroupNotFound_ShouldReturn404() throws Exception {
+        GroupSharePermissionsUpdateDto dto = new GroupSharePermissionsUpdateDto(
+                List.of(new GroupSharePermissionUpdateItemDto(ShareType.BALANCE, true)));
+        when(groupShareService.getPermissions(eq(99L), any()))
+                .thenThrow(new EntityNotFoundException("Group not found with id: 99"));
+
+        mockMvc.perform(get("/groups/99/share/permissions")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
     // updatePermissions
     // -------------------------------------------------------------------------
 
