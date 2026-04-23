@@ -16,7 +16,7 @@ CREATE TABLE fixed_income_details
 (
     asset_id      BIGINT PRIMARY KEY,
     indexer       VARCHAR(10)    NOT NULL CHECK (indexer IN ('CDI', 'IPCA', 'SELIC', 'PREFIXADO')),
-    annual_rate   DECIMAL(10, 8) NOT NULL,
+    annual_rate   DECIMAL(11, 8) NOT NULL,
     maturity_date DATE           NOT NULL,
     is_tax_free   BOOLEAN        NOT NULL DEFAULT false,
     CONSTRAINT fk_fixed_income_details_asset FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
