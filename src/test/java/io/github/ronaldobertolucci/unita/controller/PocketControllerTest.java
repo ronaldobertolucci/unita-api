@@ -56,7 +56,7 @@ class PocketControllerTest {
     // -------------------------------------------------------------------------
 
     private PocketSummaryDto pocketSummaryDto() {
-        return new PocketSummaryDto(1L, "BankAccount", "Banco do Brasil - 12345",
+        return new PocketSummaryDto(1L, "BankAccount", "Banco do Brasil - 12345", true,
                 new BigDecimal("1500.00"));
     }
 

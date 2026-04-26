@@ -40,4 +40,9 @@ public class BankAccount extends Pocket {
     public String getLabel() {
         return this.getLegalEntity().getCorporateName() + " - Ag. " + this.getAgency() + " / " + this.getNumber();
     }
+
+    @Override
+    public boolean isActive() {
+        return status.equals(BankAccountStatus.ACTIVE);
+    }
 }

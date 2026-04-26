@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public abstract class Pocket {
+public abstract class Pocket implements Activatable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

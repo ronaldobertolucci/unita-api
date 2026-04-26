@@ -16,4 +16,9 @@ public class Cash extends Pocket {
     public String getLabel() {
         return "Dinheiro em espécie";
     }
+
+    @Override
+    public boolean isActive() {
+        return true;
+    }
 }

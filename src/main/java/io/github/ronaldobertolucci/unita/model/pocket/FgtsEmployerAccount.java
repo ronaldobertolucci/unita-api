@@ -39,4 +39,9 @@ public class FgtsEmployerAccount extends Pocket {
     public String getLabel() {
         return this.getEmployer().getName();
     }
+
+    @Override
+    public boolean isActive() {
+        return status.equals(FgtsEmployerAccountStatus.ACTIVE);
+    }
 }

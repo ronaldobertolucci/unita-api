@@ -36,4 +36,9 @@ public class BenefitAccount extends Pocket {
     public String getLabel() {
         return this.getLegalEntity().getCorporateName() + " - " + this.getBenefitType().getName();
     }
+
+    @Override
+    public boolean isActive() {
+        return status.equals(BenefitAccountStatus.ACTIVE);
+    }
 }

@@ -8,6 +8,7 @@ public record PocketSummaryDto(
         Long id,
         String type,
         String label,
+        boolean active,
         BigDecimal balance
 ) {
     public static PocketSummaryDto of(Pocket pocket, BigDecimal balance) {
@@ -15,6 +16,7 @@ public record PocketSummaryDto(
                 pocket.getId(),
                 pocket.getClass().getSimpleName(),
                 pocket.getLabel(),
+                pocket.isActive(),
                 balance
         );
     }
