@@ -21,7 +21,8 @@ class BenefitTypeRepositoryTest extends BaseRepositoryTest {
     void findAll_ShouldReturnAllSeededTypes() {
         List<BenefitType> types = benefitTypeRepository.findAll();
 
-        assertEquals(2, types.size());
+        assertEquals(3, types.size());
+        assertTrue(types.stream().anyMatch(t -> t.getName().equals("Premiação")));
         assertTrue(types.stream().anyMatch(t -> t.getName().equals("Vale-Alimentação")));
         assertTrue(types.stream().anyMatch(t -> t.getName().equals("Vale-Refeição")));
     }
