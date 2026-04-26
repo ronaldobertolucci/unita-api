@@ -123,6 +123,8 @@ class PocketServiceTest {
         BankAccountUpdateDto dto = new BankAccountUpdateDto(BankAccountStatus.INACTIVE);
         when(bankAccountRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(account));
         when(bankAccountRepository.save(any())).thenReturn(account);
+        when(pocketRepository.existsByIdAndUserId(1L, currentUser.getId())).thenReturn(true);
+        when(transactionRepository.calculateBalanceByPocketId(1L)).thenReturn(BigDecimal.ZERO);
 
         BankAccountDto result = pocketService.updateBankAccount(1L, dto, authentication);
 

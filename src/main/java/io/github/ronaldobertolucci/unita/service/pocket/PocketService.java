@@ -89,6 +89,10 @@ public class PocketService {
         BankAccount bankAccount = bankAccountRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Bank account not found"));
 
+        BigDecimal balance = findBalance(id, authentication);
+        if (dto.status() != BankAccountStatus.ACTIVE && balance.compareTo(BigDecimal.ZERO) != 0)
+            throw new IllegalStateException("Pocket must be empty to be deactivated.");
+
         bankAccount.setStatus(dto.status());
         return new BankAccountDto(bankAccountRepository.save(bankAccount));
     }
@@ -139,6 +143,10 @@ public class PocketService {
         BenefitAccount benefitAccount = benefitAccountRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Benefit account not found"));
 
+        BigDecimal balance = findBalance(id, authentication);
+        if (dto.status() != BenefitAccountStatus.ACTIVE && balance.compareTo(BigDecimal.ZERO) != 0)
+            throw new IllegalStateException("Pocket must be empty to be deactivated.");
+
         benefitAccount.setStatus(dto.status());
         return new BenefitAccountDto(benefitAccountRepository.save(benefitAccount));
     }
@@ -186,6 +194,10 @@ public class PocketService {
         User currentUser = (User) authentication.getPrincipal();
         FgtsEmployerAccount fgtsAccount = fgtsEmployerAccountRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("FGTS employer account not found"));
+
+        BigDecimal balance = findBalance(id, authentication);
+        if (dto.status() != FgtsEmployerAccountStatus.ACTIVE && balance.compareTo(BigDecimal.ZERO) != 0)
+            throw new IllegalStateException("Pocket must be empty to be deactivated.");
 
         fgtsAccount.setStatus(dto.status());
         fgtsAccount.setDismissalDate(dto.dismissalDate());
