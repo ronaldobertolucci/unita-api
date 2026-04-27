@@ -11,6 +11,7 @@ public record AssetDetailDto(
     AssetCategory category,
     AssetStatus status,
     LegalEntityDto legalEntity,
+    LegalEntityDto custodianLegalEntity,
     InvestmentPositionDto position,
     FixedIncomeDetailsDto fixedIncomeDetails,
     PensionDetailsDto pensionDetails
@@ -22,6 +23,8 @@ public record AssetDetailDto(
             asset.getCategory(),
             asset.getStatus(),
             new LegalEntityDto(asset.getLegalEntity()),
+            asset.getCustodianLegalEntity() != null
+                ? new LegalEntityDto(asset.getCustodianLegalEntity()) : null,
             new InvestmentPositionDto(asset.getPosition()),
             asset.getFixedIncomeDetails() != null
                 ? new FixedIncomeDetailsDto(asset.getFixedIncomeDetails()) : null,

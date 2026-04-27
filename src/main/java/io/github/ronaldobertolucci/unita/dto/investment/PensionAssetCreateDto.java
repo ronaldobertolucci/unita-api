@@ -10,5 +10,6 @@ public record PensionAssetCreateDto(
     @NotBlank @Size(max = 255) String name,
     @NotNull Long legalEntityId,
     @NotNull PensionType pensionType,
-    @NotNull TaxRegime taxRegime
-) {}
+    @NotNull TaxRegime taxRegime,
+    Long custodianLegalEntityId
+    ) {}

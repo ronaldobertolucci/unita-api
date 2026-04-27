@@ -1,14 +1,16 @@
 -- Enums como CHECK constraints
 CREATE TABLE assets
 (
-    id              BIGSERIAL PRIMARY KEY,
-    user_id         BIGINT       NOT NULL,
-    legal_entity_id BIGINT       NOT NULL,
-    name            VARCHAR(255) NOT NULL,
-    category        VARCHAR(15)  NOT NULL CHECK (category IN ('RENDA_FIXA', 'PREVIDENCIA')),
-    status          VARCHAR(10)  NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'MATURED', 'REDEEMED')),
+    id                        BIGSERIAL PRIMARY KEY,
+    user_id                   BIGINT       NOT NULL,
+    legal_entity_id           BIGINT       NOT NULL,
+    name                      VARCHAR(255) NOT NULL,
+    category                  VARCHAR(15)  NOT NULL CHECK (category IN ('RENDA_FIXA', 'PREVIDENCIA')),
+    status                    VARCHAR(10)  NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'MATURED', 'REDEEMED')),
+    custodian_legal_entity_id BIGINT,
     CONSTRAINT fk_assets_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_assets_legal_entity FOREIGN KEY (legal_entity_id) REFERENCES legal_entities (id)
+    CONSTRAINT fk_assets_legal_entity FOREIGN KEY (legal_entity_id) REFERENCES legal_entities (id),
+    CONSTRAINT fk_assets_custodian_legal_entity FOREIGN KEY (legal_entity_id) REFERENCES legal_entities (id)
 );
 CREATE INDEX idx_assets_user_id ON assets (user_id);
 
@@ -25,7 +27,7 @@ CREATE TABLE fixed_income_details
 CREATE TABLE pension_details
 (
     asset_id     BIGINT PRIMARY KEY,
-    pension_type VARCHAR(20)  NOT NULL CHECK (pension_type IN ('PGBL', 'VGBL', 'ENTIDADE_FECHADA')),
+    pension_type VARCHAR(20) NOT NULL CHECK (pension_type IN ('PGBL', 'VGBL', 'ENTIDADE_FECHADA')),
     tax_regime   VARCHAR(12) NOT NULL CHECK (tax_regime IN ('PROGRESSIVO', 'REGRESSIVO')),
     CONSTRAINT fk_pension_details_asset FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
 );

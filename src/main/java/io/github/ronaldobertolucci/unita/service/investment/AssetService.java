@@ -43,12 +43,20 @@ public class AssetService {
         LegalEntity legalEntity = legalEntityRepository.findByIdAndUserId(dto.legalEntityId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Legal entity not found"));
 
+        LegalEntity custodianLegalEntity = null;
+
+        if (dto.custodianLegalEntityId() != null) {
+            custodianLegalEntity = legalEntityRepository.findByIdAndUserId(dto.custodianLegalEntityId(), currentUser.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Custodian legal entity not found"));
+        }
+
         Asset asset = assetRepository.save(Asset.builder()
                 .user(currentUser)
                 .legalEntity(legalEntity)
                 .name(dto.name())
                 .category(AssetCategory.RENDA_FIXA)
                 .status(AssetStatus.ACTIVE)
+                .custodianLegalEntity(custodianLegalEntity)
                 .build());
 
         FixedIncomeDetails details = FixedIncomeDetails.builder()
@@ -82,12 +90,20 @@ public class AssetService {
         LegalEntity legalEntity = legalEntityRepository.findByIdAndUserId(dto.legalEntityId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Legal entity not found"));
 
+        LegalEntity custodianLegalEntity = null;
+
+        if (dto.custodianLegalEntityId() != null) {
+            custodianLegalEntity = legalEntityRepository.findByIdAndUserId(dto.custodianLegalEntityId(), currentUser.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Custodian legal entity not found"));
+        }
+
         Asset asset = assetRepository.save(Asset.builder()
                 .user(currentUser)
                 .legalEntity(legalEntity)
                 .name(dto.name())
                 .category(AssetCategory.PREVIDENCIA)
                 .status(AssetStatus.ACTIVE)
+                .custodianLegalEntity(custodianLegalEntity)
                 .build());
 
         PensionDetails details = PensionDetails.builder()
@@ -148,6 +164,12 @@ public class AssetService {
 
         asset.setName(dto.name());
         asset.setLegalEntity(legalEntity);
+
+        if (dto.custodianLegalEntityId() != null) {
+            LegalEntity custodianLegalEntity = legalEntityRepository.findByIdAndUserId(dto.custodianLegalEntityId(), currentUser.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Custodian legal entity not found"));
+            asset.setCustodianLegalEntity(custodianLegalEntity);
+        }
 
         return new AssetDetailDto(assetRepository.save(asset));
     }

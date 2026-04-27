@@ -12,6 +12,7 @@ public record AssetSummaryDto(
     AssetCategory category,
     AssetStatus status,
     String legalEntityName,
+    String custodianLegalEntityName,
     BigDecimal currentValue,
     BigDecimal totalInvested,
     BigDecimal redeemedValue
@@ -23,6 +24,8 @@ public record AssetSummaryDto(
             asset.getCategory(),
             asset.getStatus(),
             asset.getLegalEntity().getCorporateName(),
+            asset.getCustodianLegalEntity() != null
+                ? asset.getCustodianLegalEntity().getCorporateName(): null,
             asset.getPosition().getCurrentValue(),
             asset.getPosition().getTotalInvested(),
             asset.getPosition().getRedeemedValue()

@@ -14,5 +14,6 @@ public record FixedIncomeAssetCreateDto(
     @NotNull Indexer indexer,
     @NotNull BigDecimal annualRate,
     @NotNull LocalDate maturityDate,
-    @NotNull Boolean taxFree
+    @NotNull Boolean taxFree,
+    Long custodianLegalEntityId
 ) {}

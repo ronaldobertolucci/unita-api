@@ -38,6 +38,10 @@ public class Asset {
     @Builder.Default
     private AssetStatus status = AssetStatus.ACTIVE;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "custodian_legal_entity_id")
+    private LegalEntity custodianLegalEntity;
+
     @OneToOne(mappedBy = "asset", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private FixedIncomeDetails fixedIncomeDetails;
 
