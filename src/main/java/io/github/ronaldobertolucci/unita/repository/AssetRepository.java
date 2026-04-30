@@ -1,5 +1,7 @@
 package io.github.ronaldobertolucci.unita.repository;
 
+import io.github.ronaldobertolucci.unita.dto.dashboard.IndexerSummaryDto;
+import io.github.ronaldobertolucci.unita.dto.dashboard.IssuerRiskSummaryDto;
 import io.github.ronaldobertolucci.unita.model.investment.Asset;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -32,4 +34,33 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
             WHERE a.user.id = :userId
             """)
     List<Asset> findAllByUserIdWithDetails(@Param("userId") Long userId);
+
+    @Query("""
+        SELECT new io.github.ronaldobertolucci.unita.dto.dashboard.IssuerRiskSummaryDto(
+            a.legalEntity.corporateName,
+            SUM(p.currentValue)
+        )
+        FROM Asset a
+        JOIN a.position p
+        WHERE a.user.id = :userId
+          AND a.status <> io.github.ronaldobertolucci.unita.model.investment.AssetStatus.REDEEMED
+        GROUP BY a.legalEntity.corporateName
+        ORDER BY a.legalEntity.corporateName
+        """)
+    List<IssuerRiskSummaryDto> sumCurrentValueByLegalEntityAndUserId(@Param("userId") Long userId);
+
+    @Query("""
+        SELECT new io.github.ronaldobertolucci.unita.dto.dashboard.IndexerSummaryDto(
+            f.indexer,
+            SUM(p.currentValue)
+        )
+        FROM Asset a
+        JOIN a.position p
+        JOIN a.fixedIncomeDetails f
+        WHERE a.user.id = :userId
+          AND a.status <> io.github.ronaldobertolucci.unita.model.investment.AssetStatus.REDEEMED
+        GROUP BY f.indexer
+        ORDER BY f.indexer
+        """)
+    List<IndexerSummaryDto> sumCurrentValueByIndexerAndUserId(@Param("userId") Long userId);
 }

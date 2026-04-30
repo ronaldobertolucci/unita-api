@@ -1,8 +1,6 @@
 package io.github.ronaldobertolucci.unita.controller;
 
-import io.github.ronaldobertolucci.unita.dto.dashboard.DashboardDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.FinancialSummaryDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.MonthlyFinancialSummaryDto;
+import io.github.ronaldobertolucci.unita.dto.dashboard.*;
 import io.github.ronaldobertolucci.unita.service.dashboard.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -42,5 +40,15 @@ public class DashboardController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Authentication authentication) {
         return ResponseEntity.ok(dashboardService.getMonthlyFinancialSummary(startDate, endDate, authentication));
+    }
+
+    @GetMapping("/issuer-risk")
+    public ResponseEntity<List<IssuerRiskSummaryDto>> getIssuerRiskSummary(Authentication authentication) {
+        return ResponseEntity.ok(dashboardService.getIssuerRiskSummary(authentication));
+    }
+
+    @GetMapping("/indexer-summary")
+    public ResponseEntity<List<IndexerSummaryDto>> getIndexerSummary(Authentication authentication) {
+        return ResponseEntity.ok(dashboardService.getIndexerSummary(authentication));
     }
 }

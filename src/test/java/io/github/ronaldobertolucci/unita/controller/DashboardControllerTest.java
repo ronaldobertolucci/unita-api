@@ -2,10 +2,8 @@ package io.github.ronaldobertolucci.unita.controller;
 
 import io.github.ronaldobertolucci.unita.config.TestConfig;
 import io.github.ronaldobertolucci.unita.config.security.SecurityConfigurations;
-import io.github.ronaldobertolucci.unita.dto.dashboard.CategorySummaryDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.DashboardDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.FinancialSummaryDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.MonthlyFinancialSummaryDto;
+import io.github.ronaldobertolucci.unita.dto.dashboard.*;
+import io.github.ronaldobertolucci.unita.model.investment.Indexer;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
 import io.github.ronaldobertolucci.unita.service.dashboard.DashboardService;
 import io.github.ronaldobertolucci.unita.service.security.TokenService;
@@ -142,6 +140,60 @@ class DashboardControllerTest {
     @Test
     void getMonthlyFinancialSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
         mockMvc.perform(get("/dashboard/monthly"))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+// GET /dashboard/issuer-risk
+// -------------------------------------------------------------------------
+
+    @Test
+    void getIssuerRiskSummary_ShouldReturn200WithData() throws Exception {
+        List<IssuerRiskSummaryDto> dto = List.of(
+                new IssuerRiskSummaryDto("Banco Teste", new BigDecimal("1500.00")),
+                new IssuerRiskSummaryDto("Corretora XP", new BigDecimal("3000.00"))
+        );
+        when(dashboardService.getIssuerRiskSummary(any())).thenReturn(dto);
+
+        mockMvc.perform(get("/dashboard/issuer-risk")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].legalEntityName").value("Banco Teste"))
+                .andExpect(jsonPath("$[0].totalCurrentValue").value(1500.00))
+                .andExpect(jsonPath("$[1].legalEntityName").value("Corretora XP"));
+    }
+
+    @Test
+    void getIssuerRiskSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(get("/dashboard/issuer-risk"))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /dashboard/indexer-summary
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getIndexerSummary_ShouldReturn200WithData() throws Exception {
+        List<IndexerSummaryDto> dto = List.of(
+                new IndexerSummaryDto(Indexer.CDI, new BigDecimal("1500.00")),
+                new IndexerSummaryDto(Indexer.IPCA, new BigDecimal("2000.00"))
+        );
+        when(dashboardService.getIndexerSummary(any())).thenReturn(dto);
+
+        mockMvc.perform(get("/dashboard/indexer-summary")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].indexer").value("CDI"))
+                .andExpect(jsonPath("$[0].totalCurrentValue").value(1500.00))
+                .andExpect(jsonPath("$[1].indexer").value("IPCA"));
+    }
+
+    @Test
+    void getIndexerSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(get("/dashboard/indexer-summary"))
                 .andExpect(status().isForbidden());
     }
 }

@@ -43,4 +43,18 @@ public class GroupDashboardController {
         return ResponseEntity.ok(groupDashboardService.getGroupMonthlyFinancialSummary(
                 groupId, startDate, endDate, authentication));
     }
+
+    @GetMapping("/issuer-risk")
+    public ResponseEntity<GroupIssuerRiskDto> getGroupIssuerRiskSummary(
+            @PathVariable Long groupId,
+            Authentication authentication) {
+        return ResponseEntity.ok(groupDashboardService.getGroupIssuerRiskSummary(groupId, authentication));
+    }
+
+    @GetMapping("/indexer-summary")
+    public ResponseEntity<GroupIndexerSummaryDto> getGroupIndexerSummary(
+            @PathVariable Long groupId,
+            Authentication authentication) {
+        return ResponseEntity.ok(groupDashboardService.getGroupIndexerSummary(groupId, authentication));
+    }
 }

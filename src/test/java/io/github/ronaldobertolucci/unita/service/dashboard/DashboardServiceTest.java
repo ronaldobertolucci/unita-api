@@ -1,15 +1,9 @@
 package io.github.ronaldobertolucci.unita.service.dashboard;
 
-import io.github.ronaldobertolucci.unita.dto.dashboard.CategorySummaryDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.DashboardDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.FinancialSummaryDto;
-import io.github.ronaldobertolucci.unita.dto.dashboard.MonthlyFinancialSummaryDto;
+import io.github.ronaldobertolucci.unita.dto.dashboard.*;
 import io.github.ronaldobertolucci.unita.dto.investment.AssetSummaryDto;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
-import io.github.ronaldobertolucci.unita.model.investment.Asset;
-import io.github.ronaldobertolucci.unita.model.investment.AssetCategory;
-import io.github.ronaldobertolucci.unita.model.investment.AssetStatus;
-import io.github.ronaldobertolucci.unita.model.investment.InvestmentPosition;
+import io.github.ronaldobertolucci.unita.model.investment.*;
 import io.github.ronaldobertolucci.unita.model.pocket.Cash;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
@@ -252,6 +246,57 @@ class DashboardServiceTest {
 
         assertEquals("2025-01", result.get(0).month());
         assertEquals("2025-03", result.get(1).month());
+    }
+
+    // -------------------------------------------------------------------------
+// getIssuerRiskSummary
+// -------------------------------------------------------------------------
+
+    @Test
+    void getIssuerRiskSummary_ShouldDelegateToRepository() {
+        List<IssuerRiskSummaryDto> expected = List.of(
+                new IssuerRiskSummaryDto("Banco Teste", new BigDecimal("1500.00"))
+        );
+        when(assetRepository.sumCurrentValueByLegalEntityAndUserId(currentUser.getId())).thenReturn(expected);
+
+        List<IssuerRiskSummaryDto> result = dashboardService.getIssuerRiskSummary(authentication);
+
+        assertEquals(1, result.size());
+        assertEquals("Banco Teste", result.get(0).legalEntityName());
+        assertEquals(0, new BigDecimal("1500.00").compareTo(result.get(0).totalCurrentValue()));
+    }
+
+    @Test
+    void getIssuerRiskSummary_WhenNoAssets_ShouldReturnEmptyList() {
+        when(assetRepository.sumCurrentValueByLegalEntityAndUserId(currentUser.getId())).thenReturn(List.of());
+
+        assertTrue(dashboardService.getIssuerRiskSummary(authentication).isEmpty());
+    }
+
+    // -------------------------------------------------------------------------
+    // getIndexerSummary
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getIndexerSummary_ShouldDelegateToRepository() {
+        List<IndexerSummaryDto> expected = List.of(
+                new IndexerSummaryDto(Indexer.CDI, new BigDecimal("1500.00")),
+                new IndexerSummaryDto(Indexer.IPCA, new BigDecimal("2000.00"))
+        );
+        when(assetRepository.sumCurrentValueByIndexerAndUserId(currentUser.getId())).thenReturn(expected);
+
+        List<IndexerSummaryDto> result = dashboardService.getIndexerSummary(authentication);
+
+        assertEquals(2, result.size());
+        assertEquals(Indexer.CDI, result.get(0).indexer());
+        assertEquals(0, new BigDecimal("1500.00").compareTo(result.get(0).totalCurrentValue()));
+    }
+
+    @Test
+    void getIndexerSummary_WhenNoFixedIncomeAssets_ShouldReturnEmptyList() {
+        when(assetRepository.sumCurrentValueByIndexerAndUserId(currentUser.getId())).thenReturn(List.of());
+
+        assertTrue(dashboardService.getIndexerSummary(authentication).isEmpty());
     }
 
     // -------------------------------------------------------------------------

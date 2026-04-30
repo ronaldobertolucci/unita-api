@@ -4,6 +4,7 @@ import io.github.ronaldobertolucci.unita.dto.dashboard.*;
 import io.github.ronaldobertolucci.unita.model.group.GroupMembership;
 import io.github.ronaldobertolucci.unita.model.group.GroupSharePermission;
 import io.github.ronaldobertolucci.unita.model.group.ShareType;
+import io.github.ronaldobertolucci.unita.model.investment.Indexer;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.GroupMembershipRepository;
 import io.github.ronaldobertolucci.unita.repository.GroupSharePermissionRepository;
@@ -270,6 +271,89 @@ class GroupDashboardServiceTest {
         GroupMonthlyFinancialSummaryDto month = result.members().get(0).monthly().get(0);
         assertNotNull(month.totalIncome());
         assertNull(month.totalExpense());
+    }
+
+    // -------------------------------------------------------------------------
+// getGroupIssuerRiskSummary
+// -------------------------------------------------------------------------
+
+    @Test
+    void getGroupIssuerRiskSummary_WhenNotMember_ShouldThrowAccessDeniedException() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(false);
+
+        assertThrows(AccessDeniedException.class,
+                () -> groupDashboardService.getGroupIssuerRiskSummary(GROUP_ID, authentication));
+    }
+
+    @Test
+    void getGroupIssuerRiskSummary_WhenInvestmentsEnabled_ShouldReturnData() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(true);
+        when(membershipRepository.findByGroupIdWithUsers(GROUP_ID)).thenReturn(List.of(buildMembership(memberUser)));
+        when(permissionRepository.findAllByGroupIdAndUserId(GROUP_ID, memberUser.getId()))
+                .thenReturn(List.of(buildPermission(ShareType.INVESTMENTS, true)));
+        when(dashboardService.getIssuerRiskSummaryByUserId(memberUser.getId()))
+                .thenReturn(List.of(new IssuerRiskSummaryDto("Banco Teste", new BigDecimal("1500.00"))));
+
+        GroupIssuerRiskDto result = groupDashboardService.getGroupIssuerRiskSummary(GROUP_ID, authentication);
+
+        assertEquals(1, result.members().size());
+        assertNotNull(result.members().get(0).issuerRisk());
+        assertEquals(1, result.members().get(0).issuerRisk().size());
+    }
+
+    @Test
+    void getGroupIssuerRiskSummary_WhenInvestmentsDisabled_ShouldReturnNullIssuerRisk() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(true);
+        when(membershipRepository.findByGroupIdWithUsers(GROUP_ID)).thenReturn(List.of(buildMembership(memberUser)));
+        when(permissionRepository.findAllByGroupIdAndUserId(GROUP_ID, memberUser.getId()))
+                .thenReturn(List.of(buildPermission(ShareType.INVESTMENTS, false)));
+
+        GroupIssuerRiskDto result = groupDashboardService.getGroupIssuerRiskSummary(GROUP_ID, authentication);
+
+        assertNull(result.members().get(0).issuerRisk());
+    }
+
+    // -------------------------------------------------------------------------
+    // getGroupIndexerSummary
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getGroupIndexerSummary_WhenNotMember_ShouldThrowAccessDeniedException() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(false);
+
+        assertThrows(AccessDeniedException.class,
+                () -> groupDashboardService.getGroupIndexerSummary(GROUP_ID, authentication));
+    }
+
+    @Test
+    void getGroupIndexerSummary_WhenInvestmentsEnabled_ShouldReturnData() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(true);
+        when(membershipRepository.findByGroupIdWithUsers(GROUP_ID)).thenReturn(List.of(buildMembership(memberUser)));
+        when(permissionRepository.findAllByGroupIdAndUserId(GROUP_ID, memberUser.getId()))
+                .thenReturn(List.of(buildPermission(ShareType.INVESTMENTS, true)));
+        when(dashboardService.getIndexerSummaryByUserId(memberUser.getId()))
+                .thenReturn(List.of(
+                        new IndexerSummaryDto(Indexer.CDI, new BigDecimal("1500.00")),
+                        new IndexerSummaryDto(Indexer.IPCA, new BigDecimal("2000.00"))
+                ));
+
+        GroupIndexerSummaryDto result = groupDashboardService.getGroupIndexerSummary(GROUP_ID, authentication);
+
+        assertEquals(1, result.members().size());
+        assertNotNull(result.members().get(0).indexerSummary());
+        assertEquals(2, result.members().get(0).indexerSummary().size());
+    }
+
+    @Test
+    void getGroupIndexerSummary_WhenInvestmentsDisabled_ShouldReturnNullIndexerSummary() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(true);
+        when(membershipRepository.findByGroupIdWithUsers(GROUP_ID)).thenReturn(List.of(buildMembership(memberUser)));
+        when(permissionRepository.findAllByGroupIdAndUserId(GROUP_ID, memberUser.getId()))
+                .thenReturn(List.of(buildPermission(ShareType.INVESTMENTS, false)));
+
+        GroupIndexerSummaryDto result = groupDashboardService.getGroupIndexerSummary(GROUP_ID, authentication);
+
+        assertNull(result.members().get(0).indexerSummary());
     }
 
     // -------------------------------------------------------------------------

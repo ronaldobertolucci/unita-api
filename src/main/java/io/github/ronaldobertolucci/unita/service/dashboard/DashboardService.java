@@ -57,6 +57,16 @@ public class DashboardService {
         );
     }
 
+    public List<IssuerRiskSummaryDto> getIssuerRiskSummary(Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        return getIssuerRiskSummaryByUserId(currentUser.getId());
+    }
+
+    public List<IndexerSummaryDto> getIndexerSummary(Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        return getIndexerSummaryByUserId(currentUser.getId());
+    }
+
     // -------------------------------------------------------------------------
     // Public userId-based methods (GroupDashboardService)
     // -------------------------------------------------------------------------
@@ -141,6 +151,14 @@ public class DashboardService {
             expenseByMonth.merge(month, amount, BigDecimal::add);
         }
         return expenseByMonth;
+    }
+
+    public List<IssuerRiskSummaryDto> getIssuerRiskSummaryByUserId(Long userId) {
+        return assetRepository.sumCurrentValueByLegalEntityAndUserId(userId);
+    }
+
+    public List<IndexerSummaryDto> getIndexerSummaryByUserId(Long userId) {
+        return assetRepository.sumCurrentValueByIndexerAndUserId(userId);
     }
 
     // -------------------------------------------------------------------------

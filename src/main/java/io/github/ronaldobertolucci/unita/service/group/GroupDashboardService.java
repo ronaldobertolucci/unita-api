@@ -137,6 +137,50 @@ public class GroupDashboardService {
         return new GroupMemberMonthlyDto(GroupMemberUserDto.from(member), monthly);
     }
 
+    public GroupIssuerRiskDto getGroupIssuerRiskSummary(Long groupId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateMembership(currentUser.getId(), groupId);
+
+        List<GroupMemberIssuerRiskDto> members = membershipRepository.findByGroupIdWithUsers(groupId)
+                .stream()
+                .map(membership -> buildMemberIssuerRisk(membership.getUser(), groupId))
+                .toList();
+
+        return new GroupIssuerRiskDto(members);
+    }
+
+    private GroupMemberIssuerRiskDto buildMemberIssuerRisk(User member, Long groupId) {
+        Set<ShareType> enabled = getEnabledPermissions(member.getId(), groupId);
+
+        return new GroupMemberIssuerRiskDto(
+                GroupMemberUserDto.from(member),
+                enabled.contains(ShareType.INVESTMENTS)
+                        ? dashboardService.getIssuerRiskSummaryByUserId(member.getId()) : null
+        );
+    }
+
+    public GroupIndexerSummaryDto getGroupIndexerSummary(Long groupId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateMembership(currentUser.getId(), groupId);
+
+        List<GroupMemberIndexerSummaryDto> members = membershipRepository.findByGroupIdWithUsers(groupId)
+                .stream()
+                .map(membership -> buildMemberIndexerSummary(membership.getUser(), groupId))
+                .toList();
+
+        return new GroupIndexerSummaryDto(members);
+    }
+
+    private GroupMemberIndexerSummaryDto buildMemberIndexerSummary(User member, Long groupId) {
+        Set<ShareType> enabled = getEnabledPermissions(member.getId(), groupId);
+
+        return new GroupMemberIndexerSummaryDto(
+                GroupMemberUserDto.from(member),
+                enabled.contains(ShareType.INVESTMENTS)
+                        ? dashboardService.getIndexerSummaryByUserId(member.getId()) : null
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
