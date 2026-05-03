@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -69,6 +70,7 @@ public class CreditCardService {
         User currentUser = (User) authentication.getPrincipal();
         return creditCardRepository.findAllByUserId(currentUser.getId())
                 .stream()
+                .sorted(Comparator.comparing(creditCard -> creditCard.getLegalEntity().getCorporateName()))
                 .map(CreditCardDto::new)
                 .toList();
     }
