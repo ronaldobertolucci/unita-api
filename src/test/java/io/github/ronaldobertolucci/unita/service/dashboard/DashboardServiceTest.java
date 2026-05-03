@@ -72,7 +72,7 @@ class DashboardServiceTest {
     @Test
     void getDashboard_ShouldGroupInvestmentsByCategory() {
         when(pocketRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
-        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of(
+        when(assetRepository.findAllByUserIdOrderByName(currentUser.getId())).thenReturn(List.of(
                 buildAsset(1L, AssetCategory.RENDA_FIXA, new BigDecimal("1000.00")),
                 buildAsset(2L, AssetCategory.RENDA_FIXA, new BigDecimal("500.00")),
                 buildAsset(3L, AssetCategory.PREVIDENCIA, new BigDecimal("3000.00"))
@@ -91,7 +91,7 @@ class DashboardServiceTest {
     @Test
     void getDashboard_ShouldCalculateTotalOpenBillsAsInstallmentsMinusRefunds() {
         when(pocketRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
-        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(assetRepository.findAllByUserIdOrderByName(currentUser.getId())).thenReturn(List.of());
         when(creditCardInstallmentRepository.sumInstallmentsByUserIdAndOpenBills(currentUser.getId()))
                 .thenReturn(new BigDecimal("1000.00"));
         when(creditCardRefundRepository.sumRefundsByUserIdAndOpenBills(currentUser.getId()))
@@ -105,7 +105,7 @@ class DashboardServiceTest {
     @Test
     void getDashboard_WhenNoPocketsOrInvestments_ShouldReturnEmptyLists() {
         when(pocketRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
-        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(assetRepository.findAllByUserIdOrderByName(currentUser.getId())).thenReturn(List.of());
         when(creditCardInstallmentRepository.sumInstallmentsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
         when(creditCardRefundRepository.sumRefundsByUserIdAndOpenBills(any())).thenReturn(BigDecimal.ZERO);
 

@@ -43,14 +43,14 @@ class AssetRepositoryTest extends BaseRepositoryTest {
         saveAsset("CDB B", user);
         saveAsset("CDB C", otherUser);
 
-        List<Asset> result = assetRepository.findAllByUserId(user.getId());
+        List<Asset> result = assetRepository.findAllByUserIdOrderByName(user.getId());
 
         assertEquals(2, result.size());
     }
 
     @Test
     void findAllByUserId_WhenEmpty_ShouldReturnEmptyList() {
-        assertTrue(assetRepository.findAllByUserId(user.getId()).isEmpty());
+        assertTrue(assetRepository.findAllByUserIdOrderByName(user.getId()).isEmpty());
     }
 
     @Test

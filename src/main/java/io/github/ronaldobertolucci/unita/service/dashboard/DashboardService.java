@@ -89,7 +89,7 @@ public class DashboardService {
     }
 
     public List<CategorySummaryDto> getInvestmentSummaryByUserId(Long userId) {
-        return assetRepository.findAllByUserId(userId)
+        return assetRepository.findAllByUserIdOrderByName(userId)
                 .stream()
                 .map(AssetSummaryDto::new)
                 .collect(Collectors.groupingBy(

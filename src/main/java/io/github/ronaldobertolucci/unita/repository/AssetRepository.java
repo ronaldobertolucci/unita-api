@@ -14,7 +14,7 @@ import java.util.Optional;
 @Repository
 public interface AssetRepository extends JpaRepository<Asset, Long> {
 
-    List<Asset> findAllByUserId(Long userId);
+    List<Asset> findAllByUserIdOrderByName(Long userId);
 
     Optional<Asset> findByIdAndUserId(Long id, Long userId);
 

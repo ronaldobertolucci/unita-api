@@ -130,7 +130,7 @@ public class AssetService {
 
     public List<AssetSummaryDto> findAll(Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
-        return assetRepository.findAllByUserId(currentUser.getId())
+        return assetRepository.findAllByUserIdOrderByName(currentUser.getId())
                 .stream()
                 .map(AssetSummaryDto::new)
                 .toList();

@@ -155,17 +155,17 @@ class AssetServiceTest {
         LegalEntity le = buildLegalEntity(10L);
         Asset a1 = buildAsset(1L, AssetCategory.RENDA_FIXA, le);
         Asset a2 = buildAsset(2L, AssetCategory.PREVIDENCIA, le);
-        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of(a1, a2));
+        when(assetRepository.findAllByUserIdOrderByName(currentUser.getId())).thenReturn(List.of(a1, a2));
 
         List<AssetSummaryDto> result = assetService.findAll(authentication);
 
         assertEquals(2, result.size());
-        verify(assetRepository).findAllByUserId(currentUser.getId());
+        verify(assetRepository).findAllByUserIdOrderByName(currentUser.getId());
     }
 
     @Test
     void findAll_WhenEmpty_ShouldReturnEmptyList() {
-        when(assetRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(assetRepository.findAllByUserIdOrderByName(currentUser.getId())).thenReturn(List.of());
 
         assertTrue(assetService.findAll(authentication).isEmpty());
     }
