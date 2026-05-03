@@ -24,6 +24,7 @@ public interface GroupRepository extends JpaRepository<Group, Long> {
             SELECT DISTINCT g FROM Group g
             INNER JOIN GroupMembership gm ON gm.group.id = g.id
             WHERE gm.user.id = :userId
+            ORDER BY g.name
             """)
     List<Group> findGroupsByMemberUserId(@Param("userId") Long userId);
 }
