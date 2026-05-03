@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -49,7 +50,7 @@ public class EmployerService {
 
     public List<IndividualEmployerDto> findAllIndividual(Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
-        return individualEmployerRepository.findAllByUserId(currentUser.getId())
+        return individualEmployerRepository.findAllByUserIdOrderByName(currentUser.getId())
                 .stream()
                 .map(IndividualEmployerDto::new)
                 .toList();
@@ -121,6 +122,7 @@ public class EmployerService {
         User currentUser = (User) authentication.getPrincipal();
         return legalEntityEmployerRepository.findAllByUserId(currentUser.getId())
                 .stream()
+                .sorted(Comparator.comparing(LegalEntityEmployer::getName))
                 .map(LegalEntityEmployerDto::new)
                 .toList();
     }

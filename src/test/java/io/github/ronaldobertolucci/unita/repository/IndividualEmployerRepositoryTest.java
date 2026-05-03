@@ -36,14 +36,14 @@ class IndividualEmployerRepositoryTest extends BaseRepositoryTest {
     void findAllByUserId_WhenUserHasEmployers_ShouldReturnList() {
         saveIndividualEmployer("98765432100", "Maria", user);
 
-        List<IndividualEmployer> result = individualEmployerRepository.findAllByUserId(user.getId());
+        List<IndividualEmployer> result = individualEmployerRepository.findAllByUserIdOrderByName(user.getId());
 
         assertEquals(2, result.size());
     }
 
     @Test
     void findAllByUserId_WhenUserHasNoEmployers_ShouldReturnEmptyList() {
-        List<IndividualEmployer> result = individualEmployerRepository.findAllByUserId(otherUser.getId());
+        List<IndividualEmployer> result = individualEmployerRepository.findAllByUserIdOrderByName(otherUser.getId());
 
         assertTrue(result.isEmpty());
     }
@@ -52,7 +52,7 @@ class IndividualEmployerRepositoryTest extends BaseRepositoryTest {
     void findAllByUserId_ShouldNotReturnOtherUsersEmployers() {
         saveIndividualEmployer("98765432100", "Maria", otherUser);
 
-        List<IndividualEmployer> result = individualEmployerRepository.findAllByUserId(user.getId());
+        List<IndividualEmployer> result = individualEmployerRepository.findAllByUserIdOrderByName(user.getId());
 
         assertEquals(1, result.size());
         assertEquals("João Silva", result.get(0).getName());

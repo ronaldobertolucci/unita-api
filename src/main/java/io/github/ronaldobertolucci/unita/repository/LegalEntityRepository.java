@@ -10,7 +10,7 @@ import java.util.Optional;
 @Repository
 public interface LegalEntityRepository extends JpaRepository<LegalEntity, Long> {
 
-    List<LegalEntity> findAllByUserId(Long userId);
+    List<LegalEntity> findAllByUserIdOrderByCorporateName(Long userId);
 
     Optional<LegalEntity> findByIdAndUserId(Long id, Long userId);
 

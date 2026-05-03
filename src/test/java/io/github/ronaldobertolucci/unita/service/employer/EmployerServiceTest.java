@@ -80,7 +80,7 @@ class EmployerServiceTest {
 
     @Test
     void findAllIndividual_ShouldReturnOnlyUserEmployers() {
-        when(individualEmployerRepository.findAllByUserId(currentUser.getId()))
+        when(individualEmployerRepository.findAllByUserIdOrderByName(currentUser.getId()))
                 .thenReturn(List.of(
                         buildIndividualEmployer(1L, "11111111111", "Emp A"),
                         buildIndividualEmployer(2L, "22222222222", "Emp B")));
@@ -92,7 +92,7 @@ class EmployerServiceTest {
 
     @Test
     void findAllIndividual_WhenEmpty_ShouldReturnEmptyList() {
-        when(individualEmployerRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(individualEmployerRepository.findAllByUserIdOrderByName(currentUser.getId())).thenReturn(List.of());
 
         assertTrue(employerService.findAllIndividual(authentication).isEmpty());
     }

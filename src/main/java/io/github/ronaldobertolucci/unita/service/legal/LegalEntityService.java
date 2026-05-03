@@ -47,7 +47,7 @@ public class LegalEntityService {
 
     public List<LegalEntityDto> findAll(Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
-        return legalEntityRepository.findAllByUserId(currentUser.getId())
+        return legalEntityRepository.findAllByUserIdOrderByCorporateName(currentUser.getId())
                 .stream()
                 .map(LegalEntityDto::new)
                 .toList();

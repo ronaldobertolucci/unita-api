@@ -14,7 +14,7 @@ public interface IndividualEmployerRepository extends JpaRepository<IndividualEm
 
     boolean existsByCpf(String cpf);
 
-    List<IndividualEmployer> findAllByUserId(Long userId);
+    List<IndividualEmployer> findAllByUserIdOrderByName(Long userId);
 
     Optional<IndividualEmployer> findByIdAndUserId(Long id, Long userId);
 

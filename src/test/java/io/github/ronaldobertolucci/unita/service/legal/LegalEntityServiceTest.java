@@ -87,19 +87,19 @@ class LegalEntityServiceTest {
 
     @Test
     void findAll_ShouldReturnOnlyUserEntities() {
-        when(legalEntityRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of(
+        when(legalEntityRepository.findAllByUserIdOrderByCorporateName(currentUser.getId())).thenReturn(List.of(
                 buildLegalEntity(1L, "11111111000101", "Empresa A"),
                 buildLegalEntity(2L, "22222222000102", "Empresa B")));
 
         List<LegalEntityDto> result = legalEntityService.findAll(authentication);
 
         assertEquals(2, result.size());
-        verify(legalEntityRepository).findAllByUserId(currentUser.getId());
+        verify(legalEntityRepository).findAllByUserIdOrderByCorporateName(currentUser.getId());
     }
 
     @Test
     void findAll_WhenEmpty_ShouldReturnEmptyList() {
-        when(legalEntityRepository.findAllByUserId(currentUser.getId())).thenReturn(List.of());
+        when(legalEntityRepository.findAllByUserIdOrderByCorporateName(currentUser.getId())).thenReturn(List.of());
 
         assertTrue(legalEntityService.findAll(authentication).isEmpty());
     }
