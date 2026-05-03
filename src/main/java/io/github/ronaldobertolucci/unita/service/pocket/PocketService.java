@@ -2,6 +2,7 @@ package io.github.ronaldobertolucci.unita.service.pocket;
 
 import io.github.ronaldobertolucci.unita.dto.pocket.*;
 import io.github.ronaldobertolucci.unita.model.employer.Employer;
+import io.github.ronaldobertolucci.unita.model.employer.LegalEntityEmployer;
 import io.github.ronaldobertolucci.unita.model.finance.*;
 import io.github.ronaldobertolucci.unita.model.pocket.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +45,7 @@ public class PocketService {
         User currentUser = (User) authentication.getPrincipal();
         return pocketRepository.findAllByUserId(currentUser.getId())
                 .stream()
+                .sorted(Comparator.comparing(Pocket::getLabel))
                 .map(pocket -> {
                     BigDecimal balance = transactionRepository.calculateBalanceByPocketId(pocket.getId());
                     return PocketSummaryDto.of(pocket, balance);
