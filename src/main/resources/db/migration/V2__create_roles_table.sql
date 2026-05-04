@@ -7,3 +7,5 @@ CREATE TABLE roles
 INSERT INTO roles (id, name)
 VALUES (1, 'USER'),
        (2, 'ADMIN');
+
+SELECT setval('roles_id_seq', 2);

@@ -60,7 +60,9 @@ CREATE TABLE investment_transactions
 CREATE INDEX idx_investment_transactions_asset_id ON investment_transactions (asset_id);
 
 -- Categorias de sistema para investimentos
-INSERT INTO categories (user_id, name, type, is_system)
-VALUES (NULL, 'Aporte em Investimento', 'NEUTRAL', true),
-       (NULL, 'Rendimento de Investimento', 'NEUTRAL', true),
-       (NULL, 'Resgate de Investimento', 'NEUTRAL', true);
+INSERT INTO categories (id, user_id, name, type, is_system)
+VALUES (39, NULL, 'Aporte em Investimento', 'NEUTRAL', true),
+       (40, NULL, 'Rendimento de Investimento', 'NEUTRAL', true),
+       (41, NULL, 'Resgate de Investimento', 'NEUTRAL', true);
+
+SELECT setval('categories_id_seq', 41);

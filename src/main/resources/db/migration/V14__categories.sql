@@ -11,47 +11,49 @@ CREATE TABLE categories
 
 CREATE INDEX idx_categories_user_id ON categories (user_id);
 
-INSERT INTO categories (user_id, name, type, is_system)
-VALUES (NULL, 'Pagamento de Cartão', 'NEUTRAL', true),
-       (NULL, 'Transferência Enviada', 'NEUTRAL', true),
-       (NULL, 'Transferência Recebida', 'NEUTRAL', true);
+INSERT INTO categories (id, user_id, name, type, is_system)
+VALUES (1, NULL, 'Pagamento de Cartão', 'NEUTRAL', true),
+       (2, NULL, 'Transferência Enviada', 'NEUTRAL', true),
+       (3,NULL, 'Transferência Recebida', 'NEUTRAL', true);
 
-INSERT INTO categories (user_id, name, type, is_system)
-VALUES (NULL, 'Alimentação', 'EXPENSE', false),
-       (NULL, 'Transporte', 'EXPENSE', false),
-       (NULL, 'Saúde', 'EXPENSE', false),
-       (NULL, 'Educação', 'EXPENSE', false),
-       (NULL, 'Lazer', 'EXPENSE', false),
-       (NULL, 'Vestuário', 'EXPENSE', false),
-       (NULL, 'Assinaturas', 'EXPENSE', false),
-       (NULL, 'Aluguel', 'EXPENSE', false),
-       (NULL, 'Energia', 'EXPENSE', false),
-       (NULL, 'Água', 'EXPENSE', false),
-       (NULL, 'Gás', 'EXPENSE', false),
-       (NULL, 'Internet', 'EXPENSE', false),
-       (NULL, 'Telefone', 'EXPENSE', false),
-       (NULL, 'Beleza', 'EXPENSE', false),
-       (NULL, 'Impostos', 'EXPENSE', false),
-       (NULL, 'Restaurantes', 'EXPENSE', false),
-       (NULL, 'Mercado', 'EXPENSE', false),
-       (NULL, 'Viagem', 'EXPENSE', false),
-       (NULL, 'Presentes', 'EXPENSE', false),
-       (NULL, 'Eletrônicos', 'EXPENSE', false),
-       (NULL, 'Eletrodomésticos', 'EXPENSE', false),
-       (NULL, 'Brinquedos', 'EXPENSE', false),
-       (NULL, 'Móveis', 'EXPENSE', false),
-       (NULL, 'Juros de mora', 'EXPENSE', false),
-       (NULL, 'Salário', 'INCOME', false),
-       (NULL, 'Freelance', 'INCOME', false),
-       (NULL, '13º Salário', 'INCOME', false),
-       (NULL, 'Rescisões', 'INCOME', false),
-       (NULL, 'Bônus / PLR', 'INCOME', false),
-       (NULL, 'Férias', 'INCOME', false),
-       (NULL, 'Benefícios', 'INCOME', false),
-       (NULL, 'Vendas', 'INCOME', false),
-       (NULL, 'Reembolsos', 'INCOME', false),
-       (NULL, 'Pensão / Mesada', 'INCOME', false),
-       (NULL, 'Ajuste de Saldo', 'NEUTRAL', false);
+INSERT INTO categories (id, user_id, name, type, is_system)
+VALUES (4, NULL, 'Alimentação', 'EXPENSE', false),
+       (5, NULL, 'Transporte', 'EXPENSE', false),
+       (6, NULL, 'Saúde', 'EXPENSE', false),
+       (7, NULL, 'Educação', 'EXPENSE', false),
+       (8, NULL, 'Lazer', 'EXPENSE', false),
+       (9, NULL, 'Vestuário', 'EXPENSE', false),
+       (10, NULL, 'Assinaturas', 'EXPENSE', false),
+       (11, NULL, 'Aluguel', 'EXPENSE', false),
+       (12, NULL, 'Energia', 'EXPENSE', false),
+       (13, NULL, 'Água', 'EXPENSE', false),
+       (14, NULL, 'Gás', 'EXPENSE', false),
+       (15, NULL, 'Internet', 'EXPENSE', false),
+       (16, NULL, 'Telefone', 'EXPENSE', false),
+       (17, NULL, 'Beleza', 'EXPENSE', false),
+       (18, NULL, 'Impostos', 'EXPENSE', false),
+       (19, NULL, 'Restaurantes', 'EXPENSE', false),
+       (20, NULL, 'Mercado', 'EXPENSE', false),
+       (21, NULL, 'Viagem', 'EXPENSE', false),
+       (22, NULL, 'Presentes', 'EXPENSE', false),
+       (23, NULL, 'Eletrônicos', 'EXPENSE', false),
+       (24, NULL, 'Eletrodomésticos', 'EXPENSE', false),
+       (25, NULL, 'Brinquedos', 'EXPENSE', false),
+       (26, NULL, 'Móveis', 'EXPENSE', false),
+       (27, NULL, 'Juros de mora', 'EXPENSE', false),
+       (28, NULL, 'Salário', 'INCOME', false),
+       (29, NULL, 'Freelance', 'INCOME', false),
+       (30, NULL, '13º Salário', 'INCOME', false),
+       (31, NULL, 'Rescisões', 'INCOME', false),
+       (32, NULL, 'Bônus / PLR', 'INCOME', false),
+       (33, NULL, 'Férias', 'INCOME', false),
+       (34, NULL, 'Benefícios', 'INCOME', false),
+       (35, NULL, 'Vendas', 'INCOME', false),
+       (36, NULL, 'Reembolsos', 'INCOME', false),
+       (37, NULL, 'Pensão / Mesada', 'INCOME', false),
+       (38, NULL, 'Ajuste de Saldo', 'NEUTRAL', false);
+
+SELECT setval('categories_id_seq', 38);
 
 ALTER TABLE transactions
     ADD COLUMN category_id BIGINT NOT NULL

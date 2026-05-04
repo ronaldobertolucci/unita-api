@@ -10,6 +10,8 @@ VALUES (1, 'Corrente'),
        (3, 'Salário'),
        (4, 'Investimento');
 
+SELECT setval('bank_account_types_id_seq', 4);
+
 CREATE TABLE benefit_types
 (
     id   BIGSERIAL PRIMARY KEY,
@@ -20,6 +22,8 @@ INSERT INTO benefit_types (id, name)
 VALUES (1, 'Vale-Alimentação'),
        (2, 'Vale-Refeição'),
        (3, 'Premiação');
+
+SELECT setval('benefit_types_id_seq', 3);
 
 CREATE TABLE card_brands
 (
@@ -33,3 +37,5 @@ VALUES (1, 'Visa'),
        (3, 'Elo'),
        (4, 'American Express'),
        (5, 'Hipercard');
+
+SELECT setval('card_brands_id_seq', 5);
