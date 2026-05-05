@@ -145,6 +145,7 @@ public class InvestmentTransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
         position.setRedeemedValue(position.getRedeemedValue().add(dto.amount()));
+        position.setCurrentValue(position.getCurrentValue().subtract(dto.amount()));
 
         if (position.getRedeemedValue().compareTo(position.getCurrentValue()) > 0) {
             throw new IllegalStateException("Redeemed value cannot be greater than current value.");
@@ -213,16 +214,12 @@ public class InvestmentTransactionService {
         InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
-        position.setRedeemedValue(position.getRedeemedValue().add(dto.grossAmount()));
-        position.setCurrentValue(position.getCurrentValue().subtract(dto.grossAmount())
-                .max(BigDecimal.ZERO));
+        position.setRedeemedValue(position.getRedeemedValue().add(netAmount));
+        position.setCurrentValue(BigDecimal.ZERO);
         investmentPositionRepository.save(position);
 
-        // Marca como REDEEMED se currentValue zerou
-        if (position.getCurrentValue().compareTo(BigDecimal.ZERO) == 0) {
-            asset.setStatus(AssetStatus.REDEEMED);
-            assetRepository.save(asset);
-        }
+        asset.setStatus(AssetStatus.REDEEMED);
+        assetRepository.save(asset);
 
         return List.of(
                 new InvestmentTransactionDto(sellTransaction),

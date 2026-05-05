@@ -338,36 +338,6 @@ class InvestmentTransactionServiceTest {
         verify(transactionRepository, never()).save(any());
     }
 
-    @Test
-    void sell_WhenPartialRedemption_ShouldNotMarkAsRedeemed() {
-        Asset asset = buildAsset(1L, AssetStatus.ACTIVE);
-        Pocket pocket = buildCash(5L);
-        Category category = buildCategory(1L, CategoryType.NEUTRAL);
-        InvestmentPosition position = buildPosition(asset);
-        position.setCurrentValue(new BigDecimal("2000.00000000"));
-
-        InvestmentSellDto dto = new InvestmentSellDto(
-                new BigDecimal("500.00"), new BigDecimal("75.00"),
-                LocalDate.now(), 5L, 1L, null);
-
-        when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
-        when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
-        when(categoryService.resolveCategory(eq(1L), any(), any())).thenReturn(category);
-        when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
-        when(investmentTransactionRepository.save(any()))
-                .thenReturn(buildInvestmentTransaction(3L, asset, InvestmentTransactionType.SELL,
-                        new BigDecimal("500.00"), LocalDate.now()))
-                .thenReturn(buildInvestmentTransaction(4L, asset, InvestmentTransactionType.TAX,
-                        new BigDecimal("75.00"), LocalDate.now()));
-        when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
-        when(investmentPositionRepository.save(any())).thenReturn(position);
-
-        investmentTransactionService.sell(1L, dto, authentication);
-
-        assertEquals(AssetStatus.ACTIVE, asset.getStatus());
-        verify(assetRepository, never()).save(any());
-    }
-
     // -------------------------------------------------------------------------
     // findAllByAsset
     // -------------------------------------------------------------------------
