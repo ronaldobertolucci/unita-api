@@ -145,6 +145,11 @@ public class InvestmentTransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
         position.setRedeemedValue(position.getRedeemedValue().add(dto.amount()));
+
+        if (position.getRedeemedValue().compareTo(position.getCurrentValue()) > 0) {
+            throw new IllegalStateException("Redeemed value cannot be greater than current value.");
+        }
+
         investmentPositionRepository.save(position);
 
         return new InvestmentTransactionDto(investmentTransaction);

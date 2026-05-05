@@ -190,6 +190,7 @@ class InvestmentTransactionServiceTest {
         Pocket pocket = buildCash(5L);
         Category category = buildCategory(1L, CategoryType.NEUTRAL);
         InvestmentPosition position = buildPosition(asset);
+        position.setCurrentValue(new BigDecimal("1500.00"));
         InvestmentYieldDto dto = new InvestmentYieldDto(
                 new BigDecimal("50.00"), LocalDate.now(), 5L, 1L, "Rendimento mensal");
 
@@ -212,6 +213,31 @@ class InvestmentTransactionServiceTest {
         assertEquals(InvestmentTransactionType.YIELD, result.type());
         assertEquals(0, new BigDecimal("50.00000000").compareTo(position.getRedeemedValue()));
         verify(investmentPositionRepository).save(position);
+    }
+
+    @Test
+    void yield_WhenInvalid_ShouldNotCreateTransactions() {
+        Asset asset = buildAsset(1L, AssetStatus.ACTIVE);
+        Pocket pocket = buildCash(5L);
+        Category category = buildCategory(1L, CategoryType.NEUTRAL);
+        InvestmentPosition position = buildPosition(asset);
+        InvestmentYieldDto dto = new InvestmentYieldDto(
+                new BigDecimal("50.00"), LocalDate.now(), 5L, 1L, "Rendimento mensal");
+
+        Transaction savedPocketTx = buildPocketTransaction(10L, pocket, Direction.INCOME,
+                new BigDecimal("50.00"), category);
+        InvestmentTransaction savedInvTx = buildInvestmentTransaction(
+                2L, asset, InvestmentTransactionType.YIELD, new BigDecimal("50.00"), LocalDate.now());
+
+        when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
+        when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
+        when(categoryService.resolveCategory(eq(1L), any(), any())).thenReturn(category);
+        when(transactionRepository.save(any())).thenReturn(savedPocketTx);
+        when(investmentTransactionRepository.save(any())).thenReturn(savedInvTx);
+        when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
+
+        assertThrows(java.lang.IllegalStateException.class,
+                () -> investmentTransactionService.yield(1L, dto, authentication));
     }
 
     @Test
