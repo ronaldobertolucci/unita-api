@@ -6,6 +6,7 @@ import io.github.ronaldobertolucci.unita.model.security.Role;
 import io.github.ronaldobertolucci.unita.model.user.*;
 import io.github.ronaldobertolucci.unita.repository.RoleRepository;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
+import io.github.ronaldobertolucci.unita.service.email.EmailVerificationService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,9 @@ class UserServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private EmailVerificationService emailVerificationService;
 
     @InjectMocks
     private UserService userService;
@@ -76,6 +80,7 @@ class UserServiceTest {
         when(roleRepository.findByName("USER")).thenReturn(Optional.of(userRole));
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenReturn(testUser);
+        doNothing().when(emailVerificationService).sendVerificationEmail(any());
 
         // Act
         UserDto result = userService.register(registrationDto);
@@ -85,7 +90,7 @@ class UserServiceTest {
         assertEquals("john@example.com", result.email());
         assertEquals("John", result.firstName());
         assertEquals("Doe", result.lastName());
-        assertTrue(result.enabled());
+        assertFalse(result.enabled());
 
         // Verify password was encoded
         verify(passwordEncoder, times(1)).encode("password123");

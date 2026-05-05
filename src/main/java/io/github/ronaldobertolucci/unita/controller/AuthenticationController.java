@@ -1,10 +1,12 @@
 package io.github.ronaldobertolucci.unita.controller;
 
+import io.github.ronaldobertolucci.unita.dto.security.ResendVerificationDto;
 import io.github.ronaldobertolucci.unita.dto.security.TokenDto;
 import io.github.ronaldobertolucci.unita.dto.user.LoginDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserRegistrationDto;
 import io.github.ronaldobertolucci.unita.model.user.User;
+import io.github.ronaldobertolucci.unita.service.email.EmailVerificationService;
 import io.github.ronaldobertolucci.unita.service.security.TokenService;
 import io.github.ronaldobertolucci.unita.service.user.UserService;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ public class AuthenticationController {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final UserService userService;
+    private final EmailVerificationService emailVerificationService;
 
     @Value("${api.security.token.expiration-hours:2}")
     private int expirationHours;
@@ -61,5 +64,17 @@ public class AuthenticationController {
         UserDto userDto = new UserDto(user);
 
         return ResponseEntity.ok(userDto);
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
+        emailVerificationService.verifyEmail(token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(@RequestBody @Valid ResendVerificationDto dto) {
+        emailVerificationService.resendVerificationEmail(dto.email());
+        return ResponseEntity.ok().build();
     }
 }

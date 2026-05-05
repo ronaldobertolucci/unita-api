@@ -2,14 +2,17 @@ package io.github.ronaldobertolucci.unita.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ronaldobertolucci.unita.config.TestConfig;
+import io.github.ronaldobertolucci.unita.dto.security.ResendVerificationDto;
 import io.github.ronaldobertolucci.unita.dto.user.LoginDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserRegistrationDto;
 import io.github.ronaldobertolucci.unita.model.security.Role;
 import io.github.ronaldobertolucci.unita.model.user.*;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
+import io.github.ronaldobertolucci.unita.service.email.EmailVerificationService;
 import io.github.ronaldobertolucci.unita.service.security.TokenService;
 import io.github.ronaldobertolucci.unita.service.user.UserService;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +60,9 @@ class AuthenticationControllerTest {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private EmailVerificationService emailVerificationService;
 
     private User testUser;
     private UserDto userDto;
@@ -281,5 +287,107 @@ class AuthenticationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("john@example.com"))
                 .andExpect(jsonPath("$.firstName").value("John"));
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /auth/verify-email
+    // -------------------------------------------------------------------------
+
+    @Test
+    void verifyEmail_WhenTokenIsValid_ShouldReturn200() throws Exception {
+        doNothing().when(emailVerificationService).verifyEmail("valid-token");
+
+        mockMvc.perform(get("/auth/verify-email")
+                        .param("token", "valid-token"))
+                .andExpect(status().isOk());
+
+        verify(emailVerificationService, times(1)).verifyEmail("valid-token");
+    }
+
+    @Test
+    void verifyEmail_WhenTokenIsInvalid_ShouldReturn400() throws Exception {
+        doThrow(new IllegalArgumentException("Invalid verification token"))
+                .when(emailVerificationService).verifyEmail("invalid-token");
+
+        mockMvc.perform(get("/auth/verify-email")
+                        .param("token", "invalid-token"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void verifyEmail_WhenTokenIsExpired_ShouldReturn400() throws Exception {
+        doThrow(new IllegalStateException("Token has expired"))
+                .when(emailVerificationService).verifyEmail("expired-token");
+
+        mockMvc.perform(get("/auth/verify-email")
+                        .param("token", "expired-token"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void verifyEmail_WhenTokenAlreadyUsed_ShouldReturn400() throws Exception {
+        doThrow(new IllegalStateException("Token has already been used"))
+                .when(emailVerificationService).verifyEmail("used-token");
+
+        mockMvc.perform(get("/auth/verify-email")
+                        .param("token", "used-token"))
+                .andExpect(status().isConflict());
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /auth/resend-verification
+    // -------------------------------------------------------------------------
+
+    @Test
+    void resendVerification_WhenEmailIsValid_ShouldReturn200() throws Exception {
+        ResendVerificationDto dto = new ResendVerificationDto("john@example.com");
+        doNothing().when(emailVerificationService).resendVerificationEmail("john@example.com");
+
+        mockMvc.perform(post("/auth/resend-verification")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk());
+
+        verify(emailVerificationService, times(1)).resendVerificationEmail("john@example.com");
+    }
+
+    @Test
+    void resendVerification_WhenEmailIsInvalid_ShouldReturn400() throws Exception {
+        ResendVerificationDto dto = new ResendVerificationDto("not-an-email");
+
+        mockMvc.perform(post("/auth/resend-verification")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+
+        verify(emailVerificationService, never()).resendVerificationEmail(any());
+    }
+
+    @Test
+    void resendVerification_WhenEmailNotFound_ShouldReturn404() throws Exception {
+        ResendVerificationDto dto = new ResendVerificationDto("unknown@example.com");
+        doThrow(new EntityNotFoundException("User not found"))
+                .when(emailVerificationService).resendVerificationEmail("unknown@example.com");
+
+        mockMvc.perform(post("/auth/resend-verification")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void resendVerification_WhenAccountAlreadyVerified_ShouldReturn400() throws Exception {
+        ResendVerificationDto dto = new ResendVerificationDto("john@example.com");
+        doThrow(new IllegalStateException("Account is already verified"))
+                .when(emailVerificationService).resendVerificationEmail("john@example.com");
+
+        mockMvc.perform(post("/auth/resend-verification")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isConflict());
     }
 }

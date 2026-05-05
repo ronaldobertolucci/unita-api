@@ -6,6 +6,7 @@ import io.github.ronaldobertolucci.unita.model.security.Role;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.RoleRepository;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
+import io.github.ronaldobertolucci.unita.service.email.EmailVerificationService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailVerificationService emailVerificationService;
 
     public Page<UserDto> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
@@ -58,11 +60,14 @@ public class UserService {
                 .email(dto.email())
                 .dateOfBirth(dto.dateOfBirth())
                 .password(passwordEncoder.encode(dto.password()))
-                .enabled(true)
+                .enabled(false)
                 .roles(new HashSet<>(Set.of(userRole)))
                 .build();
 
-        return new UserDto(userRepository.save(user));
+        userRepository.save(user);
+        emailVerificationService.sendVerificationEmail(user);
+
+        return new UserDto(user);
     }
 
     @Transactional
