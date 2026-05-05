@@ -144,12 +144,12 @@ public class InvestmentTransactionService {
         InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
+        if (dto.amount().compareTo(position.getCurrentValue()) > 0) {
+            throw new IllegalStateException("Yield value cannot be greater than current value.");
+        }
+
         position.setRedeemedValue(position.getRedeemedValue().add(dto.amount()));
         position.setCurrentValue(position.getCurrentValue().subtract(dto.amount()));
-
-        if (position.getRedeemedValue().compareTo(position.getCurrentValue()) > 0) {
-            throw new IllegalStateException("Redeemed value cannot be greater than current value.");
-        }
 
         investmentPositionRepository.save(position);
 
