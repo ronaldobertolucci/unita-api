@@ -58,6 +58,10 @@ public class SecurityFilter extends OncePerRequestFilter {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             return authorizationHeader.substring(7).trim();
         }
+
+        if (request.getRequestURI().contains("/notifications/stream")) {
+            return request.getParameter("token");
+        }
         return null;
     }
 }

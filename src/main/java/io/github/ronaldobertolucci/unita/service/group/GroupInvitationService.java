@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.service.group;
 import io.github.ronaldobertolucci.unita.dto.group.GroupInvitationCreateDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupInvitationDto;
 import io.github.ronaldobertolucci.unita.dto.group.GroupInvitationResponseDto;
+import io.github.ronaldobertolucci.unita.dto.group.InvitationNotificationDto;
 import io.github.ronaldobertolucci.unita.model.group.Group;
 import io.github.ronaldobertolucci.unita.model.group.GroupInvitation;
 import io.github.ronaldobertolucci.unita.model.group.GroupMembership;
@@ -12,6 +13,7 @@ import io.github.ronaldobertolucci.unita.repository.GroupInvitationRepository;
 import io.github.ronaldobertolucci.unita.repository.GroupMembershipRepository;
 import io.github.ronaldobertolucci.unita.repository.GroupRepository;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
+import io.github.ronaldobertolucci.unita.service.sse.SseEmitterService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -30,6 +32,7 @@ public class GroupInvitationService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupMembershipRepository membershipRepository;
+    private final SseEmitterService sseEmitterService;
 
     @Transactional
     public GroupInvitationDto createInvitation(GroupInvitationCreateDto dto, Authentication authentication) {
@@ -68,6 +71,11 @@ public class GroupInvitationService {
                 .build();
 
         invitation = invitationRepository.save(invitation);
+
+        sseEmitterService.sendInvitationNotification(
+                invitedUser.getId(),
+                new InvitationNotificationDto(invitation)
+        );
 
         return new GroupInvitationDto(invitation);
     }

@@ -10,6 +10,7 @@ import io.github.ronaldobertolucci.unita.repository.UserRepository;
 import io.github.ronaldobertolucci.unita.repository.GroupInvitationRepository;
 import io.github.ronaldobertolucci.unita.repository.GroupMembershipRepository;
 import io.github.ronaldobertolucci.unita.repository.GroupRepository;
+import io.github.ronaldobertolucci.unita.service.sse.SseEmitterService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ class GroupInvitationServiceTest {
 
     @Mock
     private Authentication authentication;
+
+    @Mock
+    private SseEmitterService sseEmitterService;
 
     @InjectMocks
     private GroupInvitationService invitationService;
@@ -109,6 +113,7 @@ class GroupInvitationServiceTest {
         when(invitationRepository.existsByGroupIdAndInvitedUserIdAndStatus(1L, 2L, InvitationStatus.PENDING))
                 .thenReturn(false);
         when(invitationRepository.save(any(GroupInvitation.class))).thenReturn(testInvitation);
+        doNothing().when(sseEmitterService).sendInvitationNotification(any(), any());
 
         // Act
         GroupInvitationDto result = invitationService.createInvitation(dto, authentication);
