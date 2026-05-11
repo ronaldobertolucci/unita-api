@@ -215,6 +215,8 @@ public class InvestmentTransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
         position.setRedeemedValue(position.getRedeemedValue().add(netAmount));
+        position.setQuantity(BigDecimal.ZERO);
+        position.setAveragePrice(BigDecimal.ZERO);
         position.setCurrentValue(BigDecimal.ZERO);
         investmentPositionRepository.save(position);
 
