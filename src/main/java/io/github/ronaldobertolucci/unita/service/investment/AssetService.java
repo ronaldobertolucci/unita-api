@@ -181,8 +181,8 @@ public class AssetService {
         Asset asset = assetRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
-        if (asset.getStatus() != AssetStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot update position of a non-active asset");
+        if (asset.getStatus() == AssetStatus.REDEEMED) {
+            throw new IllegalStateException("Cannot update position of a redeemed asset");
         }
 
         InvestmentPosition position = investmentPositionRepository.findByAssetId(id)

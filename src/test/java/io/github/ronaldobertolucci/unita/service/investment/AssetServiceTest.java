@@ -434,10 +434,10 @@ class AssetServiceTest {
     }
 
     @Test
-    void updatePosition_WhenAssetNotActive_ShouldThrowIllegalStateException() {
+    void updatePosition_WhenAssetIsRedeemed_ShouldThrowIllegalStateException() {
         LegalEntity le = buildLegalEntity(10L);
         Asset asset = buildAsset(1L, AssetCategory.RENDA_FIXA, le);
-        asset.setStatus(AssetStatus.MATURED);
+        asset.setStatus(AssetStatus.REDEEMED);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
 
