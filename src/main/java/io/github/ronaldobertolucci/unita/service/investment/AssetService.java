@@ -56,6 +56,7 @@ public class AssetService {
                 .name(dto.name())
                 .category(AssetCategory.RENDA_FIXA)
                 .status(AssetStatus.ACTIVE)
+                .liquidityType(dto.liquidityType())
                 .custodianLegalEntity(custodianLegalEntity)
                 .build());
 
@@ -103,6 +104,7 @@ public class AssetService {
                 .name(dto.name())
                 .category(AssetCategory.PREVIDENCIA)
                 .status(AssetStatus.ACTIVE)
+                .liquidityType(LiquidityType.PREVIDENCIARIA)
                 .custodianLegalEntity(custodianLegalEntity)
                 .build());
 
@@ -164,6 +166,10 @@ public class AssetService {
 
         asset.setName(dto.name());
         asset.setLegalEntity(legalEntity);
+
+        if (dto.liquidityType() != null) {
+            asset.setLiquidityType(dto.liquidityType());
+        }
 
         if (dto.custodianLegalEntityId() != null) {
             LegalEntity custodianLegalEntity = legalEntityRepository.findByIdAndUserId(dto.custodianLegalEntityId(), currentUser.getId())

@@ -1,6 +1,7 @@
 package io.github.ronaldobertolucci.unita.dto.investment;
 
 import io.github.ronaldobertolucci.unita.model.investment.Indexer;
+import io.github.ronaldobertolucci.unita.model.investment.LiquidityType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,5 +16,6 @@ public record FixedIncomeAssetCreateDto(
     @NotNull BigDecimal annualRate,
     @NotNull LocalDate maturityDate,
     @NotNull Boolean taxFree,
+    @NotNull LiquidityType liquidityType,
     Long custodianLegalEntityId
 ) {}

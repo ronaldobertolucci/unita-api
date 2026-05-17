@@ -66,7 +66,7 @@ class AssetControllerTest {
                 Indexer.CDI, new BigDecimal("0.12000000"),
                 LocalDate.of(2027, 1, 1), false);
         return new AssetDetailDto(1L, "CDB Banco X", AssetCategory.RENDA_FIXA,
-                AssetStatus.ACTIVE, leDto, null, positionDto, detailsDto, null);
+                AssetStatus.ACTIVE, LiquidityType.DIARIA, leDto, null, positionDto, detailsDto, null);
     }
 
     private InvestmentTransactionDto investmentTransactionDto() {
@@ -160,7 +160,7 @@ class AssetControllerTest {
         FixedIncomeAssetCreateDto dto = new FixedIncomeAssetCreateDto(
                 "CDB Banco X", 10L, Indexer.CDI,
                 new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false,
-                10L);
+                LiquidityType.DIARIA, 10L);
         when(assetService.createFixedIncome(any(), any())).thenReturn(assetDetailDto());
 
         mockMvc.perform(post("/assets/fixed-income")
@@ -175,7 +175,7 @@ class AssetControllerTest {
     @Test
     void createFixedIncome_WhenMissingFields_ShouldReturn400() throws Exception {
         FixedIncomeAssetCreateDto invalid = new FixedIncomeAssetCreateDto(
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/assets/fixed-income")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
@@ -189,7 +189,7 @@ class AssetControllerTest {
         FixedIncomeAssetCreateDto dto = new FixedIncomeAssetCreateDto(
                 "CDB Banco X", 10L, Indexer.CDI,
                 new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false,
-                10L);
+                LiquidityType.DIARIA, 10L);
         when(assetService.createFixedIncome(any(), any()))
                 .thenThrow(new IllegalArgumentException("An asset with this name already exists"));
 
@@ -222,7 +222,7 @@ class AssetControllerTest {
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null);
         PensionDetailsDto detailsDto = new PensionDetailsDto(PensionType.PGBL, TaxRegime.REGRESSIVO);
         AssetDetailDto pensionDto = new AssetDetailDto(2L, "PGBL Banco X", AssetCategory.PREVIDENCIA,
-                AssetStatus.ACTIVE, leDto, null, positionDto, null, detailsDto);
+                AssetStatus.ACTIVE, LiquidityType.DIARIA, leDto, null, positionDto, null, detailsDto);
 
         when(assetService.createPension(any(), any())).thenReturn(pensionDto);
 
@@ -261,7 +261,7 @@ class AssetControllerTest {
 
     @Test
     void update_WhenValid_ShouldReturn200() throws Exception {
-        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, 10L);
+        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, LiquidityType.DIARIA, 10L);
         when(assetService.update(eq(1L), any(), any())).thenReturn(assetDetailDto());
 
         mockMvc.perform(patch("/assets/1")
@@ -274,7 +274,7 @@ class AssetControllerTest {
 
     @Test
     void update_WhenNotFound_ShouldReturn404() throws Exception {
-        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, 10L);
+        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, LiquidityType.DIARIA, 10L);
         when(assetService.update(eq(99L), any(), any()))
                 .thenThrow(new EntityNotFoundException("Asset not found"));
 
@@ -287,7 +287,7 @@ class AssetControllerTest {
 
     @Test
     void update_WhenMissingFields_ShouldReturn400() throws Exception {
-        AssetUpdateDto invalid = new AssetUpdateDto(null, null, null);
+        AssetUpdateDto invalid = new AssetUpdateDto(null, null, null, null);
 
         mockMvc.perform(patch("/assets/1")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
@@ -298,7 +298,7 @@ class AssetControllerTest {
 
     @Test
     void update_WhenUnauthenticated_ShouldReturn403() throws Exception {
-        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, 10L);
+        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, LiquidityType.DIARIA, 10L);
 
         mockMvc.perform(patch("/assets/1")
                         .contentType(MediaType.APPLICATION_JSON)

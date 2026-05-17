@@ -4,12 +4,14 @@ import io.github.ronaldobertolucci.unita.dto.legal.LegalEntityDto;
 import io.github.ronaldobertolucci.unita.model.investment.Asset;
 import io.github.ronaldobertolucci.unita.model.investment.AssetCategory;
 import io.github.ronaldobertolucci.unita.model.investment.AssetStatus;
+import io.github.ronaldobertolucci.unita.model.investment.LiquidityType;
 
 public record AssetDetailDto(
     Long id,
     String name,
     AssetCategory category,
     AssetStatus status,
+    LiquidityType liquidityType,
     LegalEntityDto legalEntity,
     LegalEntityDto custodianLegalEntity,
     InvestmentPositionDto position,
@@ -22,6 +24,7 @@ public record AssetDetailDto(
             asset.getName(),
             asset.getCategory(),
             asset.getStatus(),
+            asset.getLiquidityType(),
             new LegalEntityDto(asset.getLegalEntity()),
             asset.getCustodianLegalEntity() != null
                 ? new LegalEntityDto(asset.getCustodianLegalEntity()) : null,

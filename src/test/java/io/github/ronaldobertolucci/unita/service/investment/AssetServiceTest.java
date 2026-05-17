@@ -56,7 +56,7 @@ class AssetServiceTest {
     void createFixedIncome_WhenValid_ShouldPersistAndReturnDto() {
         FixedIncomeAssetCreateDto dto = new FixedIncomeAssetCreateDto(
                 "CDB Banco X", 10L, Indexer.CDI,
-                new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false, 10L);
+                new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false, LiquidityType.DIARIA, 10L);
 
         LegalEntity le = buildLegalEntity(10L);
         Asset savedAsset = buildAsset(1L, AssetCategory.RENDA_FIXA, le);
@@ -83,7 +83,7 @@ class AssetServiceTest {
     void createFixedIncome_WhenNameAlreadyExists_ShouldThrowIllegalArgumentException() {
         FixedIncomeAssetCreateDto dto = new FixedIncomeAssetCreateDto(
                 "CDB Banco X", 10L, Indexer.CDI,
-                new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false, 10L);
+                new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false, LiquidityType.DIARIA, 10L);
 
         when(assetRepository.existsByNameAndUserId("CDB Banco X", currentUser.getId())).thenReturn(true);
 
@@ -96,7 +96,7 @@ class AssetServiceTest {
     void createFixedIncome_WhenLegalEntityNotFound_ShouldThrow() {
         FixedIncomeAssetCreateDto dto = new FixedIncomeAssetCreateDto(
                 "CDB Banco X", 99L, Indexer.CDI,
-                new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false, 99L);
+                new BigDecimal("0.12000000"), LocalDate.of(2027, 1, 1), false, LiquidityType.DIARIA, 99L);
 
         when(assetRepository.existsByNameAndUserId("CDB Banco X", currentUser.getId())).thenReturn(false);
         when(legalEntityRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
@@ -203,7 +203,7 @@ class AssetServiceTest {
         LegalEntity le = buildLegalEntity(10L);
         LegalEntity newLe = buildLegalEntity(20L);
         Asset asset = buildAsset(1L, AssetCategory.RENDA_FIXA, le);
-        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 20L, 20L);
+        AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 20L, LiquidityType.DIARIA, 20L);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(legalEntityRepository.findByIdAndUserId(20L, currentUser.getId())).thenReturn(Optional.of(newLe));
@@ -221,7 +221,7 @@ class AssetServiceTest {
     void update_WhenNameChangedAndAlreadyExists_ShouldThrowIllegalArgumentException() {
         LegalEntity le = buildLegalEntity(10L);
         Asset asset = buildAsset(1L, AssetCategory.RENDA_FIXA, le);
-        AssetUpdateDto dto = new AssetUpdateDto("CDB Duplicado", 10L, 10L);
+        AssetUpdateDto dto = new AssetUpdateDto("CDB Duplicado", 10L, LiquidityType.DIARIA, 10L);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(assetRepository.existsByNameAndUserId("CDB Duplicado", currentUser.getId())).thenReturn(true);
@@ -236,7 +236,7 @@ class AssetServiceTest {
         when(assetRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class,
-                () -> assetService.update(99L, new AssetUpdateDto("Nome", 10L, 10L), authentication));
+                () -> assetService.update(99L, new AssetUpdateDto("Nome", 10L, LiquidityType.DIARIA, 10L), authentication));
     }
 
     // -------------------------------------------------------------------------

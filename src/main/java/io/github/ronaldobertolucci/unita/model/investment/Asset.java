@@ -38,6 +38,10 @@ public class Asset {
     @Builder.Default
     private AssetStatus status = AssetStatus.ACTIVE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "liquidity_type", length = 20)
+    private LiquidityType liquidityType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "custodian_legal_entity_id")
     private LegalEntity custodianLegalEntity;
