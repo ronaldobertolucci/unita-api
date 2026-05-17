@@ -54,7 +54,7 @@ public class AssetController {
                 .body(assetService.createPension(dto, authentication));
     }
 
-    @PatchMapping("/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<AssetDetailDto> update(
             @PathVariable Long id,
             @RequestBody @Valid AssetUpdateDto dto,

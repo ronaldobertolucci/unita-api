@@ -264,7 +264,7 @@ class AssetControllerTest {
         AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, LiquidityType.DIARIA, 10L);
         when(assetService.update(eq(1L), any(), any())).thenReturn(assetDetailDto());
 
-        mockMvc.perform(patch("/assets/1")
+        mockMvc.perform(put("/assets/1")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
@@ -278,7 +278,7 @@ class AssetControllerTest {
         when(assetService.update(eq(99L), any(), any()))
                 .thenThrow(new EntityNotFoundException("Asset not found"));
 
-        mockMvc.perform(patch("/assets/99")
+        mockMvc.perform(put("/assets/99")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
@@ -289,7 +289,7 @@ class AssetControllerTest {
     void update_WhenMissingFields_ShouldReturn400() throws Exception {
         AssetUpdateDto invalid = new AssetUpdateDto(null, null, null, null);
 
-        mockMvc.perform(patch("/assets/1")
+        mockMvc.perform(put("/assets/1")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalid)))

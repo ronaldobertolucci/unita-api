@@ -166,15 +166,15 @@ public class AssetService {
 
         asset.setName(dto.name());
         asset.setLegalEntity(legalEntity);
-
-        if (dto.liquidityType() != null) {
-            asset.setLiquidityType(dto.liquidityType());
-        }
+        asset.setLiquidityType(dto.liquidityType());
 
         if (dto.custodianLegalEntityId() != null) {
-            LegalEntity custodianLegalEntity = legalEntityRepository.findByIdAndUserId(dto.custodianLegalEntityId(), currentUser.getId())
+            LegalEntity custodianLegalEntity = legalEntityRepository
+                    .findByIdAndUserId(dto.custodianLegalEntityId(), currentUser.getId())
                     .orElseThrow(() -> new EntityNotFoundException("Custodian legal entity not found"));
             asset.setCustodianLegalEntity(custodianLegalEntity);
+        } else {
+            asset.setCustodianLegalEntity(null);
         }
 
         return new AssetDetailDto(assetRepository.save(asset));
