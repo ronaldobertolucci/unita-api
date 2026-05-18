@@ -181,6 +181,28 @@ public class GroupDashboardService {
         );
     }
 
+    public GroupLiquiditySummaryDto getGroupLiquiditySummary(Long groupId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateMembership(currentUser.getId(), groupId);
+
+        List<GroupMemberLiquiditySummaryDto> members = membershipRepository.findByGroupIdWithUsers(groupId)
+                .stream()
+                .map(membership -> buildMemberLiquiditySummary(membership.getUser(), groupId))
+                .toList();
+
+        return new GroupLiquiditySummaryDto(members);
+    }
+
+    private GroupMemberLiquiditySummaryDto buildMemberLiquiditySummary(User member, Long groupId) {
+        Set<ShareType> enabled = getEnabledPermissions(member.getId(), groupId);
+
+        return new GroupMemberLiquiditySummaryDto(
+                GroupMemberUserDto.from(member),
+                enabled.contains(ShareType.INVESTMENTS)
+                        ? dashboardService.getLiquidityTypeSummaryByUserId(member.getId()) : null
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

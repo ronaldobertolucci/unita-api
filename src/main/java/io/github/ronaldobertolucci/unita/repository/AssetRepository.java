@@ -2,6 +2,7 @@ package io.github.ronaldobertolucci.unita.repository;
 
 import io.github.ronaldobertolucci.unita.dto.dashboard.IndexerSummaryDto;
 import io.github.ronaldobertolucci.unita.dto.dashboard.IssuerRiskSummaryDto;
+import io.github.ronaldobertolucci.unita.dto.dashboard.LiquidityTypeSummaryDto;
 import io.github.ronaldobertolucci.unita.model.investment.Asset;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -63,4 +64,18 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         ORDER BY f.indexer
         """)
     List<IndexerSummaryDto> sumCurrentValueByIndexerAndUserId(@Param("userId") Long userId);
+
+    @Query("""
+        SELECT new io.github.ronaldobertolucci.unita.dto.dashboard.LiquidityTypeSummaryDto(
+            a.liquidityType,
+            SUM(p.currentValue)
+        )
+        FROM Asset a
+        JOIN a.position p
+        WHERE a.user.id = :userId
+          AND a.status <> io.github.ronaldobertolucci.unita.model.investment.AssetStatus.REDEEMED
+        GROUP BY a.liquidityType
+        ORDER BY a.liquidityType
+        """)
+    List<LiquidityTypeSummaryDto> sumCurrentValueByLiquidityTypeAndUserId(@Param("userId") Long userId);
 }

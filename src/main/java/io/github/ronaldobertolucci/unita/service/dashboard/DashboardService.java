@@ -67,6 +67,11 @@ public class DashboardService {
         return getIndexerSummaryByUserId(currentUser.getId());
     }
 
+    public List<LiquidityTypeSummaryDto> getLiquiditySummary(Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        return getLiquidityTypeSummaryByUserId(currentUser.getId());
+    }
+
     // -------------------------------------------------------------------------
     // Public userId-based methods (GroupDashboardService)
     // -------------------------------------------------------------------------
@@ -159,6 +164,10 @@ public class DashboardService {
 
     public List<IndexerSummaryDto> getIndexerSummaryByUserId(Long userId) {
         return assetRepository.sumCurrentValueByIndexerAndUserId(userId);
+    }
+
+    public List<LiquidityTypeSummaryDto> getLiquidityTypeSummaryByUserId(Long userId) {
+        return assetRepository.sumCurrentValueByLiquidityTypeAndUserId(userId);
     }
 
     // -------------------------------------------------------------------------

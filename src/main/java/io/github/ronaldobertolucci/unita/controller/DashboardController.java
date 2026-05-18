@@ -51,4 +51,9 @@ public class DashboardController {
     public ResponseEntity<List<IndexerSummaryDto>> getIndexerSummary(Authentication authentication) {
         return ResponseEntity.ok(dashboardService.getIndexerSummary(authentication));
     }
+
+    @GetMapping("/liquidity-summary")
+    public ResponseEntity<List<LiquidityTypeSummaryDto>> getLiquiditySummary(Authentication authentication) {
+        return ResponseEntity.ok(dashboardService.getLiquiditySummary(authentication));
+    }
 }

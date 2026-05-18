@@ -57,4 +57,11 @@ public class GroupDashboardController {
             Authentication authentication) {
         return ResponseEntity.ok(groupDashboardService.getGroupIndexerSummary(groupId, authentication));
     }
+
+    @GetMapping("/liquidity-summary")
+    public ResponseEntity<GroupLiquiditySummaryDto> getGroupLiquiditySummary(
+            @PathVariable Long groupId,
+            Authentication authentication) {
+        return ResponseEntity.ok(groupDashboardService.getGroupLiquiditySummary(groupId, authentication));
+    }
 }
