@@ -31,6 +31,7 @@ class DashboardServiceTest {
     @Mock private TransactionRepository transactionRepository;
     @Mock private CreditCardInstallmentRepository creditCardInstallmentRepository;
     @Mock private CreditCardRefundRepository creditCardRefundRepository;
+    @Mock private InvestmentTransactionRepository investmentTransactionRepository;
     @Mock private Authentication authentication;
 
     @InjectMocks
@@ -297,6 +298,46 @@ class DashboardServiceTest {
         when(assetRepository.sumCurrentValueByIndexerAndUserId(currentUser.getId())).thenReturn(List.of());
 
         assertTrue(dashboardService.getIndexerSummary(authentication).isEmpty());
+    }
+
+    // -------------------------------------------------------------------------
+    // getNetProfit
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getNetProfit_ShouldSubtractTaxFromGrossProfit() {
+        when(assetRepository.sumGrossProfitByUserId(currentUser.getId()))
+                .thenReturn(new BigDecimal("500.00"));
+        when(investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(currentUser.getId()))
+                .thenReturn(new BigDecimal("100.00"));
+
+        BigDecimal result = dashboardService.getNetProfit(authentication);
+
+        assertEquals(0, new BigDecimal("400.00").compareTo(result));
+    }
+
+    @Test
+    void getNetProfit_WhenNoTaxes_ShouldReturnGrossProfit() {
+        when(assetRepository.sumGrossProfitByUserId(currentUser.getId()))
+                .thenReturn(new BigDecimal("500.00"));
+        when(investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(currentUser.getId()))
+                .thenReturn(BigDecimal.ZERO);
+
+        BigDecimal result = dashboardService.getNetProfit(authentication);
+
+        assertEquals(0, new BigDecimal("500.00").compareTo(result));
+    }
+
+    @Test
+    void getNetProfit_WhenNoRedeemedAssets_ShouldReturnZero() {
+        when(assetRepository.sumGrossProfitByUserId(currentUser.getId()))
+                .thenReturn(BigDecimal.ZERO);
+        when(investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(currentUser.getId()))
+                .thenReturn(BigDecimal.ZERO);
+
+        BigDecimal result = dashboardService.getNetProfit(authentication);
+
+        assertEquals(0, BigDecimal.ZERO.compareTo(result));
     }
 
     // -------------------------------------------------------------------------

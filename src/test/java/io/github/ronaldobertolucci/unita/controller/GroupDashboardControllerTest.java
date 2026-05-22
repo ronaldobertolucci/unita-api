@@ -305,4 +305,54 @@ class GroupDashboardControllerTest {
         mockMvc.perform(get("/groups/1/dashboard/indexer-summary"))
                 .andExpect(status().isForbidden());
     }
+
+    // -------------------------------------------------------------------------
+    // GET /groups/{groupId}/dashboard/net-profit
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getGroupNetProfit_ShouldReturn200WithData() throws Exception {
+        GroupMemberUserDto userDto = new GroupMemberUserDto(2L, "João", "Silva", "joao@test.com");
+        GroupNetProfitDto dto = new GroupNetProfitDto(List.of(
+                new GroupMemberNetProfitDto(userDto, new BigDecimal("400.00"))
+        ));
+        when(groupDashboardService.getGroupNetProfit(eq(1L), any())).thenReturn(dto);
+
+        mockMvc.perform(get("/groups/1/dashboard/net-profit")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(1))
+                .andExpect(jsonPath("$.members[0].user.email").value("joao@test.com"))
+                .andExpect(jsonPath("$.members[0].netProfit").value(400.00));
+    }
+
+    @Test
+    void getGroupNetProfit_WhenPermissionsDisabled_ShouldReturnNullNetProfit() throws Exception {
+        GroupMemberUserDto userDto = new GroupMemberUserDto(2L, "João", "Silva", "joao@test.com");
+        GroupNetProfitDto dto = new GroupNetProfitDto(List.of(
+                new GroupMemberNetProfitDto(userDto, null)
+        ));
+        when(groupDashboardService.getGroupNetProfit(eq(1L), any())).thenReturn(dto);
+
+        mockMvc.perform(get("/groups/1/dashboard/net-profit")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members[0].netProfit").doesNotExist());
+    }
+
+    @Test
+    void getGroupNetProfit_WhenNotMember_ShouldReturn403() throws Exception {
+        when(groupDashboardService.getGroupNetProfit(eq(1L), any()))
+                .thenThrow(new AccessDeniedException("You are not a member of this group"));
+
+        mockMvc.perform(get("/groups/1/dashboard/net-profit")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getGroupNetProfit_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(get("/groups/1/dashboard/net-profit"))
+                .andExpect(status().isForbidden());
+    }
 }

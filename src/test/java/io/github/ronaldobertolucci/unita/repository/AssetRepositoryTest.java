@@ -216,9 +216,9 @@ class AssetRepositoryTest extends BaseRepositoryTest {
         assertTrue(assetRepository.sumCurrentValueByLegalEntityAndUserId(user.getId()).isEmpty());
     }
 
-// -------------------------------------------------------------------------
-// sumCurrentValueByIndexerAndUserId
-// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // sumCurrentValueByIndexerAndUserId
+    // -------------------------------------------------------------------------
 
     @Test
     void sumCurrentValueByIndexerAndUserId_ShouldAggregateByIndexer() {
@@ -271,6 +271,55 @@ class AssetRepositoryTest extends BaseRepositoryTest {
         saveAssetWithPosition("Ação PETR4", user, legalEntity, new BigDecimal("1000.00"), AssetStatus.ACTIVE);
 
         assertTrue(assetRepository.sumCurrentValueByIndexerAndUserId(user.getId()).isEmpty());
+    }
+
+    // -------------------------------------------------------------------------
+    // sumGrossProfitByUserId
+    // -------------------------------------------------------------------------
+
+    @Test
+    void sumGrossProfitByUserId_ShouldSumRedeemedValueMinusTotalInvested() {
+        saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
+                new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
+        saveAssetWithPositionAndInvested("CDB B", user, legalEntity,
+                new BigDecimal("600.00"), new BigDecimal("500.00"), AssetStatus.REDEEMED);
+
+        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+
+        assertEquals(0, new BigDecimal("300.00").compareTo(result));
+    }
+
+    @Test
+    void sumGrossProfitByUserId_ShouldExcludeNonRedeemedAssets() {
+        saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
+                new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
+        saveAssetWithPositionAndInvested("CDB B", user, legalEntity,
+                new BigDecimal("600.00"), new BigDecimal("500.00"), AssetStatus.ACTIVE);
+        saveAssetWithPositionAndInvested("CDB C", user, legalEntity,
+                new BigDecimal("800.00"), new BigDecimal("700.00"), AssetStatus.MATURED);
+
+        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+
+        assertEquals(0, new BigDecimal("200.00").compareTo(result));
+    }
+
+    @Test
+    void sumGrossProfitByUserId_ShouldNotReturnOtherUsersAssets() {
+        saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
+                new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
+        saveAssetWithPositionAndInvested("CDB B", otherUser, legalEntity,
+                new BigDecimal("600.00"), new BigDecimal("500.00"), AssetStatus.REDEEMED);
+
+        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+
+        assertEquals(0, new BigDecimal("200.00").compareTo(result));
+    }
+
+    @Test
+    void sumGrossProfitByUserId_WhenNoRedeemedAssets_ShouldReturnZero() {
+        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+
+        assertEquals(0, BigDecimal.ZERO.compareTo(result));
     }
 
     // -------------------------------------------------------------------------
@@ -338,5 +387,31 @@ class AssetRepositoryTest extends BaseRepositoryTest {
                 .taxFree(false)
                 .build();
         fixedIncomeDetailsRepository.save(details);
+    }
+
+    private Asset saveAssetWithPositionAndInvested(String name, User owner, LegalEntity le,
+                                                   BigDecimal redeemedValue, BigDecimal totalInvested,
+                                                   AssetStatus status) {
+        Asset asset = Asset.builder()
+                .user(owner)
+                .legalEntity(le)
+                .name(name)
+                .category(AssetCategory.RENDA_FIXA)
+                .status(status)
+                .build();
+        assetRepository.save(asset);
+
+        InvestmentPosition position = InvestmentPosition.builder()
+                .asset(asset)
+                .currentValue(BigDecimal.ZERO)
+                .totalInvested(totalInvested)
+                .redeemedValue(redeemedValue)
+                .build();
+        investmentPositionRepository.save(position);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        return assetRepository.findById(asset.getId()).orElseThrow();
     }
 }

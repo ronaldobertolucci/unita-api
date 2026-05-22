@@ -25,6 +25,7 @@ public class DashboardService {
     private final TransactionRepository transactionRepository;
     private final CreditCardInstallmentRepository creditCardInstallmentRepository;
     private final CreditCardRefundRepository creditCardRefundRepository;
+    private final InvestmentTransactionRepository investmentTransactionRepository;
 
     // -------------------------------------------------------------------------
     // Public Authentication-based methods (DashboardController)
@@ -70,6 +71,11 @@ public class DashboardService {
     public List<LiquidityTypeSummaryDto> getLiquiditySummary(Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         return getLiquidityTypeSummaryByUserId(currentUser.getId());
+    }
+
+    public BigDecimal getNetProfit(Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        return getNetProfitByUserId(currentUser.getId());
     }
 
     // -------------------------------------------------------------------------
@@ -168,6 +174,12 @@ public class DashboardService {
 
     public List<LiquidityTypeSummaryDto> getLiquidityTypeSummaryByUserId(Long userId) {
         return assetRepository.sumCurrentValueByLiquidityTypeAndUserId(userId);
+    }
+
+    public BigDecimal getNetProfitByUserId(Long userId) {
+        BigDecimal grossProfit = assetRepository.sumGrossProfitByUserId(userId);
+        BigDecimal totalTax = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(userId);
+        return grossProfit.subtract(totalTax);
     }
 
     // -------------------------------------------------------------------------

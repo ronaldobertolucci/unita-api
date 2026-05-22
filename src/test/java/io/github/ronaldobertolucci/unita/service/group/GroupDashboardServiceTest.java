@@ -357,6 +357,45 @@ class GroupDashboardServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // getGroupNetProfit
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getGroupNetProfit_WhenNotMember_ShouldThrowAccessDeniedException() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(false);
+
+        assertThrows(AccessDeniedException.class,
+                () -> groupDashboardService.getGroupNetProfit(GROUP_ID, authentication));
+    }
+
+    @Test
+    void getGroupNetProfit_WhenInvestmentsEnabled_ShouldReturnNetProfit() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(true);
+        when(membershipRepository.findByGroupIdWithUsers(GROUP_ID)).thenReturn(List.of(buildMembership(memberUser)));
+        when(permissionRepository.findAllByGroupIdAndUserId(GROUP_ID, memberUser.getId()))
+                .thenReturn(List.of(buildPermission(ShareType.INVESTMENTS, true)));
+        when(dashboardService.getNetProfitByUserId(memberUser.getId()))
+                .thenReturn(new BigDecimal("400.00"));
+
+        GroupNetProfitDto result = groupDashboardService.getGroupNetProfit(GROUP_ID, authentication);
+
+        assertEquals(1, result.members().size());
+        assertEquals(0, new BigDecimal("400.00").compareTo(result.members().get(0).netProfit()));
+    }
+
+    @Test
+    void getGroupNetProfit_WhenInvestmentsDisabled_ShouldReturnNullNetProfit() {
+        when(membershipRepository.existsByUserIdAndGroupId(currentUser.getId(), GROUP_ID)).thenReturn(true);
+        when(membershipRepository.findByGroupIdWithUsers(GROUP_ID)).thenReturn(List.of(buildMembership(memberUser)));
+        when(permissionRepository.findAllByGroupIdAndUserId(GROUP_ID, memberUser.getId()))
+                .thenReturn(List.of(buildPermission(ShareType.INVESTMENTS, false)));
+
+        GroupNetProfitDto result = groupDashboardService.getGroupNetProfit(GROUP_ID, authentication);
+
+        assertNull(result.members().get(0).netProfit());
+    }
+
+    // -------------------------------------------------------------------------
     // Builders
     // -------------------------------------------------------------------------
 

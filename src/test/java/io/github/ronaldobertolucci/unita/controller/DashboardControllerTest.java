@@ -196,4 +196,24 @@ class DashboardControllerTest {
         mockMvc.perform(get("/dashboard/indexer-summary"))
                 .andExpect(status().isForbidden());
     }
+
+    // -------------------------------------------------------------------------
+    // GET /dashboard/net-profit
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getNetProfit_ShouldReturn200WithData() throws Exception {
+        when(dashboardService.getNetProfit(any())).thenReturn(new BigDecimal("400.00"));
+
+        mockMvc.perform(get("/dashboard/net-profit")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(400.00));
+    }
+
+    @Test
+    void getNetProfit_WhenUnauthenticated_ShouldReturn403() throws Exception {
+        mockMvc.perform(get("/dashboard/net-profit"))
+                .andExpect(status().isForbidden());
+    }
 }

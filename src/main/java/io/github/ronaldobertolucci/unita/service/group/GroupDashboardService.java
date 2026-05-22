@@ -203,6 +203,28 @@ public class GroupDashboardService {
         );
     }
 
+    public GroupNetProfitDto getGroupNetProfit(Long groupId, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        validateMembership(currentUser.getId(), groupId);
+
+        List<GroupMemberNetProfitDto> members = membershipRepository.findByGroupIdWithUsers(groupId)
+                .stream()
+                .map(membership -> buildMemberNetProfit(membership.getUser(), groupId))
+                .toList();
+
+        return new GroupNetProfitDto(members);
+    }
+
+    private GroupMemberNetProfitDto buildMemberNetProfit(User member, Long groupId) {
+        Set<ShareType> enabled = getEnabledPermissions(member.getId(), groupId);
+
+        return new GroupMemberNetProfitDto(
+                GroupMemberUserDto.from(member),
+                enabled.contains(ShareType.INVESTMENTS)
+                        ? dashboardService.getNetProfitByUserId(member.getId()) : null
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

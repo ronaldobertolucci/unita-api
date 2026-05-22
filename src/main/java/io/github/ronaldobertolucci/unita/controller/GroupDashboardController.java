@@ -64,4 +64,11 @@ public class GroupDashboardController {
             Authentication authentication) {
         return ResponseEntity.ok(groupDashboardService.getGroupLiquiditySummary(groupId, authentication));
     }
+
+    @GetMapping("/net-profit")
+    public ResponseEntity<GroupNetProfitDto> getGroupNetProfit(
+            @PathVariable Long groupId,
+            Authentication authentication) {
+        return ResponseEntity.ok(groupDashboardService.getGroupNetProfit(groupId, authentication));
+    }
 }

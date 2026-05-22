@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -55,5 +56,10 @@ public class DashboardController {
     @GetMapping("/liquidity-summary")
     public ResponseEntity<List<LiquidityTypeSummaryDto>> getLiquiditySummary(Authentication authentication) {
         return ResponseEntity.ok(dashboardService.getLiquiditySummary(authentication));
+    }
+
+    @GetMapping("/net-profit")
+    public ResponseEntity<BigDecimal> getNetProfit(Authentication authentication) {
+        return ResponseEntity.ok(dashboardService.getNetProfit(authentication));
     }
 }

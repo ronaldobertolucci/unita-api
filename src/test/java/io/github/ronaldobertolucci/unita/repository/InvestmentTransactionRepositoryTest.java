@@ -6,135 +6,127 @@ import io.github.ronaldobertolucci.unita.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class InvestmentTransactionRepositoryTest extends BaseRepositoryTest {
 
-    @Autowired
-    private InvestmentTransactionRepository investmentTransactionRepository;
+    @Autowired private InvestmentTransactionRepository investmentTransactionRepository;
     @Autowired private AssetRepository assetRepository;
     @Autowired private LegalEntityRepository legalEntityRepository;
+    @Autowired private InvestmentPositionRepository investmentPositionRepository;
+    @Autowired private TestEntityManager entityManager;
 
     private User user;
-    private Asset asset;
+    private User otherUser;
+    private LegalEntity legalEntity;
 
     @BeforeEach
     void setUp() {
         user = saveUser("user@test.com");
-        LegalEntity le = new LegalEntity();
-        le.setCnpj("12345678000190");
-        le.setCorporateName("Banco Teste");
-        le.setUser(user);
-        legalEntityRepository.save(le);
+        otherUser = saveUser("other@test.com");
+        legalEntity = saveLegalEntity(user);
+    }
 
-        asset = Asset.builder()
-                .user(user)
-                .legalEntity(le)
-                .name("CDB A")
-                .category(AssetCategory.RENDA_FIXA)
-                .status(AssetStatus.ACTIVE)
-                .build();
-        assetRepository.save(asset);
+    // -------------------------------------------------------------------------
+    // sumTaxByUserIdAndRedeemedAssets
+    // -------------------------------------------------------------------------
+
+    @Test
+    void sumTaxByUserIdAndRedeemedAssets_ShouldSumOnlyTaxTransactions() {
+        Asset asset = saveRedeemedAsset("CDB A", user);
+        saveInvestmentTransaction(asset, InvestmentTransactionType.TAX, new BigDecimal("100.00"));
+        saveInvestmentTransaction(asset, InvestmentTransactionType.TAX, new BigDecimal("50.00"));
+        saveInvestmentTransaction(asset, InvestmentTransactionType.BUY, new BigDecimal("1000.00"));
+
+        BigDecimal result = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(user.getId());
+
+        assertEquals(0, new BigDecimal("150.00").compareTo(result));
     }
 
     @Test
-    void findAllByAssetIdOrderByTransactionDateDesc_ShouldReturnInOrder() {
-        saveInvestmentTransaction(InvestmentTransactionType.BUY,
-                new BigDecimal("1000.00"), LocalDate.of(2025, 1, 1));
-        saveInvestmentTransaction(InvestmentTransactionType.YIELD,
-                new BigDecimal("50.00"), LocalDate.of(2025, 3, 1));
+    void sumTaxByUserIdAndRedeemedAssets_ShouldExcludeNonRedeemedAssets() {
+        Asset redeemed = saveRedeemedAsset("CDB A", user);
+        Asset active = saveAssetWithStatus("CDB B", user, AssetStatus.ACTIVE);
+        Asset matured = saveAssetWithStatus("CDB C", user, AssetStatus.MATURED);
 
-        List<InvestmentTransaction> result = investmentTransactionRepository
-                .findAllByAssetIdOrderByTransactionDateDesc(asset.getId());
+        saveInvestmentTransaction(redeemed, InvestmentTransactionType.TAX, new BigDecimal("100.00"));
+        saveInvestmentTransaction(active, InvestmentTransactionType.TAX, new BigDecimal("200.00"));
+        saveInvestmentTransaction(matured, InvestmentTransactionType.TAX, new BigDecimal("300.00"));
 
-        assertEquals(2, result.size());
-        assertTrue(result.get(0).getTransactionDate()
-                .isAfter(result.get(1).getTransactionDate()));
+        BigDecimal result = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(user.getId());
+
+        assertEquals(0, new BigDecimal("100.00").compareTo(result));
     }
 
     @Test
-    void findAllByAssetIdOrderByTransactionDateDesc_WhenEmpty_ShouldReturnEmptyList() {
-        assertTrue(investmentTransactionRepository
-                .findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).isEmpty());
+    void sumTaxByUserIdAndRedeemedAssets_ShouldNotReturnOtherUsersTransactions() {
+        Asset userAsset = saveRedeemedAsset("CDB A", user);
+        Asset otherAsset = saveRedeemedAsset("CDB B", otherUser);
+
+        saveInvestmentTransaction(userAsset, InvestmentTransactionType.TAX, new BigDecimal("100.00"));
+        saveInvestmentTransaction(otherAsset, InvestmentTransactionType.TAX, new BigDecimal("999.00"));
+
+        BigDecimal result = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(user.getId());
+
+        assertEquals(0, new BigDecimal("100.00").compareTo(result));
     }
 
     @Test
-    void findByIdAndAssetId_WhenExists_ShouldReturn() {
-        InvestmentTransaction saved = saveInvestmentTransaction(
-                InvestmentTransactionType.BUY, new BigDecimal("1000.00"), LocalDate.now());
+    void sumTaxByUserIdAndRedeemedAssets_WhenNoTaxTransactions_ShouldReturnZero() {
+        Asset asset = saveRedeemedAsset("CDB A", user);
+        saveInvestmentTransaction(asset, InvestmentTransactionType.BUY, new BigDecimal("1000.00"));
 
-        Optional<InvestmentTransaction> result = investmentTransactionRepository
-                .findByIdAndAssetId(saved.getId(), asset.getId());
+        BigDecimal result = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(user.getId());
 
-        assertTrue(result.isPresent());
+        assertEquals(0, BigDecimal.ZERO.compareTo(result));
     }
 
     @Test
-    void findByIdAndAssetId_WhenWrongAsset_ShouldReturnEmpty() {
-        InvestmentTransaction saved = saveInvestmentTransaction(
-                InvestmentTransactionType.BUY, new BigDecimal("1000.00"), LocalDate.now());
+    void sumTaxByUserIdAndRedeemedAssets_WhenNoRedeemedAssets_ShouldReturnZero() {
+        BigDecimal result = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(user.getId());
 
-        Optional<InvestmentTransaction> result = investmentTransactionRepository
-                .findByIdAndAssetId(saved.getId(), 999L);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void existsByAssetId_WhenExists_ShouldReturnTrue() {
-        saveInvestmentTransaction(InvestmentTransactionType.BUY,
-                new BigDecimal("1000.00"), LocalDate.now());
-
-        assertTrue(investmentTransactionRepository.existsByAssetId(asset.getId()));
-    }
-
-    @Test
-    void existsByAssetId_WhenNotExists_ShouldReturnFalse() {
-        assertFalse(investmentTransactionRepository.existsByAssetId(asset.getId()));
-    }
-
-    @Test
-    void findFirstByAssetIdAndTypeOrderByTransactionDateAsc_WhenMultipleBuys_ShouldReturnEarliest() {
-        saveInvestmentTransaction(InvestmentTransactionType.BUY,
-                new BigDecimal("500.00"), LocalDate.of(2025, 3, 1));
-        saveInvestmentTransaction(InvestmentTransactionType.BUY,
-                new BigDecimal("1000.00"), LocalDate.of(2025, 1, 1));
-
-        Optional<InvestmentTransaction> result = investmentTransactionRepository
-                .findFirstByAssetIdAndTypeOrderByTransactionDateAsc(
-                        asset.getId(), InvestmentTransactionType.BUY);
-
-        assertTrue(result.isPresent());
-        assertEquals(LocalDate.of(2025, 1, 1), result.get().getTransactionDate());
-    }
-
-    @Test
-    void findFirstByAssetIdAndTypeOrderByTransactionDateAsc_WhenNoBuy_ShouldReturnEmpty() {
-        Optional<InvestmentTransaction> result = investmentTransactionRepository
-                .findFirstByAssetIdAndTypeOrderByTransactionDateAsc(
-                        asset.getId(), InvestmentTransactionType.BUY);
-
-        assertTrue(result.isEmpty());
+        assertEquals(0, BigDecimal.ZERO.compareTo(result));
     }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
-    private InvestmentTransaction saveInvestmentTransaction(
-            InvestmentTransactionType type, BigDecimal amount, LocalDate date) {
-        InvestmentTransaction tx = InvestmentTransaction.builder()
+    private LegalEntity saveLegalEntity(User user) {
+        LegalEntity le = new LegalEntity();
+        le.setCnpj("12345678000190");
+        le.setCorporateName("Banco Teste");
+        le.setUser(user);
+        return legalEntityRepository.save(le);
+    }
+
+    private Asset saveRedeemedAsset(String name, User owner) {
+        return saveAssetWithStatus(name, owner, AssetStatus.REDEEMED);
+    }
+
+    private Asset saveAssetWithStatus(String name, User owner, AssetStatus status) {
+        Asset asset = Asset.builder()
+                .user(owner)
+                .legalEntity(legalEntity)
+                .name(name)
+                .category(AssetCategory.RENDA_FIXA)
+                .status(status)
+                .build();
+        return assetRepository.save(asset);
+    }
+
+    private void saveInvestmentTransaction(Asset asset, InvestmentTransactionType type, BigDecimal amount) {
+        InvestmentTransaction transaction = InvestmentTransaction.builder()
                 .asset(asset)
                 .type(type)
                 .amount(amount)
-                .transactionDate(date)
+                .transactionDate(LocalDate.now())
                 .build();
-        return investmentTransactionRepository.save(tx);
+        investmentTransactionRepository.save(transaction);
     }
 }
