@@ -2,6 +2,8 @@ package io.github.ronaldobertolucci.unita.security;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.ronaldobertolucci.unita.dto.security.PasswordResetTokenResetDto;
 import io.github.ronaldobertolucci.unita.config.security.RefreshCookie;
 import io.github.ronaldobertolucci.unita.exception.RefreshRejectedException;
 import io.github.ronaldobertolucci.unita.model.security.PasswordResetToken;
@@ -10,6 +12,9 @@ import io.github.ronaldobertolucci.unita.repository.*;
 import io.github.ronaldobertolucci.unita.service.security.*;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -31,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class AuthFlowIntegrationTest {
     @Autowired MockMvc mvc;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     @Autowired UserRepository users;
     @Autowired RoleRepository roles;
     @Autowired RefreshSessionRepository repository;
@@ -163,6 +169,42 @@ class AuthFlowIntegrationTest {
         assertEquals(user.getEmail(), tokens.getSubject(first.access().token()));
         assertTrue(encoder.matches("new-password123", users.findById(user.getId()).orElseThrow().getPassword()));
     }
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"        ", "1234567"})
+    void invalidResetPasswordPreservesPasswordAndToken(String newPassword) throws Exception {
+        String originalHash = users.findById(user.getId()).orElseThrow().getPassword();
+        var token = resetTokens.save(new PasswordResetToken(java.util.UUID.randomUUID().toString(), user, 1));
+
+        mvc.perform(post("/password/reset").contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new PasswordResetTokenResetDto(token.getToken(), newPassword))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field", org.hamcrest.Matchers.hasItem("newPassword")));
+
+        assertEquals(originalHash, users.findById(user.getId()).orElseThrow().getPassword());
+        var unchangedToken = resetTokens.findByToken(token.getToken()).orElseThrow();
+        assertFalse(unchangedToken.getUsed());
+        assertTrue(unchangedToken.isValid());
+        assertDoesNotThrow(() -> passwords.validatePasswordResetToken(token.getToken()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"12345678", " 123456 "})
+    void eightCharacterResetPasswordIsAcceptedWithoutTrimming(String newPassword) throws Exception {
+        var token = resetTokens.save(new PasswordResetToken(java.util.UUID.randomUUID().toString(), user, 1));
+
+        mvc.perform(post("/password/reset").contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new PasswordResetTokenResetDto(token.getToken(), newPassword))))
+                .andExpect(status().isOk());
+
+        String storedHash = users.findById(user.getId()).orElseThrow().getPassword();
+        assertTrue(encoder.matches(newPassword, storedHash));
+        if (!newPassword.equals(newPassword.trim())) {
+            assertFalse(encoder.matches(newPassword.trim(), storedHash));
+        }
+        assertTrue(resetTokens.findByToken(token.getToken()).orElseThrow().getUsed());
+    }
+
     @Test void staleLoginPrincipalCannotCreateSessionAfterPasswordReset() {
         User stale = user;
         jdbc.update("UPDATE users SET password = ? WHERE id = ?", encoder.encode("changed-password"), user.getId());

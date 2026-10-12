@@ -92,7 +92,11 @@ public class GlobalExceptionHandler {
                 "Validation Failed",
                 "Invalid input data",
                 request.getRequestURI(),
-                details
+                details,
+                ex.getBindingResult().getFieldErrors().stream()
+                        .map(fieldError -> new ErrorResponseDto.FieldValidationError(
+                                fieldError.getField(), fieldError.getDefaultMessage()))
+                        .toList()
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
