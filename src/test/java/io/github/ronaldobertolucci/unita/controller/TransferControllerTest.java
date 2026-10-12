@@ -181,14 +181,14 @@ class TransferControllerTest {
     }
 
     @Test
-    void transfer_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void transfer_WhenUnauthenticated_ShouldReturn401() throws Exception {
         TransferCreateDto dto = new TransferCreateDto(1L, 2L,
                 new BigDecimal("200.00"), "Transferência");
 
         mockMvc.perform(post("/transfers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -307,13 +307,13 @@ class TransferControllerTest {
     }
 
     @Test
-    void fgts_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void fgts_WhenUnauthenticated_ShouldReturn401() throws Exception {
         TransferCreateDto dto = new TransferCreateDto(1L, 2L,
                 new BigDecimal("200.00"), "Transferência");
 
         mockMvc.perform(post("/transfers/fgts/withdrawal")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

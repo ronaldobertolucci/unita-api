@@ -88,11 +88,11 @@ class LegalEntityControllerTest {
     }
 
     @Test
-    void create_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void create_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/legal-entities")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -121,9 +121,9 @@ class LegalEntityControllerTest {
     }
 
     @Test
-    void findAll_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findAll_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/legal-entities"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -151,9 +151,9 @@ class LegalEntityControllerTest {
     }
 
     @Test
-    void findById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/legal-entities/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -201,13 +201,13 @@ class LegalEntityControllerTest {
     }
 
     @Test
-    void update_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void update_WhenUnauthenticated_ShouldReturn401() throws Exception {
         LegalEntityUpdateDto dto = new LegalEntityUpdateDto("12345678000190", "Empresa", null, null);
 
         mockMvc.perform(patch("/legal-entities/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -244,8 +244,8 @@ class LegalEntityControllerTest {
     }
 
     @Test
-    void delete_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void delete_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(delete("/legal-entities/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

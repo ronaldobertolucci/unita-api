@@ -3,7 +3,6 @@ package io.github.ronaldobertolucci.unita.service.security;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
-import com.auth0.jwt.exceptions.JWTVerificationException;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,8 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 @Service
 public class TokenService {
@@ -41,38 +38,17 @@ public class TokenService {
     }
 
     public String getSubject(String tokenJWT) {
-        try {
-            var algorithm = Algorithm.HMAC256(secret);
-            return JWT.require(algorithm)
-                    .withIssuer(issuer)
-                    .build()
-                    .verify(tokenJWT)
-                    .getSubject();
-        } catch (JWTVerificationException exception) {
-            logger.error("Invalid or expired JWT token", exception);
-            throw new RuntimeException("Invalid or expired JWT token", exception);
-        }
+        return JWT.require(Algorithm.HMAC256(secret)).withIssuer(issuer).build().verify(tokenJWT).getSubject();
     }
 
+    public Long expiresInSeconds() { return expirationHours * 3600L; }
+
     public Long getUserIdFromToken(String tokenJWT) {
-        try {
-            var algorithm = Algorithm.HMAC256(secret);
-            return JWT.require(algorithm)
-                    .withIssuer(issuer)
-                    .build()
-                    .verify(tokenJWT)
-                    .getClaim("id")
-                    .asLong();
-        } catch (JWTVerificationException exception) {
-            logger.error("Invalid or expired JWT token", exception);
-            throw new RuntimeException("Invalid or expired JWT token", exception);
-        }
+        return JWT.require(Algorithm.HMAC256(secret)).withIssuer(issuer).build().verify(tokenJWT).getClaim("id").asLong();
     }
 
     private Instant expirationDate() {
-        return LocalDateTime.now()
-                .plusHours(expirationHours)
-                .atZone(ZoneId.systemDefault())
-                .toInstant();
+        if (expirationHours <= 0) throw new IllegalStateException("JWT expiration must be positive");
+        return Instant.now().plus(java.time.Duration.ofHours(expirationHours));
     }
 }

@@ -102,7 +102,7 @@ class AdminControllerTest {
     @Test
     void findAllBankAccountTypes_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/admin/bank-account-types"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------

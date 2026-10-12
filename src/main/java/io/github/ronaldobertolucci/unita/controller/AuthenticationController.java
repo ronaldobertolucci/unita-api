@@ -7,11 +7,15 @@ import io.github.ronaldobertolucci.unita.dto.user.UserDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserRegistrationDto;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.service.email.EmailVerificationService;
-import io.github.ronaldobertolucci.unita.service.security.TokenService;
+import io.github.ronaldobertolucci.unita.service.security.RefreshSessionService;
+import io.github.ronaldobertolucci.unita.config.security.RefreshCookie;
+import io.github.ronaldobertolucci.unita.exception.RefreshRejectedException;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
+import java.util.Map;
 import io.github.ronaldobertolucci.unita.service.user.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,15 +29,14 @@ import org.springframework.web.bind.annotation.*;
 public class AuthenticationController {
 
     private final AuthenticationManager authenticationManager;
-    private final TokenService tokenService;
+    private final RefreshSessionService sessions;
+    private final RefreshCookie cookies;
     private final UserService userService;
     private final EmailVerificationService emailVerificationService;
 
-    @Value("${api.security.token.expiration-hours:2}")
-    private int expirationHours;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenDto> login(@RequestBody @Valid LoginDto loginDto) {
+    public ResponseEntity<TokenDto> login(@RequestBody @Valid LoginDto loginDto, HttpServletRequest request) {
         var authenticationToken = new UsernamePasswordAuthenticationToken(
                 loginDto.email(),
                 loginDto.password()
@@ -42,13 +45,33 @@ public class AuthenticationController {
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
         User user = (User) authentication.getPrincipal();
 
-        String token = tokenService.generateToken(user);
+        return issued(request, sessions.login(user));
+    }
 
-        UserDto userDto = new UserDto(user);
-        Long expiresInSeconds = expirationHours * 3600L;
-        TokenDto tokenDto = new TokenDto(token, expiresInSeconds, userDto);
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest request) {
+        try {
+            return issued(request, sessions.refresh(cookies.read(request)));
+        } catch (RefreshRejectedException e) {
+            // The transactional service has already committed any replay revocation.
+            return ResponseEntity.status(401).header(HttpHeaders.CACHE_CONTROL, "no-store")
+                    .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                    .header(HttpHeaders.SET_COOKIE, cookies.clear(request))
+                    .body(Map.of("status", 401, "code", "SESSION_EXPIRED"));
+        }
+    }
 
-        return ResponseEntity.ok(tokenDto);
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        sessions.logout(cookies.read(request));
+        return ResponseEntity.noContent().header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header(HttpHeaders.SET_COOKIE, cookies.clear(request)).build();
+    }
+
+    private ResponseEntity<TokenDto> issued(HttpServletRequest request, RefreshSessionService.Issued issued) {
+        return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header(HttpHeaders.SET_COOKIE, cookies.issue(request, issued.refreshToken(), issued.expiresAt()))
+                .body(issued.access());
     }
 
     @PostMapping("/register")

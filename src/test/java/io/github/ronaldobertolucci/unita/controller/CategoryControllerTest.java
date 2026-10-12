@@ -87,9 +87,9 @@ class CategoryControllerTest {
     }
 
     @Test
-    void findAllAvailableForUser_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findAllAvailableForUser_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/categories"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -135,13 +135,13 @@ class CategoryControllerTest {
     }
 
     @Test
-    void createCategory_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createCategory_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CategoryCreateDto dto = new CategoryCreateDto("Alimentação", CategoryType.EXPENSE);
 
         mockMvc.perform(post("/categories")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -189,13 +189,13 @@ class CategoryControllerTest {
     }
 
     @Test
-    void updateCategory_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateCategory_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CategoryUpdateDto dto = new CategoryUpdateDto("Alimentação", CategoryType.EXPENSE);
 
         mockMvc.perform(patch("/categories/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -232,8 +232,8 @@ class CategoryControllerTest {
     }
 
     @Test
-    void deleteCategory_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteCategory_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(delete("/categories/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

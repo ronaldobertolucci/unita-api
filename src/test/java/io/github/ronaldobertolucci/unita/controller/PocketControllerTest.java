@@ -104,11 +104,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void findMyPockets_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findMyPockets_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(pocketService.findMyPockets(any())).thenReturn(List.of(pocketSummaryDto()));
 
         mockMvc.perform(get("/pockets/my"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -138,14 +138,14 @@ class PocketControllerTest {
     }
 
     @Test
-    void createBankAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createBankAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         BankAccountCreateDto dto = new BankAccountCreateDto(1L, "12345", "0001", 1L);
         when(pocketService.createBankAccount(any(), any())).thenReturn(bankAccountDto());
 
         mockMvc.perform(post("/pockets/bank-accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -169,11 +169,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void findBankAccountById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findBankAccountById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(pocketService.findBankAccountById(eq(1L), any())).thenReturn(bankAccountDto());
 
         mockMvc.perform(get("/pockets/bank-accounts/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -200,7 +200,7 @@ class PocketControllerTest {
     }
 
     @Test
-    void updateBankAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateBankAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         BankAccountUpdateDto dto = new BankAccountUpdateDto(BankAccountStatus.INACTIVE);
         BankAccountDto updated = new BankAccountDto(1L, "Banco do Brasil", "12345",
                 "0001", "Corrente", BankAccountStatus.INACTIVE);
@@ -209,7 +209,7 @@ class PocketControllerTest {
         mockMvc.perform(put("/pockets/bank-accounts/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -257,14 +257,14 @@ class PocketControllerTest {
     }
 
     @Test
-    void createBenefitAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createBenefitAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         BenefitAccountCreateDto dto = new BenefitAccountCreateDto(1L, 1L);
         when(pocketService.createBenefitAccount(any(), any())).thenReturn(benefitAccountDto());
 
         mockMvc.perform(post("/pockets/benefit-accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
 
@@ -288,11 +288,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void findBenefitAccountById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findBenefitAccountById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(pocketService.findBenefitAccountById(eq(1L), any())).thenReturn(benefitAccountDto());
 
         mockMvc.perform(get("/pockets/benefit-accounts/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -319,7 +319,7 @@ class PocketControllerTest {
     }
 
     @Test
-    void updateBenefitAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateBenefitAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         BenefitAccountUpdateDto dto = new BenefitAccountUpdateDto(BenefitAccountStatus.INACTIVE);
         BenefitAccountDto updated = new BenefitAccountDto(1L, "Ticket Refeição",
                 "Vale-Refeição", BenefitAccountStatus.INACTIVE);
@@ -328,7 +328,7 @@ class PocketControllerTest {
         mockMvc.perform(put("/pockets/benefit-accounts/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -350,11 +350,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void deleteBenefitAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteBenefitAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(pocketService).deleteBenefitAccount(eq(1L), any());
 
         mockMvc.perform(delete("/pockets/benefit-accounts/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -385,7 +385,7 @@ class PocketControllerTest {
     }
 
     @Test
-    void createFgtsEmployerAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createFgtsEmployerAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         FgtsEmployerAccountCreateDto dto = new FgtsEmployerAccountCreateDto(
                 1L, LocalDate.of(2020, 3, 1), null);
         when(pocketService.createFgtsEmployerAccount(any(), any())).thenReturn(fgtsAccountDto());
@@ -393,7 +393,7 @@ class PocketControllerTest {
         mockMvc.perform(post("/pockets/fgts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -417,11 +417,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void findFgtsEmployerAccountById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findFgtsEmployerAccountById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(pocketService.findFgtsEmployerAccountById(eq(1L), any())).thenReturn(fgtsAccountDto());
 
         mockMvc.perform(get("/pockets/fgts/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -451,7 +451,7 @@ class PocketControllerTest {
     }
 
     @Test
-    void updateFgtsEmployerAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateFgtsEmployerAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         FgtsEmployerAccountUpdateDto dto = new FgtsEmployerAccountUpdateDto(
                 FgtsEmployerAccountStatus.INACTIVE, LocalDate.of(2025, 1, 31));
         FgtsEmployerAccountDto updated = new FgtsEmployerAccountDto(1L, "Empresa XYZ",
@@ -462,7 +462,7 @@ class PocketControllerTest {
         mockMvc.perform(put("/pockets/fgts/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -484,11 +484,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void deleteFgtsEmployerAccount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteFgtsEmployerAccount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(pocketService).deleteFgtsEmployerAccount(eq(1L), any());
 
         mockMvc.perform(delete("/pockets/fgts/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -515,11 +515,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void createCash_WhenUnauthenticated_ShouldReturn4031() throws Exception {
+    void createCash_WhenUnauthenticated_ShouldReturn4011() throws Exception {
         when(pocketService.createCash(any())).thenReturn(cashDto());
 
         mockMvc.perform(post("/pockets/cash"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -542,11 +542,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void findCash_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findCash_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(pocketService.findCash(any())).thenReturn(cashDto());
 
         mockMvc.perform(get("/pockets/cash"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -578,7 +578,7 @@ class PocketControllerTest {
     }
 
     @Test
-    void createTransaction_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createTransaction_WhenUnauthenticated_ShouldReturn401() throws Exception {
         TransactionCreateDto dto = new TransactionCreateDto(
                 new BigDecimal("100.00"), Direction.INCOME,
                 LocalDate.of(2025, 1, 10), "Salário", 1L);
@@ -587,7 +587,7 @@ class PocketControllerTest {
         mockMvc.perform(post("/pockets/1/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -651,9 +651,9 @@ class PocketControllerTest {
     }
 
     @Test
-    void findTransactions_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findTransactions_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/pockets/1/transactions"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -676,11 +676,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void findBalance_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findBalance_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(pocketService.findBalance(eq(1L), any())).thenReturn(new BigDecimal("1500.00"));
 
         mockMvc.perform(get("/pockets/1/balance"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -701,11 +701,11 @@ class PocketControllerTest {
     }
 
     @Test
-    void deleteTransaction_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteTransaction_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(pocketService).deleteTransaction(eq(1L), eq(1L), any());
 
         mockMvc.perform(delete("/pockets/1/transactions/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

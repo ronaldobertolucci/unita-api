@@ -114,9 +114,9 @@ class AssetControllerTest {
     }
 
     @Test
-    void findAll_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findAll_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/assets"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -146,9 +146,9 @@ class AssetControllerTest {
     }
 
     @Test
-    void findById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/assets/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -201,11 +201,11 @@ class AssetControllerTest {
     }
 
     @Test
-    void createFixedIncome_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createFixedIncome_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/assets/fixed-income")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -248,11 +248,11 @@ class AssetControllerTest {
     }
 
     @Test
-    void createPension_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createPension_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/assets/pension")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -297,13 +297,13 @@ class AssetControllerTest {
     }
 
     @Test
-    void update_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void update_WhenUnauthenticated_ShouldReturn401() throws Exception {
         AssetUpdateDto dto = new AssetUpdateDto("CDB Atualizado", 10L, LiquidityType.DIARIA, 10L);
 
         mockMvc.perform(patch("/assets/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -346,14 +346,14 @@ class AssetControllerTest {
     }
 
     @Test
-    void updatePosition_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updatePosition_WhenUnauthenticated_ShouldReturn401() throws Exception {
         InvestmentPositionUpdateDto dto = new InvestmentPositionUpdateDto(
                 new BigDecimal("1250.00"), LocalDate.of(2025, 3, 1));
 
         mockMvc.perform(patch("/assets/1/position")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -390,9 +390,9 @@ class AssetControllerTest {
     }
 
     @Test
-    void delete_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void delete_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(delete("/assets/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -425,10 +425,10 @@ class AssetControllerTest {
     }
 
     @Test
-    void getTaxSuggestion_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getTaxSuggestion_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/assets/1/tax-suggestion")
                         .param("grossAmount", "1100.00"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -458,9 +458,9 @@ class AssetControllerTest {
     }
 
     @Test
-    void findTransactions_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findTransactions_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/assets/1/transactions"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -510,11 +510,11 @@ class AssetControllerTest {
     }
 
     @Test
-    void buy_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void buy_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/assets/1/transactions/buy")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -550,11 +550,11 @@ class AssetControllerTest {
     }
 
     @Test
-    void yield_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void yield_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/assets/1/transactions/yield")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -614,10 +614,10 @@ class AssetControllerTest {
     }
 
     @Test
-    void sell_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void sell_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/assets/1/transactions/sell")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

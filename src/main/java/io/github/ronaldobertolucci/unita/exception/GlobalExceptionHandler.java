@@ -6,8 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -85,7 +83,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<ErrorResponseDto> handleAuthenticationErrors(
             Exception ex,
             HttpServletRequest request) {
@@ -105,21 +103,10 @@ public class GlobalExceptionHandler {
             RuntimeException ex,
             HttpServletRequest request) {
 
-        // Para tokens inválidos vindo do TokenService
-        if (ex.getMessage() != null && ex.getMessage().contains("JWT")) {
-            ErrorResponseDto error = new ErrorResponseDto(
-                    HttpStatus.UNAUTHORIZED.value(),
-                    "Unauthorized",
-                    "Invalid or expired token",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-        }
-
         ErrorResponseDto error = new ErrorResponseDto(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred",
+                "An unexpected error occurred",
                 request.getRequestURI()
         );
 
@@ -157,17 +144,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponseDto> handleAccessDenied(
-            AccessDeniedException ex,
-            HttpServletRequest request) {
-
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.FORBIDDEN.value(),
-                "Forbidden",
-                ex.getMessage(),
-                request.getRequestURI()
-        );
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    public ResponseEntity<java.util.Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(403).body(java.util.Map.of("status", 403, "code", "ACCESS_DENIED"));
     }
 }

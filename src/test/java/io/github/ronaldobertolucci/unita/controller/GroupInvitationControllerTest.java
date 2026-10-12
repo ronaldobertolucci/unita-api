@@ -124,7 +124,7 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    void createInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createInvitation_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         GroupInvitationCreateDto dto = new GroupInvitationCreateDto(1L, "user@email.com");
         when(invitationService.createInvitation(any(GroupInvitationCreateDto.class), any()))
@@ -134,7 +134,7 @@ class GroupInvitationControllerTest {
         mockMvc.perform(post("/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -183,14 +183,14 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    void getMyPendingInvitations_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getMyPendingInvitations_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(invitationService.getMyPendingInvitations(any()))
                 .thenReturn(List.of(invitationDto));
 
         // Act & Assert
         mockMvc.perform(get("/invitations/my/pending"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -208,14 +208,14 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    void getMyPendingInvitationsCount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getMyPendingInvitationsCount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(invitationService.getMyPendingInvitationsCount(any()))
                 .thenReturn(3L);
 
         // Act & Assert
         mockMvc.perform(get("/invitations/my/pending/count"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -234,14 +234,14 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    void getGroupInvitations_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupInvitations_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(invitationService.getGroupInvitations(eq(1L), any()))
                 .thenReturn(List.of(invitationDto));
 
         // Act & Assert
         mockMvc.perform(get("/invitations/group/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -267,7 +267,7 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    void respondToInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void respondToInvitation_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         GroupInvitationResponseDto dto = new GroupInvitationResponseDto(true);
         testInvitation.setStatus(InvitationStatus.ACCEPTED);
@@ -280,7 +280,7 @@ class GroupInvitationControllerTest {
         mockMvc.perform(put("/invitations/1/respond")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -335,12 +335,12 @@ class GroupInvitationControllerTest {
     }
 
     @Test
-    void cancelInvitation_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void cancelInvitation_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         doNothing().when(invitationService).cancelInvitation(eq(1L), any());
 
         // Act & Assert
         mockMvc.perform(delete("/invitations/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

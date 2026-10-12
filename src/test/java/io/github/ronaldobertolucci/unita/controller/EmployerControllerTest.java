@@ -95,11 +95,11 @@ class EmployerControllerTest {
     }
 
     @Test
-    void createIndividual_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createIndividual_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/employers/individual")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -128,9 +128,9 @@ class EmployerControllerTest {
     }
 
     @Test
-    void findAllIndividual_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findAllIndividual_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/employers/individual"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -202,13 +202,13 @@ class EmployerControllerTest {
     }
 
     @Test
-    void updateIndividual_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateIndividual_WhenUnauthenticated_ShouldReturn401() throws Exception {
         IndividualEmployerUpdateDto dto = new IndividualEmployerUpdateDto("12345678901", "João");
 
         mockMvc.perform(patch("/employers/individual/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -245,9 +245,9 @@ class EmployerControllerTest {
     }
 
     @Test
-    void deleteIndividual_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteIndividual_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(delete("/employers/individual/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -306,11 +306,11 @@ class EmployerControllerTest {
     }
 
     @Test
-    void createLegalEntity_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createLegalEntity_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/employers/legal-entity")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -339,9 +339,9 @@ class EmployerControllerTest {
     }
 
     @Test
-    void findAllLegalEntity_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findAllLegalEntity_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/employers/legal-entity"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -412,13 +412,13 @@ class EmployerControllerTest {
     }
 
     @Test
-    void updateLegalEntity_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateLegalEntity_WhenUnauthenticated_ShouldReturn401() throws Exception {
         LegalEntityEmployerUpdateDto dto = new LegalEntityEmployerUpdateDto(10L);
 
         mockMvc.perform(patch("/employers/legal-entity/2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -455,8 +455,8 @@ class EmployerControllerTest {
     }
 
     @Test
-    void deleteLegalEntity_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteLegalEntity_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(delete("/employers/legal-entity/2"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

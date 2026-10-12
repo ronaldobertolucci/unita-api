@@ -131,7 +131,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleRuntimeException_WithJWTError_ShouldReturnUnauthorized() {
+    void handleRuntimeException_WithJWTInMessage_ShouldRemainServerError() {
         // Arrange
         RuntimeException exception = new RuntimeException("Invalid JWT token");
 
@@ -139,9 +139,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleRuntimeException(exception, request);
 
         // Assert
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("Invalid or expired token", response.getBody().message());
+        assertEquals("An unexpected error occurred", response.getBody().message());
     }
 
     @Test

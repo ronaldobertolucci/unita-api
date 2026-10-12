@@ -27,6 +27,7 @@ public class PasswordResetService {
     private static final Logger logger = LoggerFactory.getLogger(PasswordResetService.class);
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
+    private final io.github.ronaldobertolucci.unita.repository.RefreshSessionRepository refreshSessions;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     @Value("${app.frontend.url}")
@@ -88,8 +89,10 @@ public class PasswordResetService {
 
         // Atualiza senha
         User user = resetToken.getUser();
+        refreshSessions.lockUser(user.getId());
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        refreshSessions.revokeAll(user.getId());
 
         // Marca token como usado
         resetToken.setUsed(true);

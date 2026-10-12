@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = AuthenticationController.class)
-@Import(TestConfig.class)
+@Import({TestConfig.class, io.github.ronaldobertolucci.unita.config.security.RefreshCookie.class})
 class AuthenticationControllerTest {
 
     @Autowired
@@ -54,6 +54,9 @@ class AuthenticationControllerTest {
 
     @MockitoBean
     private TokenService tokenService;
+
+    @MockitoBean
+    private io.github.ronaldobertolucci.unita.service.security.RefreshSessionService sessions;
 
     @MockitoBean
     private UserService userService;
@@ -94,11 +97,13 @@ class AuthenticationControllerTest {
         when(authentication.getPrincipal()).thenReturn(testUser);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
-        when(tokenService.generateToken(any(User.class))).thenReturn("mock-jwt-token");
+        when(sessions.login(any(User.class))).thenReturn(new io.github.ronaldobertolucci.unita.service.security.RefreshSessionService.Issued(
+                new io.github.ronaldobertolucci.unita.dto.security.TokenDto("mock-jwt-token", 7200L, userDto),
+                "test-refresh-token", java.time.Instant.now().plusSeconds(604800)));
 
         // Act & Assert
         mockMvc.perform(post("/auth/login")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginDto)))
                 .andExpect(status().isOk())
@@ -108,7 +113,7 @@ class AuthenticationControllerTest {
                 .andExpect(jsonPath("$.user.firstName").value("John"));
 
         verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(tokenService, times(1)).generateToken(testUser);
+        verify(sessions, times(1)).login(testUser);
     }
 
     @Test
@@ -121,7 +126,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/login")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginDto)))
                 .andExpect(status().isUnauthorized());
@@ -136,7 +141,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/login")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))
                 .andExpect(status().isBadRequest());
@@ -151,7 +156,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/login")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))
                 .andExpect(status().isBadRequest());
@@ -174,7 +179,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registrationDto)))
                 .andExpect(status().isCreated())
@@ -202,7 +207,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registrationDto)))
                 .andExpect(status().isBadRequest())
@@ -224,7 +229,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))
                 .andExpect(status().isBadRequest());
@@ -245,7 +250,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))
                 .andExpect(status().isBadRequest());
@@ -266,7 +271,7 @@ class AuthenticationControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))
                 .andExpect(status().isBadRequest());
@@ -344,7 +349,7 @@ class AuthenticationControllerTest {
         doNothing().when(emailVerificationService).resendVerificationEmail("john@example.com");
 
         mockMvc.perform(post("/auth/resend-verification")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
@@ -357,7 +362,7 @@ class AuthenticationControllerTest {
         ResendVerificationDto dto = new ResendVerificationDto("not-an-email");
 
         mockMvc.perform(post("/auth/resend-verification")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
@@ -372,7 +377,7 @@ class AuthenticationControllerTest {
                 .when(emailVerificationService).resendVerificationEmail("unknown@example.com");
 
         mockMvc.perform(post("/auth/resend-verification")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound());
@@ -385,7 +390,7 @@ class AuthenticationControllerTest {
                 .when(emailVerificationService).resendVerificationEmail("john@example.com");
 
         mockMvc.perform(post("/auth/resend-verification")
-                        .with(csrf())
+                        .with(csrf()).header("X-CSRF-Protection", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isConflict());

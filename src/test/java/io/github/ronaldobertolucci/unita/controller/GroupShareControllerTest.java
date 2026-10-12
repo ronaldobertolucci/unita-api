@@ -77,14 +77,14 @@ class GroupShareControllerTest {
     }
 
     @Test
-    void getPermissions_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getPermissions_WhenUnauthenticated_ShouldReturn401() throws Exception {
         GroupSharePermissionsUpdateDto dto = new GroupSharePermissionsUpdateDto(
                 List.of(new GroupSharePermissionUpdateItemDto(ShareType.BALANCE, true)));
 
         mockMvc.perform(get("/groups/1/share/permissions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -137,14 +137,14 @@ class GroupShareControllerTest {
     }
 
     @Test
-    void updatePermissions_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updatePermissions_WhenUnauthenticated_ShouldReturn401() throws Exception {
         GroupSharePermissionsUpdateDto dto = new GroupSharePermissionsUpdateDto(
                 List.of(new GroupSharePermissionUpdateItemDto(ShareType.BALANCE, true)));
 
         mockMvc.perform(put("/groups/1/share/permissions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -218,9 +218,9 @@ class GroupShareControllerTest {
     }
 
     @Test
-    void getPockets_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getPockets_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/share/pockets"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

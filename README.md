@@ -140,3 +140,6 @@ docker compose down -v
 ## Licença
 
 [GNU General Public License v3](https://github.com/ronaldobertolucci/unita-api?tab=GPL-3.0-1-ov-file)
+### Expiração e renovação de sessão
+
+O fluxo de JWT, refresh rotativo, logout e integração com frontend está descrito em [docs/auth-session.md](docs/auth-session.md). Os padrões atendem HTTP em rede local; ajuste as origens explícitas de CORS e use o mesmo hostname/IP no frontend e na API. Para HTTPS, configure `AUTH_COOKIE_SECURE=true`.

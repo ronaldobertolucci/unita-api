@@ -80,9 +80,9 @@ class NotificationControllerTest {
     }
 
     @Test
-    void streamNotifications_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void streamNotifications_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/notifications/stream"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         verify(sseEmitterService, never()).createEmitter(any());
     }

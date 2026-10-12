@@ -71,7 +71,6 @@ public class AdminInitializer implements ApplicationRunner {
         logger.warn("═══════════════════════════════════════");
         logger.warn("Admin user created:");
         logger.warn("Email: {}", adminEmail);
-        logger.warn("Password: {}", adminPassword);
         logger.warn("⚠️  CHANGE THIS PASSWORD IMMEDIATELY!");
         logger.warn("═══════════════════════════════════════");
     }

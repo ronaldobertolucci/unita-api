@@ -78,9 +78,9 @@ class GroupDashboardControllerTest {
     }
 
     @Test
-    void getGroupDashboard_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupDashboard_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/dashboard"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -146,9 +146,9 @@ class GroupDashboardControllerTest {
     }
 
     @Test
-    void getGroupFinancialSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupFinancialSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/dashboard/summary"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -189,9 +189,9 @@ class GroupDashboardControllerTest {
     }
 
     @Test
-    void getGroupMonthlyFinancialSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupMonthlyFinancialSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/dashboard/monthly"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -243,9 +243,9 @@ class GroupDashboardControllerTest {
     }
 
     @Test
-    void getGroupIssuerRiskSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupIssuerRiskSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/dashboard/issuer-risk"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -301,9 +301,9 @@ class GroupDashboardControllerTest {
     }
 
     @Test
-    void getGroupIndexerSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupIndexerSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/dashboard/indexer-summary"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -351,8 +351,8 @@ class GroupDashboardControllerTest {
     }
 
     @Test
-    void getGroupNetProfit_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupNetProfit_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/groups/1/dashboard/net-profit"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

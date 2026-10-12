@@ -102,7 +102,7 @@ class CreditCardControllerTest {
     }
     
     @Test
-    void createCreditCard_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createCreditCard_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardCreateDto dto = new CreditCardCreateDto(
                 1L, "1234", 1L, new BigDecimal("5000.00"), 10, 15);
         when(creditCardService.createCreditCard(any(), any())).thenReturn(creditCardDto());
@@ -110,7 +110,7 @@ class CreditCardControllerTest {
         mockMvc.perform(post("/credit-cards")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -143,11 +143,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findMyCreditCards_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findMyCreditCards_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findMyCreditCards(any())).thenReturn(List.of());
 
         mockMvc.perform(get("/credit-cards/my"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -170,11 +170,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findCreditCardById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findCreditCardById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findCreditCardById(eq(1L), any())).thenReturn(creditCardDto());
 
         mockMvc.perform(get("/credit-cards/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -245,13 +245,13 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void updateCreditCard_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateCreditCard_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardUpdateDto dto = new CreditCardUpdateDto(15, 20, null);
 
         mockMvc.perform(patch("/credit-cards/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -263,11 +263,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void deleteCreditCard_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteCreditCard_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(creditCardService).deleteCreditCard(eq(1L), any());
 
         mockMvc.perform(delete("/credit-cards/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -294,11 +294,11 @@ class CreditCardControllerTest {
     }
     
     @Test
-    void findBills_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findBills_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findBills(eq(1L), any())).thenReturn(List.of(openBillDto()));
         
         mockMvc.perform(get("/credit-cards/1/bills"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -312,11 +312,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findBillById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findBillById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findBillById(eq(1L), eq(1L), any())).thenReturn(openBillDto());
 
         mockMvc.perform(get("/credit-cards/1/bills/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -344,7 +344,7 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void payBill_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void payBill_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardBillPayDto dto = new CreditCardBillPayDto(1L);
         CreditCardBillDto paidBill = new CreditCardBillDto(1L, LocalDate.of(2025, 1, 10),
                 LocalDate.of(2025, 2, 5), CreditCardBillStatus.PAID,
@@ -354,7 +354,7 @@ class CreditCardControllerTest {
         mockMvc.perform(put("/credit-cards/1/bills/1/pay")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -413,9 +413,9 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void reopenBill_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void reopenBill_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(put("/credit-cards/1/bills/1/reopen"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -452,9 +452,9 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void closeBill_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void closeBill_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(put("/credit-cards/1/bills/1/close"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -499,9 +499,9 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findBillStatement_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findBillStatement_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/credit-cards/1/bills/1/installments"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -523,7 +523,7 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void createPurchase_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createPurchase_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardPurchaseCreateDto dto = new CreditCardPurchaseCreateDto(
                 "Supermercado", new BigDecimal("300.00"), LocalDate.of(2025, 1, 5), 1);
         when(creditCardService.createPurchase(eq(1L), any(), any())).thenReturn(purchaseDto());
@@ -531,7 +531,7 @@ class CreditCardControllerTest {
         mockMvc.perform(post("/credit-cards/1/purchases")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -555,11 +555,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findPurchases_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findPurchases_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findPurchases(eq(1L), any())).thenReturn(List.of(purchaseDto()));
 
         mockMvc.perform(get("/credit-cards/1/purchases"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -571,11 +571,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void deletePurchase_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deletePurchase_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(creditCardService).deletePurchase(eq(1L), eq(1L), any());
 
         mockMvc.perform(delete("/credit-cards/1/purchases/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -607,7 +607,7 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void createInstallment_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createInstallment_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(
                 1, new BigDecimal("300.00"), 1L);
         when(creditCardService.createInstallment(eq(1L), eq(1L), any(), any()))
@@ -616,7 +616,7 @@ class CreditCardControllerTest {
         mockMvc.perform(post("/credit-cards/1/purchases/1/installments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -640,12 +640,12 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findInstallments_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findInstallments_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findInstallments(eq(1L), eq(1L), any()))
                 .thenReturn(List.of(installmentDto()));
 
         mockMvc.perform(get("/credit-cards/1/purchases/1/installments"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -665,7 +665,7 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void updateInstallment_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void updateInstallment_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardInstallmentUpdateDto dto = new CreditCardInstallmentUpdateDto(
                 new BigDecimal("300.00"), 2L);
         CreditCardInstallmentDto updated = new CreditCardInstallmentDto(1L, 1, LocalDate.of(2025, 3, 5),
@@ -676,7 +676,7 @@ class CreditCardControllerTest {
         mockMvc.perform(put("/credit-cards/1/purchases/1/installments/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -711,11 +711,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void deleteInstallment_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteInstallment_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(creditCardService).deleteInstallment(eq(1L), eq(1L), eq(1L), any());
 
         mockMvc.perform(delete("/credit-cards/1/purchases/1/installments/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -747,7 +747,7 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void createRefund_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createRefund_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardRefundCreateDto dto = new CreditCardRefundCreateDto(
                 "Estorno", new BigDecimal("50.00"), LocalDate.of(2025, 1, 8), 1L);
         when(creditCardService.createRefund(eq(1L), eq(1L), any(), any()))
@@ -756,7 +756,7 @@ class CreditCardControllerTest {
         mockMvc.perform(post("/credit-cards/1/bills/1/refunds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -781,12 +781,12 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void findRefunds_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void findRefunds_WhenUnauthenticated_ShouldReturn401() throws Exception {
         when(creditCardService.findRefunds(eq(1L), eq(1L), any()))
                 .thenReturn(List.of(refundDto()));
 
         mockMvc.perform(get("/credit-cards/1/bills/1/refunds"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -798,11 +798,11 @@ class CreditCardControllerTest {
     }
 
     @Test
-    void deleteRefund_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void deleteRefund_WhenUnauthenticated_ShouldReturn401() throws Exception {
         doNothing().when(creditCardService).deleteRefund(eq(1L), eq(1L), eq(1L), any());
 
         mockMvc.perform(delete("/credit-cards/1/bills/1/refunds/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

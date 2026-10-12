@@ -62,9 +62,9 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getDashboard_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getDashboard_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/dashboard"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -100,9 +100,9 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getFinancialSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getFinancialSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/dashboard/summary"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -138,9 +138,9 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getMonthlyFinancialSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getMonthlyFinancialSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/dashboard/monthly"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -165,9 +165,9 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getIssuerRiskSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getIssuerRiskSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/dashboard/issuer-risk"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -192,9 +192,9 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getIndexerSummary_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getIndexerSummary_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/dashboard/indexer-summary"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -212,8 +212,8 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getNetProfit_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getNetProfit_WhenUnauthenticated_ShouldReturn401() throws Exception {
         mockMvc.perform(get("/dashboard/net-profit"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

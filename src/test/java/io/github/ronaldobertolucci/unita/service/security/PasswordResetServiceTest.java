@@ -44,6 +44,9 @@ class PasswordResetServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private io.github.ronaldobertolucci.unita.repository.RefreshSessionRepository refreshSessions;
+
     @InjectMocks
     private PasswordResetService passwordResetService;
 

@@ -1,5 +1,7 @@
 package io.github.ronaldobertolucci.unita.config.security;
 
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.exceptions.TokenExpiredException;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
 import io.github.ronaldobertolucci.unita.service.security.TokenService;
 import jakarta.servlet.FilterChain;
@@ -8,60 +10,58 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
 public class SecurityFilter extends OncePerRequestFilter {
-
-    private static final Logger logger = LoggerFactory.getLogger(SecurityFilter.class);
     private final TokenService tokenService;
     private final UserRepository repository;
-
-    @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
-
-        try {
-            var tokenJWT = getToken(request);
-            if (tokenJWT != null) {
-                var subject = tokenService.getSubject(tokenJWT);
-                var user = repository.findByUsername(subject); // Lança exception se não encontrar
-
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        user,
-                        null,
-                        user.getAuthorities()
-                );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
-        } catch (Exception e) {
-            logger.error("Authentication error: {}", e.getMessage());
-            // Não autentica, apenas continua o filtro
-            // O Spring Security vai retornar 401/403 automaticamente
-        }
-
-        filterChain.doFilter(request, response);
+    @Override protected boolean shouldNotFilter(HttpServletRequest request) {
+        var paths = PathPatternRequestMatcher.withDefaults();
+        return (paths.matcher("/auth/**").matches(request) && !paths.matcher("/auth/me").matches(request))
+                || paths.matcher("/password/**").matches(request)
+                || paths.matcher("/swagger-ui/**").matches(request)
+                || paths.matcher("/swagger-ui.html").matches(request)
+                || paths.matcher("/v3/api-docs/**").matches(request);
     }
-
+    @Override protected void doFilterInternal(@NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response, @NonNull FilterChain chain) throws ServletException, IOException {
+        String token = getToken(request);
+        if (token != null) {
+            try {
+                String subject = tokenService.getSubject(token);
+                var user = subject == null ? null : repository.findByEmailWithRoles(subject).orElse(null);
+                if (user == null || !user.isEnabled()) {
+                    reject(response, "INVALID_TOKEN"); return;
+                }
+                SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+            } catch (TokenExpiredException e) {
+                reject(response, "SESSION_EXPIRED"); return;
+            } catch (JWTVerificationException e) {
+                reject(response, "INVALID_TOKEN"); return;
+            }
+        }
+        chain.doFilter(request, response);
+    }
+    private void reject(HttpServletResponse response, String code) throws IOException {
+        SecurityContextHolder.clearContext();
+        AuthenticationErrors.write(response, 401, code);
+    }
     private String getToken(HttpServletRequest request) {
-        var authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring(7).trim();
+        String header = request.getHeader("Authorization");
+        if (header != null) {
+            if (header.regionMatches(true, 0, "Bearer ", 0, 7)) return header.substring(7).trim();
+            return ""; // An unsupported/malformed Authorization header is invalid authentication.
         }
-
-        if (request.getRequestURI().contains("/notifications/stream")) {
+        if (PathPatternRequestMatcher.withDefaults().matcher("/notifications/stream").matches(request))
             return request.getParameter("token");
-        }
         return null;
     }
 }

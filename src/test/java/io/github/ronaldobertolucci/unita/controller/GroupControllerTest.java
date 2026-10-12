@@ -106,7 +106,7 @@ class GroupControllerTest {
     }
 
     @Test
-    void createGroup_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void createGroup_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         GroupCreateDto dto = new GroupCreateDto("Family");
         when(groupService.createGroup(any(GroupCreateDto.class), any()))
@@ -117,7 +117,7 @@ class GroupControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andDo(print())
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -151,14 +151,14 @@ class GroupControllerTest {
     }
 
     @Test
-    void getMyGroups_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getMyGroups_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(groupService.getMyGroups(any())).thenReturn(List.of(groupDto));
 
         // Act & Assert
         mockMvc.perform(get("/groups/my"))
                 .andDo(print())
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -176,13 +176,13 @@ class GroupControllerTest {
     }
 
     @Test
-    void getGroupsWhereIAmResponsible_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupsWhereIAmResponsible_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(groupService.getGroupsWhereIAmResponsible(any())).thenReturn(List.of(groupDto));
 
         // Act & Assert
         mockMvc.perform(get("/groups/my/responsible"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -200,13 +200,13 @@ class GroupControllerTest {
     }
 
     @Test
-    void getGroupById_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupById_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(groupService.getGroupById(eq(1L), any())).thenReturn(groupDto);
 
         // Act & Assert
         mockMvc.perform(get("/groups/1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -246,7 +246,7 @@ class GroupControllerTest {
     }
 
     @Test
-    void transferResponsibility_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void transferResponsibility_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         GroupUpdateResponsibleDto dto = new GroupUpdateResponsibleDto(2L);
         when(groupService.transferResponsibility(eq(1L), any(GroupUpdateResponsibleDto.class), any()))
@@ -256,7 +256,7 @@ class GroupControllerTest {
         mockMvc.perform(put("/groups/1/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -288,13 +288,13 @@ class GroupControllerTest {
     }
 
     @Test
-    void leaveGroup_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void leaveGroup_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         doNothing().when(groupService).leaveGroup(eq(1L), any());
 
         // Act & Assert
         mockMvc.perform(delete("/groups/1/leave"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -321,7 +321,7 @@ class GroupControllerTest {
     }
 
     @Test
-    void getGroupMembers_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupMembers_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         GroupMembership membership = GroupMembership.builder()
                 .id(1L)
@@ -336,7 +336,7 @@ class GroupControllerTest {
 
         // Act & Assert
         mockMvc.perform(get("/groups/1/members"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -353,12 +353,12 @@ class GroupControllerTest {
     }
 
     @Test
-    void getGroupMemberCount_WhenUnauthenticated_ShouldReturn403() throws Exception {
+    void getGroupMemberCount_WhenUnauthenticated_ShouldReturn401() throws Exception {
         // Arrange
         when(groupService.getGroupMemberCount(eq(1L), any())).thenReturn(5L);
 
         // Act & Assert
         mockMvc.perform(get("/groups/1/members/count"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

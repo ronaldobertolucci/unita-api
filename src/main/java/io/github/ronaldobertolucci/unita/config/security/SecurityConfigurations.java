@@ -27,7 +27,14 @@ public class SecurityConfigurations {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(req -> req.requestMatchers("/auth/**", "/password/**").permitAll()
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) ->
+                                AuthenticationErrors.write(response, 401, "AUTHENTICATION_REQUIRED"))
+                        .accessDeniedHandler((request, response, exception) ->
+                                AuthenticationErrors.write(response, 403, "ACCESS_DENIED")))
+                .authorizeHttpRequests(req -> req.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/auth/me").authenticated()
+                        .requestMatchers("/auth/**", "/password/**").permitAll()
                         .requestMatchers("/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/api/**").hasAnyAuthority("USER", "ADMIN")
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
@@ -35,6 +42,13 @@ public class SecurityConfigurations {
                         .anyRequest().authenticated())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    @Bean
+    org.springframework.boot.web.servlet.FilterRegistrationBean<SecurityFilter> jwtFilterRegistration() {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(securityFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

@@ -73,12 +73,9 @@ class TokenServiceTest {
         String invalidToken = "invalid.token.here";
 
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        assertThrows(com.auth0.jwt.exceptions.JWTVerificationException.class,
                 () -> tokenService.getSubject(invalidToken));
 
-        assertTrue(exception.getMessage().contains("JWT") ||
-                exception.getMessage().contains("token") ||
-                exception.getMessage().contains("Invalid"));
     }
 
     @Test
@@ -133,12 +130,9 @@ class TokenServiceTest {
         String tamperedToken = parts[0] + "." + parts[1] + ".tamperedSignature";
 
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        assertThrows(com.auth0.jwt.exceptions.JWTVerificationException.class,
                 () -> tokenService.getSubject(tamperedToken));
 
-        assertTrue(exception.getMessage().contains("JWT") ||
-                exception.getMessage().contains("token") ||
-                exception.getMessage().contains("Invalid"));
     }
 
     @Test
@@ -150,11 +144,8 @@ class TokenServiceTest {
         ReflectionTestUtils.setField(tokenService, "issuer", "DifferentIssuer");
 
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        assertThrows(com.auth0.jwt.exceptions.JWTVerificationException.class,
                 () -> tokenService.getSubject(token));
 
-        assertTrue(exception.getMessage().contains("JWT") ||
-                exception.getMessage().contains("token") ||
-                exception.getMessage().contains("Invalid"));
     }
 }
