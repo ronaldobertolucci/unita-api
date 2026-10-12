@@ -22,6 +22,11 @@ public class EmailService {
 
     @Async
     public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        sendHtmlEmailSynchronously(to, subject, htmlContent);
+    }
+
+    // Verification must report real delivery failures before responding and commit no orphan token.
+    public void sendHtmlEmailSynchronously(String to, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

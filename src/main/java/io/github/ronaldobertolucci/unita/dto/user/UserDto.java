@@ -14,6 +14,7 @@ public record UserDto(
         String email,
         LocalDate dateOfBirth,
         Boolean enabled,
+        Boolean emailVerified,
         Set<String> roles
 ) {
     public UserDto(User user) {
@@ -24,6 +25,7 @@ public record UserDto(
                 user.getEmail(),
                 user.getDateOfBirth(),
                 user.getEnabled(),
+                user.getEmailVerified(),
                 user.getRoles().stream()
                         .map(Role::getName)
                         .collect(Collectors.toSet())

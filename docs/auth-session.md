@@ -60,7 +60,7 @@ Respostas bem-sucedidas de login/refresh/logout e erros do handler de refresh us
 | 401 | `SESSION_EXPIRED` | Renovar uma vez; 401 do refresh exige login |
 | 403 | `ACCESS_DENIED` | Mostrar falta de permissão, sem refresh |
 
-Os 401 de recursos protegidos incluem `WWW-Authenticate: Bearer`, exposto pelo CORS. Credenciais inválidas no login continuam retornando 401 com o formato de erro de login anterior. Contas desabilitadas não autenticam nem renovam.
+Os 401 de recursos protegidos incluem `WWW-Authenticate: Bearer`, exposto pelo CORS. Credenciais inválidas no login continuam retornando 401 com o formato de erro de login anterior. Contas desabilitadas ou sem confirmação não autenticam nem renovam. Os códigos de login `EMAIL_NOT_VERIFIED` e `ACCOUNT_DISABLED` e a migração dos dados legados estão em [auth-account-state.md](auth-account-state.md).
 
 ## Persistência, atomicidade e revogação
 
@@ -72,7 +72,7 @@ Operações bloqueiam primeiro o usuário e depois a sessão com `SELECT ... FOR
 
 Duas renovações usando o mesmo token são serializadas: uma pode obter sucesso e a outra detecta reutilização e revoga a sessão inteira, incluindo o token recém emitido. Logout revoga apenas a sessão identificada, mesmo quando o cookie contém um token antigo conhecido.
 
-**Logout e redefinição de senha impedem novas renovações. JWTs já emitidos continuam válidos até expirar.** Não há blacklist nem vínculo do JWT à sessão. O filtro consulta o usuário atual e rejeita contas desabilitadas ou excluídas.
+**Logout e redefinição de senha impedem novas renovações. JWTs já emitidos continuam válidos até expirar.** Não há blacklist nem vínculo do JWT à sessão. O filtro consulta o usuário atual e rejeita contas desabilitadas, não confirmadas ou excluídas.
 
 ## Configuração
 

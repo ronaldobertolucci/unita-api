@@ -40,6 +40,13 @@ class AuthFlowIntegrationTest {
     @Autowired PasswordResetService passwords;
     @Autowired PasswordResetTokenRepository resetTokens;
     @Autowired JdbcTemplate jdbc;
+    @Autowired io.github.ronaldobertolucci.unita.service.email.EmailVerificationService verification;
+    @Autowired io.github.ronaldobertolucci.unita.service.user.UserService userService;
+    @Autowired EmailVerificationTokenRepository verificationTokens;
+    @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
+    @Autowired jakarta.persistence.EntityManager entityManager;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    io.github.ronaldobertolucci.unita.service.email.EmailService emailService;
     User user;
 
     @BeforeEach void setup() {
@@ -48,7 +55,7 @@ class AuthFlowIntegrationTest {
         user = users.save(User.builder().firstName("Auth").lastName("Test")
                 .email(java.util.UUID.randomUUID() + "@example.com")
                 .dateOfBirth(LocalDate.of(1990, 1, 1)).password(encoder.encode("password123"))
-                .enabled(true).roles(Set.of(roles.findByName("USER").orElseThrow())).build());
+                .enabled(true).emailVerified(true).roles(Set.of(roles.findByName("USER").orElseThrow())).build());
     }
     String expiredJwt() {
         return JWT.create().withIssuer("Unita API").withSubject(user.getEmail())
@@ -184,4 +191,169 @@ class AuthFlowIntegrationTest {
             assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM refresh_sessions WHERE revoked = true", Integer.class));
         }
     }
+    MvcResult attemptLogin(String email, String password) throws Exception {
+        return mvc.perform(post("/auth/login").header("X-CSRF-Protection", "1")
+                .contentType("application/json")
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+                .andReturn();
+    }
+    void assertRejected(MvcResult result, int status, String code) throws Exception {
+        assertEquals(status, result.getResponse().getStatus());
+        String body = result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(body.contains("\"code\":\"" + code + "\""), body);
+        assertNull(result.getResponse().getHeader("Set-Cookie"));
+        assertNull(result.getRequest().getSession(false));
+        assertFalse(body.contains("\"token\""));
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM refresh_sessions", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM refresh_token_history", Integer.class));
+    }
+    @Test void passwordCorrectAccountStateMatrix() throws Exception {
+        for (boolean enabled : new boolean[]{true, false}) {
+            for (boolean verified : new boolean[]{true, false}) {
+                if (enabled && verified) continue; // covered by loginCookieAndRotationThroughHttp
+                jdbc.update("UPDATE users SET enabled = ?, email_verified = ? WHERE id = ?",
+                        enabled, verified, user.getId());
+                assertRejected(attemptLogin(user.getEmail(), "password123"), 403,
+                        enabled ? "EMAIL_NOT_VERIFIED" : "ACCOUNT_DISABLED");
+            }
+        }
+    }
+    @Test void wrongPasswordAndUnknownUserHaveIdenticalGenericContract() throws Exception {
+        for (boolean enabled : new boolean[]{true, false}) {
+            for (boolean verified : new boolean[]{true, false}) {
+                jdbc.update("UPDATE users SET enabled = ?, email_verified = ? WHERE id = ?",
+                        enabled, verified, user.getId());
+                var result = attemptLogin(user.getEmail(), "wrong-password");
+                assertEquals(401, result.getResponse().getStatus());
+                var body = result.getResponse().getContentAsString();
+                assertTrue(body.contains("Invalid email or password"));
+                assertFalse(body.contains("ACCOUNT_DISABLED"));
+                assertFalse(body.contains("EMAIL_NOT_VERIFIED"));
+                assertNull(result.getResponse().getHeader("Set-Cookie"));
+                assertNull(result.getRequest().getSession(false));
+            }
+        }
+        var unknown = attemptLogin("unknown-" + java.util.UUID.randomUUID() + "@example.com", "password123");
+        assertEquals(401, unknown.getResponse().getStatus());
+        assertTrue(unknown.getResponse().getContentAsString().contains("Invalid email or password"));
+        assertNull(unknown.getResponse().getHeader("Set-Cookie"));
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM refresh_sessions", Integer.class));
+    }
+    @Test void registrationAndAdministrativeEnableNeverConfirmEmail() throws Exception {
+        String email = java.util.UUID.randomUUID() + "@example.com";
+        mvc.perform(post("/auth/register").contentType("application/json")
+                .content("{\"firstName\":\"Example\",\"lastName\":\"User\",\"email\":\"" + email
+                        + "\",\"dateOfBirth\":\"1990-01-01\",\"password\":\"password123\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.enabled").value(true))
+                .andExpect(jsonPath("$.emailVerified").value(false));
+        User pending = users.findByEmailWithRoles(email).orElseThrow();
+        assertTrue(pending.isEnabled()); assertFalse(pending.getEmailVerified());
+        userService.disable(pending.getId());
+        var enabled = userService.enable(pending.getId());
+        assertTrue(enabled.enabled()); assertFalse(enabled.emailVerified());
+        assertRejected(attemptLogin(email, "password123"), 403, "EMAIL_NOT_VERIFIED");
+    }
+    @Test void disablingBlocksLoginRefreshAndExistingJwt() throws Exception {
+        var issued = sessions.login(user);
+        userService.disable(user.getId());
+        mvc.perform(get("/auth/me").header("Authorization", "Bearer " + issued.access().token()))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+        mvc.perform(post("/auth/login").header("X-CSRF-Protection", "1").contentType("application/json")
+                .content("{\"email\":\"" + user.getEmail() + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"))
+                .andExpect(header().doesNotExist("Set-Cookie"));
+        mvc.perform(post("/auth/refresh").header("X-CSRF-Protection", "1")
+                .cookie(new Cookie(RefreshCookie.NAME, issued.refreshToken())))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("SESSION_EXPIRED"));
+    }
+    @Test void unverifiedBlocksRefreshAndExistingJwt() throws Exception {
+        var issued = sessions.login(user);
+        jdbc.update("UPDATE users SET email_verified = false WHERE id = ?", user.getId());
+        assertThrows(RefreshRejectedException.class, () -> sessions.refresh(issued.refreshToken()));
+        mvc.perform(get("/auth/me").header("Authorization", "Bearer " + issued.access().token()))
+                .andExpect(status().isUnauthorized());
+    }
+    @Test void staleAuthenticatedPrincipalCannotBypassDisable() {
+        jdbc.update("UPDATE users SET enabled = false WHERE id = ?", user.getId());
+        var ex = assertThrows(io.github.ronaldobertolucci.unita.exception.AccountStateException.class,
+                () -> sessions.login(user));
+        assertEquals("ACCOUNT_DISABLED", ex.getCode());
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM refresh_sessions", Integer.class));
+    }
+    @Test void resendPrivacyMatrixAndRealDeliveryFailure() throws Exception {
+        org.mockito.Mockito.reset(emailService);
+        for (boolean enabled : new boolean[]{true, false}) {
+            for (boolean verified : new boolean[]{true, false}) {
+                jdbc.update("UPDATE users SET enabled = ?, email_verified = ? WHERE id = ?", enabled, verified, user.getId());
+                mvc.perform(post("/auth/resend-verification").contentType("application/json")
+                        .content("{\"email\":\"" + user.getEmail() + "\"}"))
+                        .andExpect(status().isOk()).andExpect(content().string(""));
+            }
+        }
+        mvc.perform(post("/auth/resend-verification").contentType("application/json")
+                .content("{\"email\":\"unknown-" + java.util.UUID.randomUUID() + "@example.com\"}"))
+                .andExpect(status().isOk()).andExpect(content().string(""));
+        org.mockito.Mockito.verify(emailService, org.mockito.Mockito.times(1)).sendHtmlEmailSynchronously(
+                org.mockito.ArgumentMatchers.eq(user.getEmail()), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM email_verification_tokens WHERE user_id = ?", Integer.class, user.getId()));
+        mvc.perform(post("/auth/resend-verification").contentType("application/json")
+                .content("{\"email\":\"invalid\"}")).andExpect(status().isBadRequest());
+        jdbc.update("UPDATE users SET enabled = true, email_verified = false WHERE id = ?", user.getId());
+        org.mockito.Mockito.doThrow(new org.springframework.mail.MailSendException("delivery failure"))
+                .when(emailService).sendHtmlEmailSynchronously(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        mvc.perform(post("/auth/resend-verification").contentType("application/json")
+                .content("{\"email\":\"" + user.getEmail() + "\"}"))
+                .andExpect(status().isInternalServerError()).andExpect(header().doesNotExist("Set-Cookie"));
+        // Failure rolls back the newly created token.
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM email_verification_tokens WHERE user_id = ?", Integer.class, user.getId()));
+    }
+    @Test void confirmationWithStaleUserCannotOverwriteConcurrentDisable() throws Exception {
+        jdbc.update("UPDATE users SET email_verified = false WHERE id = ?", user.getId());
+        var token = verificationTokens.save(io.github.ronaldobertolucci.unita.model.security.EmailVerificationToken.builder()
+                .token(java.util.UUID.randomUUID().toString()).user(user).expiryDate(LocalDateTime.now().plusHours(1)).build());
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            transactions.executeWithoutResult(tx -> {
+                User stale = users.findById(user.getId()).orElseThrow();
+                assertTrue(stale.isEnabled());
+                try { executor.submit(() -> userService.disable(user.getId())).get(15, TimeUnit.SECONDS); }
+                catch (Exception e) { throw new RuntimeException(e); }
+                // The token resolves to the already managed user with stale enabled=true.
+                verification.verifyEmail(token.getToken());
+            });
+        }
+        var confirmed = users.findById(user.getId()).orElseThrow();
+        assertFalse(confirmed.isEnabled()); assertTrue(confirmed.getEmailVerified());
+        assertTrue(verificationTokens.findByToken(token.getToken()).orElseThrow().isUsed());
+        assertRejected(attemptLogin(user.getEmail(), "password123"), 403, "ACCOUNT_DISABLED");
+    }
+    @Test void administrativeUpdateDoesNotOverwriteConcurrentConfirmation() throws Exception {
+        jdbc.update("UPDATE users SET enabled = false, email_verified = false WHERE id = ?", user.getId());
+        var token = verificationTokens.save(io.github.ronaldobertolucci.unita.model.security.EmailVerificationToken.builder()
+                .token(java.util.UUID.randomUUID().toString()).user(user).expiryDate(LocalDateTime.now().plusHours(1)).build());
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            transactions.executeWithoutResult(tx -> {
+                User stale = users.findById(user.getId()).orElseThrow();
+                assertFalse(stale.getEmailVerified());
+                try { executor.submit(() -> verification.verifyEmail(token.getToken())).get(15, TimeUnit.SECONDS); }
+                catch (Exception e) { throw new RuntimeException(e); }
+                userService.enable(user.getId());
+            });
+        }
+        var enabled = users.findById(user.getId()).orElseThrow();
+        assertTrue(enabled.isEnabled()); assertTrue(enabled.getEmailVerified());
+    }
+
+    @Test void confirmationCompletesPendingRegistrationAndAllowsLogin() throws Exception {
+        jdbc.update("UPDATE users SET email_verified = false WHERE id = ?", user.getId());
+        var token = verificationTokens.save(io.github.ronaldobertolucci.unita.model.security.EmailVerificationToken.builder()
+                .token(java.util.UUID.randomUUID().toString()).user(user).expiryDate(LocalDateTime.now().plusHours(1)).build());
+        mvc.perform(get("/auth/verify-email").param("token", token.getToken())).andExpect(status().isOk());
+        var confirmed = users.findById(user.getId()).orElseThrow();
+        assertTrue(confirmed.isEnabled()); assertTrue(confirmed.getEmailVerified());
+        assertTrue(verificationTokens.findByToken(token.getToken()).orElseThrow().isUsed());
+        login();
+    }
+
 }

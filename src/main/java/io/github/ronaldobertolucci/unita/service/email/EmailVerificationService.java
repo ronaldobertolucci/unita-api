@@ -4,11 +4,7 @@ import io.github.ronaldobertolucci.unita.model.security.EmailVerificationToken;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.EmailVerificationTokenRepository;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
-import io.github.ronaldobertolucci.unita.service.security.PasswordResetService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +17,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EmailVerificationService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EmailVerificationService.class);
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
@@ -45,7 +40,7 @@ public class EmailVerificationService {
         String link = frontendUrl + "/verify-email?token=" + token.getToken();
         String html = buildEmailHtml(user.getFirstName(), link);
 
-        emailService.sendHtmlEmail(user.getEmail(), "Verifique seu email", html);
+        emailService.sendHtmlEmailSynchronously(user.getEmail(), "Verifique seu email", html);
     }
 
     @Transactional
@@ -63,8 +58,7 @@ public class EmailVerificationService {
 
         token.setUsed(true);
 
-        User user = token.getUser();
-        user.setEnabled(true);
+        userRepository.confirmEmail(token.getUser().getId());
     }
 
     @Transactional
@@ -73,15 +67,12 @@ public class EmailVerificationService {
 
         if (userOptional.isEmpty()) {
             // Por segurança, não revelar que o email não existe
-            logger.info("Password reset requested for non-existent email: {}", email);
             return;
         }
 
         User user = userOptional.get();
 
-        if (user.isEnabled()) {
-            throw new IllegalStateException("Account is already verified");
-        }
+        if (!user.isEnabled() || Boolean.TRUE.equals(user.getEmailVerified())) return;
 
         sendVerificationEmail(user);
     }

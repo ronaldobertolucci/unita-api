@@ -143,3 +143,5 @@ docker compose down -v
 ### Expiração e renovação de sessão
 
 O fluxo de JWT, refresh rotativo, logout e integração com frontend está descrito em [docs/auth-session.md](docs/auth-session.md). Os padrões atendem HTTP em rede local; ajuste as origens explícitas de CORS e use o mesmo hostname/IP no frontend e na API. Para HTTPS, configure `AUTH_COOKIE_SECURE=true`.
+
+A distinção entre habilitação administrativa e confirmação de e-mail, os novos erros de login e a revisão dos dados legados estão em [docs/auth-account-state.md](docs/auth-account-state.md).

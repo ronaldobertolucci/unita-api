@@ -3,6 +3,8 @@ package io.github.ronaldobertolucci.unita.service.security;
 import io.github.ronaldobertolucci.unita.dto.security.TokenDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserDto;
 import io.github.ronaldobertolucci.unita.exception.RefreshRejectedException;
+import io.github.ronaldobertolucci.unita.exception.AccountStateException;
+import jakarta.persistence.EntityManager;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.RefreshSessionRepository;
 import io.github.ronaldobertolucci.unita.repository.UserRepository;
@@ -28,6 +30,7 @@ public class RefreshSessionService {
     private final RefreshSessionRepository sessions;
     private final UserRepository users;
     private final TokenService tokens;
+    private final EntityManager entityManager;
     private static final SecureRandom RANDOM = new SecureRandom();
     @Value("${api.security.refresh.expiration-days:7}") private int expirationDays;
 
@@ -40,6 +43,9 @@ public class RefreshSessionService {
         User current = users.findByIdWithRoles(authenticated.getId()).orElseThrow(RefreshRejectedException::new);
         if (!sessions.credentialsStillValid(authenticated.getId(), authenticated.getPassword()))
             throw new BadCredentialsException("Invalid credentials");
+        // OSIV may have cached this entity before the lock; reload administrative state.
+        entityManager.refresh(current);
+        AccountStateException.check(current);
         if (expirationDays <= 0) throw new IllegalStateException("Refresh expiration must be positive");
         String refresh = randomToken();
         Instant expiresAt = Instant.now().plus(Duration.ofDays(expirationDays)).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
@@ -56,7 +62,8 @@ public class RefreshSessionService {
         var session = sessions.lockSession(owner.sessionId()).orElseThrow(RefreshRejectedException::new);
         if (session.revoked() || !session.expiresAt().isAfter(Instant.now())) throw new RefreshRejectedException();
         User user = users.findByIdWithRoles(owner.userId()).orElseThrow(RefreshRejectedException::new);
-        if (!session.currentHash().equals(hash) || !user.isEnabled()) {
+        entityManager.refresh(user);
+        if (!session.currentHash().equals(hash) || !user.isAccessAllowed()) {
             sessions.revoke(session.id());
             throw new RefreshRejectedException();
         }

@@ -90,7 +90,8 @@ class UserServiceTest {
         assertEquals("john@example.com", result.email());
         assertEquals("John", result.firstName());
         assertEquals("Doe", result.lastName());
-        assertFalse(result.enabled());
+        assertTrue(result.enabled());
+        assertFalse(result.emailVerified());
 
         // Verify password was encoded
         verify(passwordEncoder, times(1)).encode("password123");
@@ -100,6 +101,8 @@ class UserServiceTest {
         verify(userRepository, times(1)).save(userCaptor.capture());
         User savedUser = userCaptor.getValue();
         assertEquals("encodedPassword", savedUser.getPassword());
+        assertTrue(savedUser.isEnabled());
+        assertFalse(savedUser.getEmailVerified());
     }
 
     @Test
@@ -180,6 +183,7 @@ class UserServiceTest {
         assertNotNull(result);
         assertTrue(result.enabled());
         assertTrue(testUser.getEnabled());
+        assertFalse(result.emailVerified());
         verify(userRepository, times(1)).findById(1L);
     }
 

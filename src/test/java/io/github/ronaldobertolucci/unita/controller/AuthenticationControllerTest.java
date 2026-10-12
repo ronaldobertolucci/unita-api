@@ -395,4 +395,17 @@ class AuthenticationControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isConflict());
     }
+    @Test
+    void login_WhenCredentialProviderHasInternalFailure_ShouldReturnServerError() throws Exception {
+        when(authenticationManager.authenticate(any())).thenThrow(
+                new org.springframework.security.authentication.InternalAuthenticationServiceException("database unavailable"));
+        mockMvc.perform(post("/auth/login").with(csrf()).header("X-CSRF-Protection", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new LoginDto("user@example.com", "password123"))))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("An unexpected error occurred"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().doesNotExist("Set-Cookie"));
+        verifyNoInteractions(sessions, tokenService);
+    }
+
 }

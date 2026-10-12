@@ -6,15 +6,30 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccountStateException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountState(AccountStateException ex) {
+        return ResponseEntity.status(403).header("Cache-Control", "no-store")
+                .body(Map.of("status", 403, "code", ex.getCode(), "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AuthenticationServiceException.class)
+    public ResponseEntity<ErrorResponseDto> handleAuthenticationServiceFailure(
+            AuthenticationServiceException ex,
+            HttpServletRequest request) {
+        return handleRuntimeException(ex, request);
+    }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleEntityNotFound(
@@ -144,7 +159,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<java.util.Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
-        return ResponseEntity.status(403).body(java.util.Map.of("status", 403, "code", "ACCESS_DENIED"));
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(403).body(Map.of("status", 403, "code", "ACCESS_DENIED"));
     }
 }

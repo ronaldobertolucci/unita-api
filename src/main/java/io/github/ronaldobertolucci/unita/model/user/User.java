@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.model.user;
 import io.github.ronaldobertolucci.unita.model.security.Role;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,6 +15,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
+@DynamicUpdate
 @Table(name = "users")
 @Getter
 @Setter
@@ -43,7 +45,12 @@ public class User implements UserDetails {
     private String password;
 
     @Column(name = "enabled", nullable = false)
+    @Builder.Default
     private Boolean enabled = true;
+
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private Boolean emailVerified = false;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -83,6 +90,10 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return this.enabled;
+        return Boolean.TRUE.equals(this.enabled);
+    }
+
+    public boolean isAccessAllowed() {
+        return isEnabled() && Boolean.TRUE.equals(emailVerified);
     }
 }

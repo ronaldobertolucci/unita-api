@@ -23,7 +23,7 @@ public class RefreshSessionRepository {
     public boolean credentialsStillValid(long userId, String passwordHash) {
         // Read directly after the lock: OSIV can contain an authentication principal loaded before a password reset.
         return Boolean.TRUE.equals(jdbc.queryForObject(
-                "SELECT enabled AND password = ? FROM users WHERE id = ?", Boolean.class, passwordHash, userId));
+                "SELECT password = ? FROM users WHERE id = ?", Boolean.class, passwordHash, userId));
     }
     public Optional<TokenOwner> findOwner(String hash) {
         return jdbc.query("""

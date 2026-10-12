@@ -37,7 +37,7 @@ public class SecurityFilter extends OncePerRequestFilter {
             try {
                 String subject = tokenService.getSubject(token);
                 var user = subject == null ? null : repository.findByEmailWithRoles(subject).orElse(null);
-                if (user == null || !user.isEnabled()) {
+                if (user == null || !user.isAccessAllowed()) {
                     reject(response, "INVALID_TOKEN"); return;
                 }
                 SecurityContextHolder.getContext().setAuthentication(

@@ -63,6 +63,8 @@ public class AdminInitializer implements ApplicationRunner {
                 .password(passwordEncoder.encode(adminPassword))
                 .dateOfBirth(LocalDate.of(1990, 1, 1))
                 .enabled(true)
+                // Trusted operator-provisioned bootstrap account; no public registration flow.
+                .emailVerified(true)
                 .roles(new HashSet<>(Set.of(adminRole)))
                 .build();
 
