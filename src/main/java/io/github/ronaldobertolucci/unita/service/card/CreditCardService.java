@@ -44,7 +44,7 @@ public class CreditCardService {
     public CreditCardDto createCreditCard(CreditCardCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
-        LegalEntity legalEntity = legalEntityRepository.findById(dto.legalEntityId())
+        LegalEntity legalEntity = legalEntityRepository.findByIdAndUserId(dto.legalEntityId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Legal entity not found"));
 
         CardBrand cardBrand = cardBrandRepository.findById(dto.cardBrandId())

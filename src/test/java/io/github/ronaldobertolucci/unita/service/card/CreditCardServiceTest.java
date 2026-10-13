@@ -77,7 +77,7 @@ class CreditCardServiceTest {
         CardBrand brand = buildCardBrand(20L);
         CreditCard saved = buildCard(1L, le, brand);
 
-        when(legalEntityRepository.findById(10L)).thenReturn(Optional.of(le));
+        when(legalEntityRepository.findByIdAndUserId(10L, currentUser.getId())).thenReturn(Optional.of(le));
         when(cardBrandRepository.findById(20L)).thenReturn(Optional.of(brand));
         when(creditCardRepository.save(any())).thenReturn(saved);
 
@@ -94,7 +94,7 @@ class CreditCardServiceTest {
         CardBrand brand = buildCardBrand(20L);
         CreditCard saved = buildCard(1L, le, brand);
 
-        when(legalEntityRepository.findById(10L)).thenReturn(Optional.of(le));
+        when(legalEntityRepository.findByIdAndUserId(10L, currentUser.getId())).thenReturn(Optional.of(le));
         when(cardBrandRepository.findById(20L)).thenReturn(Optional.of(brand));
         when(creditCardRepository.save(any())).thenReturn(saved);
 
@@ -106,7 +106,7 @@ class CreditCardServiceTest {
     @Test
     void createCreditCard_WhenLegalEntityNotFound_ShouldThrow() {
         CreditCardCreateDto dto = new CreditCardCreateDto(99L, "1234", 20L, new BigDecimal("5000"), 10, 20);
-        when(legalEntityRepository.findById(99L)).thenReturn(Optional.empty());
+        when(legalEntityRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class, () -> creditCardService.createCreditCard(dto, authentication));
         verify(creditCardRepository, never()).save(any());

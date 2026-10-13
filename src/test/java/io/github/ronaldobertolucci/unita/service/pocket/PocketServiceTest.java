@@ -72,7 +72,7 @@ class PocketServiceTest {
                 .agency("0001").bankAccountType(type).status(BankAccountStatus.ACTIVE).build();
         saved.setId(1L);
 
-        when(legalEntityRepository.findById(10L)).thenReturn(Optional.of(le));
+        when(legalEntityRepository.findByIdAndUserId(10L, currentUser.getId())).thenReturn(Optional.of(le));
         when(bankAccountTypeRepository.findById(1L)).thenReturn(Optional.of(type));
         when(bankAccountRepository.save(any())).thenReturn(saved);
 
@@ -85,7 +85,7 @@ class PocketServiceTest {
     @Test
     void createBankAccount_WhenLegalEntityNotFound_ShouldThrow() {
         BankAccountCreateDto dto = new BankAccountCreateDto(99L, "20", "12345-6", 1L);
-        when(legalEntityRepository.findById(99L)).thenReturn(Optional.empty());
+        when(legalEntityRepository.findByIdAndUserId(99L, currentUser.getId())).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class, () -> pocketService.createBankAccount(dto, authentication));
         verify(bankAccountRepository, never()).save(any());
@@ -94,7 +94,7 @@ class PocketServiceTest {
     @Test
     void createBankAccount_WhenBankAccountTypeNotFound_ShouldThrow() {
         BankAccountCreateDto dto = new BankAccountCreateDto(10L, "99", "12345-6", 1L);
-        when(legalEntityRepository.findById(10L)).thenReturn(Optional.of(buildLegalEntity(10L)));
+        when(legalEntityRepository.findByIdAndUserId(10L, currentUser.getId())).thenReturn(Optional.of(buildLegalEntity(10L)));
         when(bankAccountTypeRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class, () -> pocketService.createBankAccount(dto, authentication));

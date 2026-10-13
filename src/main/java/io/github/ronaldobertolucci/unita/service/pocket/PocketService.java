@@ -61,7 +61,7 @@ public class PocketService {
     public BankAccountDto createBankAccount(BankAccountCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
-        LegalEntity legalEntity = legalEntityRepository.findById(dto.legalEntityId())
+        LegalEntity legalEntity = legalEntityRepository.findByIdAndUserId(dto.legalEntityId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Legal entity not found"));
 
         BankAccountType bankAccountType = bankAccountTypeRepository.findById(dto.bankAccountTypeId())
@@ -117,7 +117,7 @@ public class PocketService {
     public BenefitAccountDto createBenefitAccount(BenefitAccountCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
-        LegalEntity legalEntity = legalEntityRepository.findById(dto.legalEntityId())
+        LegalEntity legalEntity = legalEntityRepository.findByIdAndUserId(dto.legalEntityId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Legal entity not found"));
 
         BenefitType benefitType = benefitTypeRepository.findById(dto.benefitTypeId())
@@ -171,7 +171,7 @@ public class PocketService {
     public FgtsEmployerAccountDto createFgtsEmployerAccount(FgtsEmployerAccountCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
-        Employer employer = employerRepository.findById(dto.employerId())
+        Employer employer = employerRepository.findByIdAndUserId(dto.employerId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Employer not found"));
 
         FgtsEmployerAccount fgtsAccount = FgtsEmployerAccount.builder()

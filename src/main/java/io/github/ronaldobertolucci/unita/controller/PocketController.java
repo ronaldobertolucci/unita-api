@@ -2,6 +2,8 @@ package io.github.ronaldobertolucci.unita.controller;
 
 import io.github.ronaldobertolucci.unita.dto.pocket.*;
 import io.github.ronaldobertolucci.unita.service.pocket.PocketService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,6 +36,8 @@ public class PocketController {
     // -------------------------------------------------------------------------
 
     @PostMapping("/bank-accounts")
+    @Operation(description = "Requires a legal entity owned by the authenticated user; group membership does not share private registrations.")
+    @ApiResponse(responseCode = "404", description = "Registration unavailable: nonexistent or owned by another user")
     public ResponseEntity<BankAccountDto> createBankAccount(
             @RequestBody @Valid BankAccountCreateDto dto,
             Authentication authentication) {
@@ -69,6 +73,8 @@ public class PocketController {
     // -------------------------------------------------------------------------
 
     @PostMapping("/benefit-accounts")
+    @Operation(description = "Requires a legal entity owned by the authenticated user; group membership does not share private registrations.")
+    @ApiResponse(responseCode = "404", description = "Registration unavailable: nonexistent or owned by another user")
     public ResponseEntity<BenefitAccountDto> createBenefitAccount(
             @RequestBody @Valid BenefitAccountCreateDto dto,
             Authentication authentication) {
@@ -104,6 +110,8 @@ public class PocketController {
     // -------------------------------------------------------------------------
 
     @PostMapping("/fgts")
+    @Operation(description = "Requires an employer owned by the authenticated user; group membership does not share private registrations.")
+    @ApiResponse(responseCode = "404", description = "Registration unavailable: nonexistent or owned by another user")
     public ResponseEntity<FgtsEmployerAccountDto> createFgtsEmployerAccount(
             @RequestBody @Valid FgtsEmployerAccountCreateDto dto,
             Authentication authentication) {

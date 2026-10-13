@@ -2,6 +2,8 @@ package io.github.ronaldobertolucci.unita.controller;
 
 import io.github.ronaldobertolucci.unita.dto.card.*;
 import io.github.ronaldobertolucci.unita.service.card.CreditCardService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,8 @@ public class CreditCardController {
     // -------------------------------------------------------------------------
 
     @PostMapping
+    @Operation(description = "Requires a legal entity owned by the authenticated user; group membership does not share private registrations.")
+    @ApiResponse(responseCode = "404", description = "Registration unavailable: nonexistent or owned by another user")
     public ResponseEntity<CreditCardDto> createCreditCard(
             @RequestBody @Valid CreditCardCreateDto dto,
             Authentication authentication) {
