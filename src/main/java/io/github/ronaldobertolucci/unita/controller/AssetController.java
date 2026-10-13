@@ -4,6 +4,8 @@ import io.github.ronaldobertolucci.unita.dto.investment.*;
 import io.github.ronaldobertolucci.unita.service.investment.AssetService;
 import io.github.ronaldobertolucci.unita.service.investment.InvestmentTransactionService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -124,6 +126,17 @@ public class AssetController {
                 .body(investmentTransactionService.yield(id, dto, authentication));
     }
 
+    @Operation(
+            summary = "Redeem the entire investment position",
+            description = "Requires grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
+                    + "Tax is supplied by the client. Zero net amount is permitted.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Full redemption registered with SELL and TAX transactions"),
+                    @ApiResponse(responseCode = "400", description = "Missing or invalid input amounts"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user"),
+                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed")
+            })
     @PostMapping("/{id}/transactions/sell")
     public ResponseEntity<List<InvestmentTransactionDto>> sell(
             @PathVariable Long id,

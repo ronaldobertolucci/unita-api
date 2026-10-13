@@ -18,6 +18,8 @@ import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -255,6 +257,17 @@ class InvestmentTransactionServiceTest {
     // -------------------------------------------------------------------------
     // sell
     // -------------------------------------------------------------------------
+
+    @ParameterizedTest
+    @CsvSource(value = {"null,0", "0,0", "-1,0", "100,null", "100,-50", "100,150"}, nullValues = "null")
+    void sell_WhenAmountsInvalid_ShouldRejectBeforeAnyRepositoryAccess(BigDecimal gross, BigDecimal tax) {
+        reset(authentication);
+        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.now(), 5L, 1L, null);
+        assertThrows(IllegalArgumentException.class,
+                () -> investmentTransactionService.sell(1L, dto, authentication));
+        verifyNoInteractions(assetRepository, pocketRepository, transactionRepository,
+                investmentTransactionRepository, investmentPositionRepository, categoryService, authentication);
+    }
 
     @Test
     void sell_WhenValid_ShouldCreateSellAndTaxTransactionsAndUpdatePosition() {

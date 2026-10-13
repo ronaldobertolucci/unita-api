@@ -162,6 +162,16 @@ public class InvestmentTransactionService {
 
     @Transactional
     public List<InvestmentTransactionDto> sell(Long assetId, InvestmentSellDto dto, Authentication authentication) {
+        if (dto.grossAmount() == null || dto.grossAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("grossAmount must be greater than zero");
+        }
+        if (dto.taxAmount() == null || dto.taxAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("taxAmount must be non-negative");
+        }
+        if (dto.taxAmount().compareTo(dto.grossAmount()) > 0) {
+            throw new IllegalArgumentException("taxAmount must not exceed grossAmount");
+        }
+
         User currentUser = (User) authentication.getPrincipal();
 
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())

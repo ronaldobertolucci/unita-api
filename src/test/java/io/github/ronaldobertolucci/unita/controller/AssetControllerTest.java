@@ -12,6 +12,8 @@ import io.github.ronaldobertolucci.unita.service.investment.InvestmentTransactio
 import io.github.ronaldobertolucci.unita.service.security.TokenService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -596,6 +598,24 @@ class AssetControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalid)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"null,0,grossAmount", "0,0,grossAmount", "-1,0,grossAmount",
+            "100,null,taxAmount", "100,-50,taxAmount"}, nullValues = "null")
+    void sell_WhenAmountsMissingOrWrongSign_ShouldReturnFieldError(
+            BigDecimal gross, BigDecimal tax, String field) throws Exception {
+        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.of(2026, 10, 13), 5L, 1L, null);
+        mockMvc.perform(post("/api/assets/1/transactions/sell").contextPath("/api")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.path").value("/api/assets/1/transactions/sell"))
+                .andExpect(jsonPath("$.errors[0].field").value(field));
+        verifyNoInteractions(investmentTransactionService);
     }
 
     @Test
