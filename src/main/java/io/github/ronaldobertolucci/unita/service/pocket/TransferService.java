@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.service.pocket;
 
+import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import io.github.ronaldobertolucci.unita.repository.TransferOperationRepository;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransactionDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
@@ -27,13 +28,15 @@ import java.util.EnumSet;
 @RequiredArgsConstructor
 public class TransferService {
 
+    private final FinancialConcurrencyService concurrency;
+
     private final TransferOperationRepository transferOperationRepository;
     private final PocketRepository pocketRepository;
     private final TransactionRepository transactionRepository;
     private final GroupMembershipRepository groupMembershipRepository;
     private final CategoryService categoryService;
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public TransferDto transfer(TransferCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
@@ -58,6 +61,8 @@ public class TransferService {
         if (!groupMembershipRepository.existsSharedGroup(currentUser.getId(), target.getUser().getId())) {
             throw new IllegalArgumentException("Source and target pocket owners must share a group");
         }
+
+        concurrency.lockPockets(source.getId(), target.getId());
 
         BigDecimal balance = transactionRepository.calculateBalanceByPocketId(source.getId());
         if (balance.compareTo(dto.amount()) < 0) {
@@ -103,7 +108,7 @@ public class TransferService {
         return new TransferDto(new TransactionDto(sourceTransaction), new TransactionDto(targetTransaction));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public TransferDto fgtsWithdrawal(TransferCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
@@ -120,6 +125,8 @@ public class TransferService {
         if (!(target instanceof BankAccount) && !(target instanceof Cash)) {
             throw new IllegalArgumentException("Target pocket must be a BankAccount or Cash");
         }
+
+        concurrency.lockPockets(source.getId(), target.getId());
 
         BigDecimal balance = transactionRepository.calculateBalanceByPocketId(source.getId());
         if (balance.compareTo(dto.amount()) < 0) {

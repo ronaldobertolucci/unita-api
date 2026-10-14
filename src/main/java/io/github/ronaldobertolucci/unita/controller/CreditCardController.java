@@ -83,6 +83,9 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findBillById(id, billId, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
+    @Operation(description = "Pagamento serializado com alterações do cartão e da conta. Segunda chamada para fatura paga retorna 409, sem novo débito; sem chave de idempotência.")
+    @ApiResponse(responseCode = "409", description = "Estado diferente de CLOSED ou Concurrency Conflict com rollback")
     @PutMapping("/{id}/bills/{billId}/pay")
     public ResponseEntity<CreditCardBillDto> payBill(
             @PathVariable Long id,
@@ -92,6 +95,7 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.payBill(id, billId, dto, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
     @PutMapping("/{id}/bills/{billId}/reopen")
     public ResponseEntity<CreditCardBillDto> reopenBill(
             @PathVariable Long id,
@@ -100,6 +104,7 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.reopenBill(id, billId, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
     @PutMapping("/{id}/bills/{billId}/close")
     public ResponseEntity<CreditCardBillDto> closeBill(
             @PathVariable Long id,

@@ -134,6 +134,16 @@ public class GlobalExceptionHandler {
         // 23001), rather than DataIntegrityViolationException. Inspect the cause chain.
         Throwable cause = ex;
         while (cause != null) {
+            if (cause instanceof java.sql.SQLException sql) {
+                if ("55P03".equals(sql.getSQLState())) {
+                    return ResponseEntity.status(503).body(new ErrorResponseDto(503, "Concurrency Timeout",
+                            "Timed out waiting for a financial resource; consult its state before retrying", request.getRequestURI()));
+                }
+                if ("40P01".equals(sql.getSQLState()) || "40001".equals(sql.getSQLState())) {
+                    return ResponseEntity.status(409).body(new ErrorResponseDto(409, "Concurrency Conflict",
+                            "Concurrent operation was rolled back; refresh financial data", request.getRequestURI()));
+                }
+            }
             String constraint = null;
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation) {
                 constraint = violation.getConstraintName();

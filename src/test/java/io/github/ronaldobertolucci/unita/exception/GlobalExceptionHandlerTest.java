@@ -156,4 +156,22 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertNotNull(response.getBody());
     }
+    @Test
+    void databaseConcurrencyAndInfrastructureHaveDistinctResponses() {
+        for (String sqlState : List.of("40P01", "40001", "55P03", "08006")) {
+            var exception = new RuntimeException(new java.sql.SQLException("private SQL details", sqlState));
+            var response = exceptionHandler.handleRuntimeException(exception, request);
+            int expected = switch (sqlState) {
+                case "40P01", "40001" -> 409;
+                case "55P03" -> 503;
+                default -> 500;
+            };
+            assertEquals(expected, response.getStatusCode().value());
+            assertNotNull(response.getBody());
+            assertFalse(response.getBody().message().contains("private SQL"));
+            if (expected == 409) assertEquals("Concurrency Conflict", response.getBody().error());
+            if (expected == 503) assertEquals("Concurrency Timeout", response.getBody().error());
+        }
+    }
+
 }

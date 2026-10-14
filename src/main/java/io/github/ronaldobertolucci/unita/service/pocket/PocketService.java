@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.service.pocket;
 
+import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import io.github.ronaldobertolucci.unita.dto.pocket.*;
 import io.github.ronaldobertolucci.unita.model.employer.Employer;
 import io.github.ronaldobertolucci.unita.model.employer.LegalEntityEmployer;
@@ -24,6 +25,8 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class PocketService {
+
+    private final FinancialConcurrencyService concurrency;
 
     private final PocketRepository pocketRepository;
     private final BankAccountRepository bankAccountRepository;
@@ -100,12 +103,13 @@ public class PocketService {
         return new BankAccountDto(bankAccountRepository.save(bankAccount));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteBankAccount(Long id, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!bankAccountRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("Bank account not found");
         }
+        concurrency.lockPockets(id);
         if (transactionRepository.existsProtectedByPocketId(id)) {
             throw new IllegalStateException("Pocket contains protected financial transactions");
         }
@@ -158,12 +162,13 @@ public class PocketService {
         return new BenefitAccountDto(benefitAccountRepository.save(benefitAccount));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteBenefitAccount(Long id, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!benefitAccountRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("Benefit account not found");
         }
+        concurrency.lockPockets(id);
         if (transactionRepository.existsProtectedByPocketId(id)) {
             throw new IllegalStateException("Pocket contains protected financial transactions");
         }
@@ -215,12 +220,13 @@ public class PocketService {
         return new FgtsEmployerAccountDto(fgtsEmployerAccountRepository.save(fgtsAccount));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteFgtsEmployerAccount(Long id, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!fgtsEmployerAccountRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("FGTS employer account not found");
         }
+        concurrency.lockPockets(id);
         if (transactionRepository.existsProtectedByPocketId(id)) {
             throw new IllegalStateException("Pocket contains protected financial transactions");
         }
@@ -259,9 +265,10 @@ public class PocketService {
     // Transaction
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public TransactionDto createTransaction(Long pocketId, TransactionCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedPocket(pocketId, currentUser.getId());
         Pocket pocket = pocketRepository.findByIdAndUserId(pocketId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Pocket not found"));
 
@@ -306,12 +313,13 @@ public class PocketService {
         return transactionRepository.calculateBalanceByPocketId(pocketId);
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteTransaction(Long pocketId, Long transactionId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         if (!pocketRepository.existsByIdAndUserId(pocketId, currentUser.getId())) {
             throw new EntityNotFoundException("Pocket not found");
         }
+        concurrency.lockOwnedPocket(pocketId, currentUser.getId());
         Transaction transaction = transactionRepository.findByIdAndPocketId(transactionId, pocketId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
         if (transaction.isDeletionProtected()) {

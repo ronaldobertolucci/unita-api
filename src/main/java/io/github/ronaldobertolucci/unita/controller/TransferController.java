@@ -20,7 +20,9 @@ public class TransferController {
 
     private final TransferService transferService;
 
-    @io.swagger.v3.oas.annotations.Operation(summary = "Transferir com vínculo explícito", description = "Cria os dois lançamentos e o vínculo em uma transação; não oferece cancelamento nem idempotência de requisição.")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Transferir com vínculo explícito", description = "Cria os dois lançamentos e o vínculo em uma transação; Serializa saldo e gravação sobre as contas em ordem de ID; não oferece cancelamento nem idempotência de requisição.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Concurrency Conflict: transação desfeita; atualizar dados")
     @PostMapping
     public ResponseEntity<TransferDto> transfer(
             @RequestBody @Valid TransferCreateDto dto,
@@ -29,7 +31,9 @@ public class TransferController {
                 .body(transferService.transfer(dto, authentication));
     }
 
-    @io.swagger.v3.oas.annotations.Operation(summary = "Sacar FGTS com vínculo explícito", description = "Cria os dois lançamentos e o vínculo FGTS_WITHDRAWAL atomicamente; exclusão individual é bloqueada.")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Sacar FGTS com vínculo explícito", description = "Cria os dois lançamentos e o vínculo FGTS_WITHDRAWAL atomicamente; exclusão individual é bloqueada; validação do saldo e gravação são serializadas.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Concurrency Conflict: transação desfeita; atualizar dados")
     @PostMapping("/fgts/withdrawal")
     public ResponseEntity<TransferDto> fgtsWithdrawal(
             @RequestBody @Valid TransferCreateDto dto,

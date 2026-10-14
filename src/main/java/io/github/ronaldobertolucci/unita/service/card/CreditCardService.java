@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.service.card;
 
+import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import io.github.ronaldobertolucci.unita.dto.card.*;
 import io.github.ronaldobertolucci.unita.model.card.*;
 import io.github.ronaldobertolucci.unita.model.finance.*;
@@ -23,6 +24,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CreditCardService {
+
+    private final FinancialConcurrencyService concurrency;
 
     private final CreditCardRepository creditCardRepository;
     private final CreditCardBillRepository creditCardBillRepository;
@@ -82,9 +85,10 @@ public class CreditCardService {
         return new CreditCardDto(creditCard);
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardDto updateCreditCard(Long id, CreditCardUpdateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(id, currentUser.getId());
         CreditCard creditCard = creditCardRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
 
@@ -138,9 +142,10 @@ public class CreditCardService {
         return new CreditCardDto(creditCard);
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteCreditCard(Long id, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(id, currentUser.getId());
         if (!creditCardRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("Credit card not found");
         }
@@ -174,9 +179,10 @@ public class CreditCardService {
         return toBillDto(bill);
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardBillDto payBill(Long creditCardId, Long billId, CreditCardBillPayDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
@@ -186,12 +192,16 @@ public class CreditCardService {
             throw new IllegalStateException("Only closed bills can be paid");
         }
 
+        concurrency.lockOwnedPocket(dto.pocketId(), currentUser.getId());
         Pocket pocket = pocketRepository.findByIdAndUserId(dto.pocketId(), currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Pocket not found"));
 
         BigDecimal totalInstallments = creditCardInstallmentRepository.sumAmountByBillId(billId);
         BigDecimal totalRefunds = creditCardRefundRepository.sumAmountByBillId(billId);
         BigDecimal totalAmount = totalInstallments.subtract(totalRefunds);
+        if (totalAmount.signum() <= 0) {
+            throw new IllegalStateException("Only bills with a positive total can be paid");
+        }
 
         Category paymentCategory = categoryService.findSystemByName("Pagamento de Cartão");
         if (!EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL).contains(paymentCategory.getType())) {
@@ -219,9 +229,10 @@ public class CreditCardService {
         return toBillDto(bill);
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardBillDto reopenBill(Long creditCardId, Long billId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
@@ -235,9 +246,10 @@ public class CreditCardService {
         return toBillDto(creditCardBillRepository.save(bill));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardBillDto closeBill(Long creditCardId, Long billId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
@@ -276,9 +288,10 @@ public class CreditCardService {
     // CreditCardPurchase
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardPurchaseDto createPurchase(Long creditCardId, CreditCardPurchaseCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         CreditCard creditCard = creditCardRepository.findByIdAndUserId(creditCardId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
 
@@ -303,9 +316,10 @@ public class CreditCardService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deletePurchase(Long creditCardId, Long purchaseId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
@@ -318,10 +332,11 @@ public class CreditCardService {
     // CreditCardInstallment
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardInstallmentDto createInstallment(Long creditCardId, Long purchaseId,
                                                       CreditCardInstallmentCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         CreditCard creditCard = creditCardRepository.findByIdAndUserId(creditCardId, currentUser.getId())
@@ -373,10 +388,11 @@ public class CreditCardService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardInstallmentDto updateInstallment(Long creditCardId, Long purchaseId, Long installmentId,
                                                       CreditCardInstallmentUpdateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
@@ -399,9 +415,10 @@ public class CreditCardService {
         return new CreditCardInstallmentDto(creditCardInstallmentRepository.save(installment));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteInstallment(Long creditCardId, Long purchaseId, Long installmentId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
@@ -417,10 +434,11 @@ public class CreditCardService {
     // CreditCardRefund
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardRefundDto createRefund(Long creditCardId, Long billId,
                                             CreditCardRefundCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
@@ -453,9 +471,10 @@ public class CreditCardService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void deleteRefund(Long creditCardId, Long billId, Long refundId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
         creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)

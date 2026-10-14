@@ -28,6 +28,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PocketServiceTest {
 
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService concurrency;
+
     @Mock
     private PocketRepository pocketRepository;
     @Mock

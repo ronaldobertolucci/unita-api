@@ -29,6 +29,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CreditCardServiceTest {
 
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService concurrency;
+
     @Mock
     private CreditCardRepository creditCardRepository;
     @Mock
@@ -382,7 +384,7 @@ class CreditCardServiceTest {
         when(pocketRepository.findByIdAndUserId(3L, currentUser.getId())).thenReturn(Optional.of(pocket));
         when(transactionRepository.save(any())).thenReturn(mock(Transaction.class));
         when(creditCardBillRepository.save(any())).thenReturn(bill);
-        when(creditCardInstallmentRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
+        when(creditCardInstallmentRepository.sumAmountByBillId(any())).thenReturn(new BigDecimal("100"));
         when(creditCardRefundRepository.sumAmountByBillId(any())).thenReturn(BigDecimal.ZERO);
         when(categoryService.findSystemByName("Pagamento de Cartão"))
                 .thenReturn(buildCategory(1L, CategoryType.NEUTRAL));

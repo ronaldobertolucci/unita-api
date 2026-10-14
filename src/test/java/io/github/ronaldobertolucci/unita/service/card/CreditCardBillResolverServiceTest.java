@@ -21,6 +21,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CreditCardBillResolverServiceTest {
 
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService concurrency;
+
     @Mock
     private CreditCardBillRepository creditCardBillRepository;
 

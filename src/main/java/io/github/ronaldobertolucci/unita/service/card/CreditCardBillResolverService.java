@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.service.card;
 
+import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import io.github.ronaldobertolucci.unita.model.card.CreditCard;
 import io.github.ronaldobertolucci.unita.model.card.CreditCardBill;
 import io.github.ronaldobertolucci.unita.model.card.CreditCardBillStatus;
@@ -15,16 +16,19 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CreditCardBillResolverService {
 
+    private final FinancialConcurrencyService concurrency;
+
     private final CreditCardBillRepository creditCardBillRepository;
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate installmentDate) {
+        concurrency.lockCard(creditCard.getId());
         return creditCardBillRepository
                 .findByPeriod(creditCard.getId(), installmentDate)
                 .orElseGet(() -> createChainForDate(creditCard, installmentDate));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public CreditCardBill findOrCreateForDate(CreditCard creditCard, LocalDate installmentDate, LocalDate limitDate) {
         return findOrCreateForDate(creditCard, installmentDate);
     }

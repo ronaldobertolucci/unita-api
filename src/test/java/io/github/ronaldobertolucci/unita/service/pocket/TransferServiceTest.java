@@ -36,6 +36,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TransferServiceTest {
 
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService concurrency;
+
     @Mock
     private io.github.ronaldobertolucci.unita.repository.TransferOperationRepository transferOperationRepository;
 

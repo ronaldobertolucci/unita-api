@@ -91,6 +91,18 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             @Param("currentStatus") CreditCardBillStatus currentStatus,
             @Param("newStatus") CreditCardBillStatus newStatus);
 
+    // Restrict the job to the locked snapshot: cards inserted afterwards wait for its next run.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE CreditCardBill b SET b.status = :newStatus
+            WHERE b.closingDate < :today AND b.status = :currentStatus
+            AND b.creditCard.id IN :cardIds
+            """)
+    int closeOverdueForLockedCards(@Param("today") LocalDate today,
+            @Param("currentStatus") CreditCardBillStatus currentStatus,
+            @Param("newStatus") CreditCardBillStatus newStatus,
+            @Param("cardIds") List<Long> cardIds);
+
     boolean existsByCreditCardIdAndPaymentTransactionIsNotNull(Long creditCardId);
     boolean existsByCreditCardUserIdAndPaymentTransactionIsNotNull(Long userId);
 
