@@ -60,6 +60,8 @@ public class PocketController {
         return ResponseEntity.ok(pocketService.updateBankAccount(id, dto, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(description = "Retorna 409 se a conta contém lançamento vinculado a transferência ou pagamento; nenhuma exclusão parcial é realizada.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Vínculo financeiro protegido; operação rejeitada integralmente")
     @DeleteMapping("/bank-accounts/{id}")
     public ResponseEntity<Void> deleteBankAccount(
             @PathVariable Long id,
@@ -97,6 +99,8 @@ public class PocketController {
         return ResponseEntity.ok(pocketService.updateBenefitAccount(id, dto, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(description = "Retorna 409 se a conta contém lançamento vinculado a transferência ou pagamento; nenhuma exclusão parcial é realizada.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Vínculo financeiro protegido; operação rejeitada integralmente")
     @DeleteMapping("/benefit-accounts/{id}")
     public ResponseEntity<Void> deleteBenefitAccount(
             @PathVariable Long id,
@@ -134,6 +138,8 @@ public class PocketController {
         return ResponseEntity.ok(pocketService.updateFgtsEmployerAccount(id, dto, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(description = "Retorna 409 se a conta contém lançamento vinculado a transferência ou pagamento; nenhuma exclusão parcial é realizada.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Vínculo financeiro protegido; operação rejeitada integralmente")
     @DeleteMapping("/fgts/{id}")
     public ResponseEntity<Void> deleteFgtsEmployerAccount(
             @PathVariable Long id,
@@ -170,6 +176,7 @@ public class PocketController {
                 .body(pocketService.createTransaction(id, dto, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Listar extrato pessoal", description = "Campos aditivos operationType, operationId e canDelete; não concede acesso ao extrato da outra conta. UNLINKED não comprova origem manual.")
     @GetMapping("/{id}/transactions")
     public ResponseEntity<List<TransactionDto>> findTransactions(
             @PathVariable Long id,
@@ -186,6 +193,8 @@ public class PocketController {
         return ResponseEntity.ok(pocketService.findBalance(id, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Excluir lançamento elegível", description = "Retorna 409 para qualquer lado de transferência vinculada ou pagamento de fatura. Lançamentos históricos sem vínculo comprovado mantêm a regra anterior.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Vínculo financeiro protegido; operação rejeitada integralmente")
     @DeleteMapping("/{id}/transactions/{transactionId}")
     public ResponseEntity<Void> deleteTransaction(
             @PathVariable Long id,

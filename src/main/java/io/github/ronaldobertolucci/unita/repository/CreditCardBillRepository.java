@@ -91,6 +91,9 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             @Param("currentStatus") CreditCardBillStatus currentStatus,
             @Param("newStatus") CreditCardBillStatus newStatus);
 
+    boolean existsByCreditCardIdAndPaymentTransactionIsNotNull(Long creditCardId);
+    boolean existsByCreditCardUserIdAndPaymentTransactionIsNotNull(Long userId);
+
     boolean existsByIdAndCreditCardId(Long id, Long creditCardId);
 
     @Query("""

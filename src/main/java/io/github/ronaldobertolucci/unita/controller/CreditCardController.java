@@ -54,6 +54,8 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.updateCreditCard(id, dto, authentication));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Excluir cartão elegível", description = "Retorna 409 quando existem faturas com referência de pagamento, preservando o vínculo financeiro.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Vínculo financeiro protegido; operação rejeitada integralmente")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCreditCard(
             @PathVariable Long id,

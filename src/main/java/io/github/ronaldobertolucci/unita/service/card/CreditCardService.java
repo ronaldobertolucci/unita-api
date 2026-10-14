@@ -144,7 +144,11 @@ public class CreditCardService {
         if (!creditCardRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("Credit card not found");
         }
+        if (creditCardBillRepository.existsByCreditCardIdAndPaymentTransactionIsNotNull(id)) {
+            throw new IllegalStateException("Credit card contains bill payments and cannot be deleted");
+        }
         creditCardRepository.deleteById(id);
+        creditCardRepository.flush();
     }
 
     // -------------------------------------------------------------------------
@@ -209,6 +213,7 @@ public class CreditCardService {
 
         bill.setStatus(CreditCardBillStatus.PAID);
         bill.setPaymentTransaction(transaction);
+        transaction.setPaymentBill(bill);
         creditCardBillRepository.save(bill);
 
         return toBillDto(bill);

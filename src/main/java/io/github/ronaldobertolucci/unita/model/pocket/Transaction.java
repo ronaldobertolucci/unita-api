@@ -17,6 +17,23 @@ import java.time.LocalDate;
 @Builder
 public class Transaction {
 
+    @OneToOne(mappedBy = "sourceTransaction", fetch = FetchType.LAZY)
+    private TransferOperation outgoingTransfer;
+
+    @OneToOne(mappedBy = "targetTransaction", fetch = FetchType.LAZY)
+    private TransferOperation incomingTransfer;
+
+    @OneToOne(mappedBy = "paymentTransaction", fetch = FetchType.LAZY)
+    private io.github.ronaldobertolucci.unita.model.card.CreditCardBill paymentBill;
+
+    public TransferOperation transferOperation() {
+        return outgoingTransfer != null ? outgoingTransfer : incomingTransfer;
+    }
+
+    public boolean isDeletionProtected() {
+        return transferOperation() != null || paymentBill != null;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")

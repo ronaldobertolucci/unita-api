@@ -15,13 +15,25 @@ import java.util.Optional;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-    @Query(value = """
-            SELECT * FROM transactions t
-            WHERE t.pocket_id = :pocketId
-            AND (CAST(:startDate AS DATE) IS NULL OR t.transaction_date >= :startDate)
-            AND (CAST(:endDate AS DATE) IS NULL OR t.transaction_date <= :endDate)
-            ORDER BY t.transaction_date DESC
-            """, nativeQuery = true)
+    @Query("""
+            select count(t) > 0 from Transaction t where t.pocket.id = :pocketId
+            and (t.outgoingTransfer is not null or t.incomingTransfer is not null or t.paymentBill is not null)
+            """)
+    boolean existsProtectedByPocketId(@Param("pocketId") Long pocketId);
+
+    @Query("""
+            select count(t) > 0 from Transaction t where t.pocket.user.id = :userId
+            and (t.outgoingTransfer is not null or t.incomingTransfer is not null or t.paymentBill is not null)
+            """)
+    boolean existsProtectedByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT t FROM Transaction t
+            WHERE t.pocket.id = :pocketId
+            AND (CAST(:startDate AS date) IS NULL OR t.transactionDate >= :startDate)
+            AND (CAST(:endDate AS date) IS NULL OR t.transactionDate <= :endDate)
+            ORDER BY t.transactionDate DESC
+            """)
     List<Transaction> findAllByPocketIdAndPeriod(
             @Param("pocketId") Long pocketId,
             @Param("startDate") LocalDate startDate,

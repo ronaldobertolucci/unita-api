@@ -1,5 +1,7 @@
 package io.github.ronaldobertolucci.unita.service.user;
 
+import io.github.ronaldobertolucci.unita.repository.CreditCardBillRepository;
+import io.github.ronaldobertolucci.unita.repository.TransactionRepository;
 import io.github.ronaldobertolucci.unita.dto.user.UserDto;
 import io.github.ronaldobertolucci.unita.dto.user.UserRegistrationDto;
 import io.github.ronaldobertolucci.unita.model.security.Role;
@@ -23,6 +25,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserService {
 
+    private final TransactionRepository transactionRepository;
+    private final CreditCardBillRepository creditCardBillRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -84,7 +88,12 @@ public class UserService {
         if (!userRepository.existsById(id)) {
             throw new EntityNotFoundException("User not found: " + id);
         }
+        if (transactionRepository.existsProtectedByUserId(id)
+                || creditCardBillRepository.existsByCreditCardUserIdAndPaymentTransactionIsNotNull(id)) {
+            throw new IllegalStateException("User contains protected financial operations and cannot be deleted");
+        }
         userRepository.deleteById(id);
+        userRepository.flush();
     }
 
     @Transactional

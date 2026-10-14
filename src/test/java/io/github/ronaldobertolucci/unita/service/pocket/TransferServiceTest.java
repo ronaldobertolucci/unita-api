@@ -37,6 +37,9 @@ import static org.mockito.Mockito.*;
 class TransferServiceTest {
 
     @Mock
+    private io.github.ronaldobertolucci.unita.repository.TransferOperationRepository transferOperationRepository;
+
+    @Mock
     private PocketRepository pocketRepository;
     @Mock
     private TransactionRepository transactionRepository;
@@ -55,6 +58,9 @@ class TransferServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(transferOperationRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
         currentUser = new User();
         currentUser.setId(1L);
 

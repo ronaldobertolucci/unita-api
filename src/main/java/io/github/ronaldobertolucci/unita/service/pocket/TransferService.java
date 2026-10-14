@@ -1,5 +1,6 @@
 package io.github.ronaldobertolucci.unita.service.pocket;
 
+import io.github.ronaldobertolucci.unita.repository.TransferOperationRepository;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransactionDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferCreateDto;
 import io.github.ronaldobertolucci.unita.dto.pocket.TransferDto;
@@ -26,6 +27,7 @@ import java.util.EnumSet;
 @RequiredArgsConstructor
 public class TransferService {
 
+    private final TransferOperationRepository transferOperationRepository;
     private final PocketRepository pocketRepository;
     private final TransactionRepository transactionRepository;
     private final GroupMembershipRepository groupMembershipRepository;
@@ -92,10 +94,13 @@ public class TransferService {
                 .category(receivedCategory)
                 .build();
 
-        return new TransferDto(
-                new TransactionDto(transactionRepository.save(sourceTransaction)),
-                new TransactionDto(transactionRepository.save(targetTransaction))
-        );
+        sourceTransaction = transactionRepository.save(sourceTransaction);
+        targetTransaction = transactionRepository.save(targetTransaction);
+        TransferOperation operation = transferOperationRepository.save(TransferOperation.builder()
+                .type("TRANSFER").sourceTransaction(sourceTransaction).targetTransaction(targetTransaction).build());
+        sourceTransaction.setOutgoingTransfer(operation);
+        targetTransaction.setIncomingTransfer(operation);
+        return new TransferDto(new TransactionDto(sourceTransaction), new TransactionDto(targetTransaction));
     }
 
     @Transactional
@@ -151,9 +156,12 @@ public class TransferService {
                 .category(receivedCategory)
                 .build();
 
-        return new TransferDto(
-                new TransactionDto(transactionRepository.save(sourceTransaction)),
-                new TransactionDto(transactionRepository.save(targetTransaction))
-        );
+        sourceTransaction = transactionRepository.save(sourceTransaction);
+        targetTransaction = transactionRepository.save(targetTransaction);
+        TransferOperation operation = transferOperationRepository.save(TransferOperation.builder()
+                .type("FGTS_WITHDRAWAL").sourceTransaction(sourceTransaction).targetTransaction(targetTransaction).build());
+        sourceTransaction.setOutgoingTransfer(operation);
+        targetTransaction.setIncomingTransfer(operation);
+        return new TransferDto(new TransactionDto(sourceTransaction), new TransactionDto(targetTransaction));
     }
 }

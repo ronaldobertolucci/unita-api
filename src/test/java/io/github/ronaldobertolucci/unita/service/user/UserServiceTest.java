@@ -31,6 +31,11 @@ import static org.mockito.Mockito.*;
 class UserServiceTest {
 
     @Mock
+    private io.github.ronaldobertolucci.unita.repository.TransactionRepository transactionRepository;
+    @Mock
+    private io.github.ronaldobertolucci.unita.repository.CreditCardBillRepository creditCardBillRepository;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock

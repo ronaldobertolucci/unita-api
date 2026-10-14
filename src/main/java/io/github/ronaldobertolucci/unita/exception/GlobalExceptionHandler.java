@@ -18,6 +18,14 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // A concurrent reference can appear after service validation. Only these financial
+    // constraints are translated; unrelated integrity/infrastructure failures stay 500.
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponseDto> handleFinancialIntegrity(
+            org.springframework.dao.DataIntegrityViolationException ex, HttpServletRequest request) {
+        return handleRuntimeException(ex, request);
+    }
+
     @ExceptionHandler(AccountStateException.class)
     public ResponseEntity<Map<String, Object>> handleAccountState(AccountStateException ex) {
         return ResponseEntity.status(403).header("Cache-Control", "no-store")
@@ -121,6 +129,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponseDto> handleRuntimeException(
             RuntimeException ex,
             HttpServletRequest request) {
+
+        // PostgreSQL RESTRICT can surface as a generic JpaSystemException (SQLState
+        // 23001), rather than DataIntegrityViolationException. Inspect the cause chain.
+        Throwable cause = ex;
+        while (cause != null) {
+            String constraint = null;
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation) {
+                constraint = violation.getConstraintName();
+            } else if (cause instanceof java.sql.SQLException sql
+                    && ("23001".equals(sql.getSQLState()) || "23503".equals(sql.getSQLState()))) {
+                constraint = sql.getMessage();
+            }
+            if (constraint != null && (constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_transfer_source")
+                    || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_transfer_target")
+                    || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_credit_card_bills_payment"))) {
+                return handleIllegalStateException(new IllegalStateException(
+                        "Resource is linked to a protected financial operation and cannot be deleted"), request);
+            }
+            cause = cause.getCause();
+        }
 
         ErrorResponseDto error = new ErrorResponseDto(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

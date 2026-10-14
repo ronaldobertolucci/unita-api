@@ -106,7 +106,11 @@ public class PocketService {
         if (!bankAccountRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("Bank account not found");
         }
+        if (transactionRepository.existsProtectedByPocketId(id)) {
+            throw new IllegalStateException("Pocket contains protected financial transactions");
+        }
         bankAccountRepository.deleteById(id);
+        bankAccountRepository.flush();
     }
 
     // -------------------------------------------------------------------------
@@ -160,7 +164,11 @@ public class PocketService {
         if (!benefitAccountRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("Benefit account not found");
         }
+        if (transactionRepository.existsProtectedByPocketId(id)) {
+            throw new IllegalStateException("Pocket contains protected financial transactions");
+        }
         benefitAccountRepository.deleteById(id);
+        benefitAccountRepository.flush();
     }
 
     // -------------------------------------------------------------------------
@@ -213,7 +221,11 @@ public class PocketService {
         if (!fgtsEmployerAccountRepository.existsByIdAndUserId(id, currentUser.getId())) {
             throw new EntityNotFoundException("FGTS employer account not found");
         }
+        if (transactionRepository.existsProtectedByPocketId(id)) {
+            throw new IllegalStateException("Pocket contains protected financial transactions");
+        }
         fgtsEmployerAccountRepository.deleteById(id);
+        fgtsEmployerAccountRepository.flush();
     }
 
     // -------------------------------------------------------------------------
@@ -270,6 +282,7 @@ public class PocketService {
         return new TransactionDto(transactionRepository.save(transaction));
     }
 
+    @Transactional(readOnly = true)
     public List<TransactionDto> findTransactions(Long pocketId, LocalDate startDate, LocalDate endDate,
                                                  Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
@@ -301,6 +314,10 @@ public class PocketService {
         }
         Transaction transaction = transactionRepository.findByIdAndPocketId(transactionId, pocketId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
+        if (transaction.isDeletionProtected()) {
+            throw new IllegalStateException("Transaction is linked to a transfer or bill payment and cannot be deleted");
+        }
         transactionRepository.delete(transaction);
+        transactionRepository.flush();
     }
 }
