@@ -227,7 +227,7 @@ class BillLifecycleIntegrationTest {
         mvc.perform(delete(installmentPath()).contextPath("/api").with(user(stranger))).andExpect(status().isNotFound());unchanged();
     }
     @Test void inventoryReportsMissingAndDivergentPaymentsWithoutMutation() throws Exception {
-        String sql=java.nio.file.Files.readString(java.nio.file.Path.of("docs/sql/US-05-inventario-faturas.sql"));
+        String sql=new org.springframework.core.io.ClassPathResource("sql/bill-payments.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         state(CreditCardBillStatus.PAID);
         assertTrue(jdbc.queryForList(sql).stream().anyMatch(row -> ((Number)row.get("bill_id")).longValue()==bill.getId()
                 && "PAID_WITHOUT_PAYMENT".equals(row.get("reason"))));

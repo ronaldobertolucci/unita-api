@@ -217,7 +217,7 @@ class FinancialOperationProtectionIntegrationTest {
         transfer();var bill=closedBill();
         tx.executeWithoutResult(status->{var b=bills.findById(bill.getId()).orElseThrow();b.setStatus(CreditCardBillStatus.PAID);});
         long tc=transactions.count(),oc=operations.count();
-        String sql=java.nio.file.Files.readString(java.nio.file.Path.of("docs/sql/US-02-inventario-operacoes.sql"));
+        String sql=new org.springframework.core.io.ClassPathResource("sql/financial-operations.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         sql=sql.replaceAll("(?m)--.*$", "");
         var statements=sql.split(";");
         var explicit=jdbc.queryForList(statements[0]);assertFalse(explicit.isEmpty());

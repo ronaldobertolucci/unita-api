@@ -24,8 +24,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
@@ -223,7 +221,7 @@ class RegistrationIsolationIntegrationTest {
                 new UsernamePasswordAuthenticationToken(owner, null, owner.getAuthorities()));
         em.flush();
         long pc = pockets.count(), cc = cards.count(), bc = bills.count();
-        String sql = Files.readString(Path.of("docs/sql/US-01-diagnostico-associacoes.sql"));
+        String sql = new org.springframework.core.io.ClassPathResource("sql/registration-associations.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         var rows = em.createNativeQuery(sql).getResultList();
         assertEquals(5, rows.size());
         assertEquals(Set.of("BANK_ACCOUNT", "BENEFIT_ACCOUNT", "FGTS_EMPLOYER_ACCOUNT", "CREDIT_CARD", "LEGAL_ENTITY_EMPLOYER"),

@@ -15,7 +15,7 @@ services:
       - AUTH_REFRESH_CLEANUP_CRON=${AUTH_REFRESH_CLEANUP_CRON:-0 30 2 * * ?}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - ADMIN_INIT_ENABLED=${ADMIN_INIT_ENABLED}
+      - ADMIN_INIT_ENABLED=${ADMIN_INIT_ENABLED:-false}
       - ADMIN_FIRSTNAME=${ADMIN_FIRSTNAME}
       - ADMIN_LASTNAME=${ADMIN_LASTNAME}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
@@ -31,6 +31,12 @@ services:
       - MAIL_STARTTLS=${MAIL_STARTTLS}
       - PASSWORD_RESET_TOKEN_EXPIRY_HOURS=${PASSWORD_RESET_TOKEN_EXPIRY_HOURS}
       - PASSWORD_RESET_CLEANUP_CRON=${PASSWORD_RESET_CLEANUP_CRON}
+      - RECURRING_SCHEDULE_CRON=${RECURRING_SCHEDULE_CRON:-0 */5 * * * *}
+      - RECURRING_PROCESS_CRON=${RECURRING_PROCESS_CRON:-30 * * * * *}
+      - RECURRING_BATCH_SIZE=${RECURRING_BATCH_SIZE:-100}
+      - RECURRING_MAX_ATTEMPTS=${RECURRING_MAX_ATTEMPTS:-5}
+      - RECURRING_RESERVATION_SECONDS=${RECURRING_RESERVATION_SECONDS:-300}
+      - RECURRING_PANEL_PATH=${RECURRING_PANEL_PATH:-/recurring-bills}
     depends_on:
       db:
         condition: service_healthy
@@ -46,7 +52,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -257,7 +257,7 @@ class PurchasePlanIntegrationTest {
                 .andExpect(status().isNotFound());
         assertEquals(3,cards.findInstallments(card.getId(),p.id(),auth()).size());
         assertEquals(otherBill,jdbc.queryForObject("SELECT credit_card_bill_id FROM credit_card_installments WHERE id=?",Long.class,p.installments().getFirst().id()));
-        String sql=java.nio.file.Files.readString(java.nio.file.Path.of("docs/sql/US-04-inventario-parcelamentos.sql"));
+        String sql=new org.springframework.core.io.ClassPathResource("sql/purchase-installment-plans.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(jdbc.queryForList(sql).stream().anyMatch(row -> ((Number)row.get("purchase_id")).longValue()==p.id() && "FOREIGN_BILL".equals(row.get("reason"))));
     }
     @Test void repeatPostCreatesTwoCompletePurchasesAsDocumented(){
@@ -265,7 +265,7 @@ class PurchasePlanIntegrationTest {
         assertEquals(first.installments().size(),second.installments().size());
     }
     @Test void inventoryIdentifiesLegacyWithoutMutationAndExplicitCorrectionCanRepair() throws Exception {
-        var p=create();String sql=java.nio.file.Files.readString(java.nio.file.Path.of("docs/sql/US-04-inventario-parcelamentos.sql"));
+        var p=create();String sql=new org.springframework.core.io.ClassPathResource("sql/purchase-installment-plans.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(jdbc.queryForList(sql).stream().noneMatch(row -> ((Number)row.get("purchase_id")).longValue()==p.id()));
         jdbc.update("DELETE FROM credit_card_installments WHERE id=?",p.installments().getLast().id());
         assertTrue(jdbc.queryForList(sql).stream().anyMatch(row -> ((Number)row.get("purchase_id")).longValue()==p.id() && "COUNT_MISMATCH".equals(row.get("reason"))));
