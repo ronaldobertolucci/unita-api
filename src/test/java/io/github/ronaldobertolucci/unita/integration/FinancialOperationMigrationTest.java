@@ -25,7 +25,7 @@ class FinancialOperationMigrationTest {
             stmt.executeUpdate("INSERT INTO credit_cards (id,user_id,legal_entity_id,last_four_digits,card_brand_id,credit_limit,closing_day,due_day) VALUES (90001,90001,90001,'1234',(SELECT min(id) FROM card_brands),500,10,20)");
             stmt.executeUpdate("INSERT INTO credit_card_bills (id,credit_card_id,period_start,closing_date,due_date,closing_day,due_day,status,payment_transaction_id) VALUES (90001,90001,DATE '2026-09-10',DATE '2026-10-10',DATE '2026-10-20',10,20,'PAID',90001)");
             var upgrade=Flyway.configure().dataSource(url,username,password).schemas(schema).defaultSchema(schema).load();
-            assertEquals(1,upgrade.migrate().migrationsExecuted);upgrade.validate();assertEquals(0,upgrade.migrate().migrationsExecuted);
+            assertEquals(2,upgrade.migrate().migrationsExecuted);upgrade.validate();assertEquals(0,upgrade.migrate().migrationsExecuted);
             try(var rows=stmt.executeQuery("SELECT amount,description FROM transactions ORDER BY id")) {
                 assertTrue(rows.next());assertEquals(new BigDecimal("80.00"),rows.getBigDecimal(1));assertEquals("Legacy payment",rows.getString(2));
                 assertTrue(rows.next());assertEquals(new BigDecimal("23.45"),rows.getBigDecimal(1));assertEquals("Ambiguous historical transfer",rows.getString(2));assertFalse(rows.next());

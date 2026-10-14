@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.repository;
 import io.github.ronaldobertolucci.unita.model.card.CreditCardRefund;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -12,6 +13,19 @@ import java.util.Optional;
 
 @Repository
 public interface CreditCardRefundRepository extends JpaRepository<CreditCardRefund, Long> {
+
+    boolean existsByPurchaseId(Long purchaseId);
+
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM CreditCardRefund r WHERE r.purchase.id = :purchaseId")
+    BigDecimal sumAmountByPurchaseId(@Param("purchaseId") Long purchaseId);
+
+    @Modifying
+    @Query("DELETE FROM CreditCardRefund r WHERE r.creditCardBill.creditCard.id = :cardId")
+    void deleteAllByCardId(@Param("cardId") Long cardId);
+
+    @Modifying
+    @Query("DELETE FROM CreditCardRefund r WHERE r.creditCardBill.creditCard.user.id = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
 
     @Query("""
             SELECT r FROM CreditCardRefund r

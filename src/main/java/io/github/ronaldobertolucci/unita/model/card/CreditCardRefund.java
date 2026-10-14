@@ -25,6 +25,10 @@ public class CreditCardRefund {
     @JoinColumn(name = "credit_card_bill_id", nullable = false)
     private CreditCardBill creditCardBill;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "purchase_id")
+    private CreditCardPurchase purchase;
+
     @Column(name = "description", nullable = false, length = 255)
     private String description;
 

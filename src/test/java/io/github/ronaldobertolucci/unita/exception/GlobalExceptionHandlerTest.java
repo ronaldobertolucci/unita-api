@@ -174,4 +174,16 @@ class GlobalExceptionHandlerTest {
         }
     }
 
+    @Test
+    void refundReferenceConstraintReturnsConflictWithoutSqlDetails() {
+        for(String state:List.of("23001","23503")) {
+            var failure=new RuntimeException(new java.sql.SQLException("private SQL fk_credit_card_refunds_purchase",state));
+            var response=exceptionHandler.handleRuntimeException(failure,request);
+            assertEquals(409,response.getStatusCode().value());assertNotNull(response.getBody());
+            assertEquals("Resource is linked to a protected financial operation and cannot be deleted",response.getBody().message());
+        }
+        var unrelated=new RuntimeException(new java.sql.SQLException("private SQL unrelated_constraint","23503"));
+        assertEquals(500,exceptionHandler.handleRuntimeException(unrelated,request).getStatusCode().value());
+    }
+
 }

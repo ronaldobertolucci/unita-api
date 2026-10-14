@@ -91,8 +91,8 @@ public class CreditCardController {
     }
 
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
-    @Operation(description = "Pagamento serializado com alterações do cartão e da conta. Segunda chamada para fatura paga retorna 409, sem novo débito; sem chave de idempotência.")
-    @ApiResponse(responseCode = "409", description = "Estado diferente de CLOSED ou Concurrency Conflict com rollback")
+    @Operation(description = "Pagamento exige total líquido positivo; zero ou saldo credor permanece CLOSED sem débito, finalização adicional ou transporte automático. Pagamento serializado com alterações do cartão e da conta. Segunda chamada para fatura paga retorna 409, sem novo débito; sem chave de idempotência.")
+    @ApiResponse(responseCode = "409", description = "Estado diferente de CLOSED, total não positivo ou Concurrency Conflict com rollback")
     @PutMapping("/{id}/bills/{billId}/pay")
     public ResponseEntity<CreditCardBillDto> payBill(
             @PathVariable Long id,
@@ -149,10 +149,10 @@ public class CreditCardController {
                 .body(creditCardService.createPurchase(id, dto, authentication));
     }
 
-    @Operation(description = "Replaces the complete purchase plan atomically. All old and new bills must be OPEN without payment. Installment IDs are replaced. No optimistic version or idempotency key; serialized edits validate current states.")
+    @Operation(description = "Replaces the complete purchase plan atomically. Purchase must have no linked refunds; all old and new bills must be OPEN without payment. Installment IDs are replaced. No optimistic version or idempotency key; serialized edits validate current states.")
     @ApiResponse(responseCode = "400", description = "Invalid complete plan; previous purchase preserved")
     @ApiResponse(responseCode = "404", description = "Unavailable card, purchase or category")
-    @ApiResponse(responseCode = "409", description = "Protected old or new bill; previous purchase preserved")
+    @ApiResponse(responseCode = "409", description = "Protected old/new bill or purchase referenced by refunds; previous purchase preserved")
     @ApiResponse(responseCode = "503", description = "Concurrency Timeout; consult state before retrying")
     @PutMapping("/{id}/purchases/{purchaseId}")
     public ResponseEntity<CreditCardPurchaseDto> updatePurchase(@PathVariable Long id, @PathVariable Long purchaseId,
@@ -173,8 +173,8 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findPurchases(id, authentication));
     }
 
-    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
-    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
+    @Operation(description = "Purchase must have no linked refunds, and its composition must be in OPEN bills without payment; protected history is preserved atomically")
+    @ApiResponse(responseCode = "409", description = "Protected bill composition or purchase referenced by refunds")
     @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @DeleteMapping("/{id}/purchases/{purchaseId}")
     public ResponseEntity<Void> deletePurchase(
@@ -240,9 +240,12 @@ public class CreditCardController {
     // CreditCardRefund
     // -------------------------------------------------------------------------
 
-    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
+    @Operation(description = "Credit in the explicit OPEN destination bill without payment, on the same card. Optional purchaseId; all linked refunds together cannot exceed the original purchase total. Unlinked credit allowed. Positive NUMERIC(15,2), INCOME/NEUTRAL category. Does not change original purchase, installments or payment, and creates no pocket transaction. No idempotency key.")
     @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
     @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
+    @ApiResponse(responseCode = "201", description = "Refund recorded in the selected OPEN bill")
+    @ApiResponse(responseCode = "400", description = "Invalid input, money precision, category type or accumulated purchase limit")
+    @ApiResponse(responseCode = "404", description = "Unavailable card, bill, purchase or category")
     @PostMapping("/{id}/bills/{billId}/refunds")
     public ResponseEntity<CreditCardRefundDto> createRefund(
             @PathVariable Long id,
@@ -261,9 +264,11 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findRefunds(id, billId, authentication));
     }
 
-    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
+    @Operation(description = "Deletes only from an OPEN bill without payment, releasing the linked purchase limit; consolidated history is preserved")
     @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
     @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
+    @ApiResponse(responseCode = "204", description = "Refund deleted")
+    @ApiResponse(responseCode = "404", description = "Unavailable card, bill or refund")
     @DeleteMapping("/{id}/bills/{billId}/refunds/{refundId}")
     public ResponseEntity<Void> deleteRefund(
             @PathVariable Long id,

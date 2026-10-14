@@ -155,6 +155,7 @@ public class CreditCardService {
         if (creditCardBillRepository.existsProtectedCompositionByCardId(id)) {
             throw new IllegalStateException("Credit card contains protected bills and cannot be deleted");
         }
+        creditCardRefundRepository.deleteAllByCardId(id);
         creditCardInstallmentRepository.deleteAllByCardId(id);
         creditCardRepository.deleteById(id);
         creditCardRepository.flush();
@@ -314,6 +315,7 @@ public class CreditCardService {
         concurrency.lockOwnedCard(creditCardId, user.getId());
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
+        requireUnreferencedPurchase(purchaseId);
         List<PurchaseInstallmentPlanDto> plan = PurchasePlan.validate(dto);
         List<CreditCardInstallment> old = creditCardInstallmentRepository.findAllByPurchaseId(purchaseId);
         old.forEach(i -> {
@@ -390,6 +392,7 @@ public class CreditCardService {
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
 
+        requireUnreferencedPurchase(purchaseId);
         creditCardInstallmentRepository.findAllByPurchaseId(purchaseId)
                 .forEach(i -> requireEditableComposition(i.getCreditCardBill()));
         creditCardInstallmentRepository.deleteAllByPurchaseId(purchaseId);
@@ -491,13 +494,24 @@ public class CreditCardService {
 
         requireEditableComposition(bill);
 
+        validateRefund(dto);
+        CreditCardPurchase purchase = null;
+        if (dto.purchaseId() != null) {
+            purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(dto.purchaseId(), creditCardId)
+                    .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
+            BigDecimal accumulated = creditCardRefundRepository.sumAmountByPurchaseId(purchase.getId());
+            if (accumulated.add(dto.amount()).compareTo(purchase.getTotalValue()) > 0) {
+                throw new IllegalArgumentException("amount: accumulated refunds must not exceed purchase totalValue");
+            }
+        }
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL));
 
         CreditCardRefund refund = CreditCardRefund.builder()
                 .creditCardBill(bill)
+                .purchase(purchase)
                 .description(dto.description())
-                .amount(dto.amount())
+                .amount(dto.amount().setScale(2))
                 .refundDate(dto.refundDate())
                 .category(category)
                 .build();
@@ -505,6 +519,7 @@ public class CreditCardService {
         return new CreditCardRefundDto(creditCardRefundRepository.save(refund));
     }
 
+    @Transactional(readOnly = true)
     public List<CreditCardRefundDto> findRefunds(Long creditCardId, Long billId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         validateCreditCardOwnership(creditCardId, currentUser.getId());
@@ -554,6 +569,26 @@ public class CreditCardService {
         BigDecimal totalInstallments = creditCardInstallmentRepository.sumAmountByBillId(bill.getId());
         BigDecimal totalRefunds = creditCardRefundRepository.sumAmountByBillId(bill.getId());
         return new CreditCardBillDto(bill, totalInstallments, totalRefunds);
+    }
+
+    private void requireUnreferencedPurchase(Long purchaseId) {
+        if (creditCardRefundRepository.existsByPurchaseId(purchaseId)) {
+            throw new IllegalStateException("Purchase is referenced by refunds and cannot be changed or deleted");
+        }
+    }
+
+    private void validateRefund(CreditCardRefundCreateDto dto) {
+        if (dto == null) throw new IllegalArgumentException("refund: required");
+        if (dto.description() == null || dto.description().isBlank() || dto.description().length() > 255)
+            throw new IllegalArgumentException("description: required, maximum 255 characters");
+        if (dto.amount() == null || dto.amount().signum() <= 0 || dto.amount().scale() > 2
+                || dto.amount().compareTo(new BigDecimal("9999999999999.99")) > 0)
+            throw new IllegalArgumentException("amount: must be positive with at most 13 integer digits and 2 decimal places");
+        if (dto.refundDate() == null) throw new IllegalArgumentException("refundDate: required");
+        if (dto.categoryId() == null || dto.categoryId() <= 0)
+            throw new IllegalArgumentException("categoryId: required positive ID");
+        if (dto.purchaseId() != null && dto.purchaseId() <= 0)
+            throw new IllegalArgumentException("purchaseId: must be positive");
     }
 
 }

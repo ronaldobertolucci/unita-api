@@ -153,7 +153,8 @@ public class GlobalExceptionHandler {
             }
             if (constraint != null && (constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_transfer_source")
                     || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_transfer_target")
-                    || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_credit_card_bills_payment"))) {
+                    || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_credit_card_bills_payment")
+                    || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_credit_card_refunds_purchase"))) {
                 return handleIllegalStateException(new IllegalStateException(
                         "Resource is linked to a protected financial operation and cannot be deleted"), request);
             }

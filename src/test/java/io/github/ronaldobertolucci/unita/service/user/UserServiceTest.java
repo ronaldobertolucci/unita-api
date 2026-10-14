@@ -34,6 +34,8 @@ class UserServiceTest {
     private io.github.ronaldobertolucci.unita.repository.TransactionRepository transactionRepository;
     @Mock
     private io.github.ronaldobertolucci.unita.repository.CreditCardBillRepository creditCardBillRepository;
+    @Mock
+    private io.github.ronaldobertolucci.unita.repository.CreditCardRefundRepository creditCardRefundRepository;
 
     @Mock
     private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService concurrency;

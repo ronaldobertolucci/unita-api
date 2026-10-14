@@ -29,6 +29,7 @@ public class UserService {
     private final io.github.ronaldobertolucci.unita.repository.CreditCardInstallmentRepository creditCardInstallmentRepository;
     private final TransactionRepository transactionRepository;
     private final CreditCardBillRepository creditCardBillRepository;
+    private final io.github.ronaldobertolucci.unita.repository.CreditCardRefundRepository creditCardRefundRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -99,6 +100,7 @@ public class UserService {
                 || creditCardBillRepository.existsByCreditCardUserIdAndPaymentTransactionIsNotNull(id)) {
             throw new IllegalStateException("User contains protected financial operations and cannot be deleted");
         }
+        creditCardRefundRepository.deleteAllByUserId(id);
         creditCardInstallmentRepository.deleteAllByUserId(id);
         userRepository.deleteById(id);
         userRepository.flush();
