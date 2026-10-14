@@ -48,13 +48,21 @@ public interface CreditCardInstallmentRepository extends JpaRepository<CreditCar
             @Param("id") Long id,
             @Param("purchaseId") Long purchaseId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("""
             DELETE FROM CreditCardInstallment i
             WHERE i.purchase.id = :purchaseId
             """)
     void deleteAllByPurchaseId(@Param("purchaseId") Long purchaseId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM CreditCardInstallment i WHERE i.purchase.creditCard.id = :cardId")
+    void deleteAllByCardId(@Param("cardId") Long cardId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM CreditCardInstallment i WHERE i.purchase.creditCard.user.id = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
 
     @Query("""
         SELECT COALESCE(SUM(i.amount), 0)

@@ -54,7 +54,7 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.updateCreditCard(id, dto, authentication));
     }
 
-    @io.swagger.v3.oas.annotations.Operation(summary = "Excluir cartão elegível", description = "Retorna 409 quando existem faturas com referência de pagamento, preservando o vínculo financeiro.")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Excluir cartão elegível", description = "Retorna 409 quando existem faturas CLOSED/PAID ou referência de pagamento, preservando o vínculo financeiro.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Vínculo financeiro protegido; operação rejeitada integralmente")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCreditCard(
@@ -96,6 +96,7 @@ public class CreditCardController {
     }
 
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
+    @ApiResponse(responseCode = "409", description = "Invalid bill state; PAID cannot be reopened")
     @PutMapping("/{id}/bills/{billId}/reopen")
     public ResponseEntity<CreditCardBillDto> reopenBill(
             @PathVariable Long id,
@@ -105,6 +106,7 @@ public class CreditCardController {
     }
 
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "Concurrency Timeout: espera por bloqueio excedida; consultar estado antes de repetir escrita")
+    @ApiResponse(responseCode = "409", description = "Invalid bill state; PAID cannot be reopened")
     @PutMapping("/{id}/bills/{billId}/close")
     public ResponseEntity<CreditCardBillDto> closeBill(
             @PathVariable Long id,
@@ -141,6 +143,9 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findPurchases(id, authentication));
     }
 
+    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
+    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @DeleteMapping("/{id}/purchases/{purchaseId}")
     public ResponseEntity<Void> deletePurchase(
             @PathVariable Long id,
@@ -154,6 +159,9 @@ public class CreditCardController {
     // CreditCardInstallment
     // -------------------------------------------------------------------------
 
+    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
+    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @PostMapping("/{id}/purchases/{purchaseId}/installments")
     public ResponseEntity<CreditCardInstallmentDto> createInstallment(
             @PathVariable Long id,
@@ -172,6 +180,9 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findInstallments(id, purchaseId, authentication));
     }
 
+    @Operation(description = "Both bills must be OPEN without payment. Amount must remain unchanged. Moving to another bill sets installmentDate to destination periodStart; same-bill requests preserve date and number.")
+    @ApiResponse(responseCode = "409", description = "Protected origin/destination or changed installment amount")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @PutMapping("/{id}/purchases/{purchaseId}/installments/{installmentId}")
     public ResponseEntity<CreditCardInstallmentDto> updateInstallment(
             @PathVariable Long id,
@@ -183,6 +194,9 @@ public class CreditCardController {
                 creditCardService.updateInstallment(id, purchaseId, installmentId, dto, authentication));
     }
 
+    @Operation(description = "Individual installment deletion is blocked; delete the whole eligible purchase")
+    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @DeleteMapping("/{id}/purchases/{purchaseId}/installments/{installmentId}")
     public ResponseEntity<Void> deleteInstallment(
             @PathVariable Long id,
@@ -197,6 +211,9 @@ public class CreditCardController {
     // CreditCardRefund
     // -------------------------------------------------------------------------
 
+    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
+    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @PostMapping("/{id}/bills/{billId}/refunds")
     public ResponseEntity<CreditCardRefundDto> createRefund(
             @PathVariable Long id,
@@ -215,6 +232,9 @@ public class CreditCardController {
         return ResponseEntity.ok(creditCardService.findRefunds(id, billId, authentication));
     }
 
+    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
+    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
     @DeleteMapping("/{id}/bills/{billId}/refunds/{refundId}")
     public ResponseEntity<Void> deleteRefund(
             @PathVariable Long id,

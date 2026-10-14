@@ -25,6 +25,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserService {
 
+    private final io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService concurrency;
+    private final io.github.ronaldobertolucci.unita.repository.CreditCardInstallmentRepository creditCardInstallmentRepository;
     private final TransactionRepository transactionRepository;
     private final CreditCardBillRepository creditCardBillRepository;
     private final UserRepository userRepository;
@@ -83,15 +85,21 @@ public class UserService {
         return new UserDto(user);
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void delete(Long id) {
         if (!userRepository.existsById(id)) {
             throw new EntityNotFoundException("User not found: " + id);
+        }
+        concurrency.lockUserForDeletion(id);
+        concurrency.lockUserCards(id);
+        if (creditCardBillRepository.existsProtectedCompositionByUserId(id)) {
+            throw new IllegalStateException("User contains protected bills and cannot be deleted");
         }
         if (transactionRepository.existsProtectedByUserId(id)
                 || creditCardBillRepository.existsByCreditCardUserIdAndPaymentTransactionIsNotNull(id)) {
             throw new IllegalStateException("User contains protected financial operations and cannot be deleted");
         }
+        creditCardInstallmentRepository.deleteAllByUserId(id);
         userRepository.deleteById(id);
         userRepository.flush();
     }

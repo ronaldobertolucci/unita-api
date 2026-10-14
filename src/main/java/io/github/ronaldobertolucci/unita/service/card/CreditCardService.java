@@ -152,6 +152,10 @@ public class CreditCardService {
         if (creditCardBillRepository.existsByCreditCardIdAndPaymentTransactionIsNotNull(id)) {
             throw new IllegalStateException("Credit card contains bill payments and cannot be deleted");
         }
+        if (creditCardBillRepository.existsProtectedCompositionByCardId(id)) {
+            throw new IllegalStateException("Credit card contains protected bills and cannot be deleted");
+        }
+        creditCardInstallmentRepository.deleteAllByCardId(id);
         creditCardRepository.deleteById(id);
         creditCardRepository.flush();
     }
@@ -188,7 +192,7 @@ public class CreditCardService {
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
 
-        if (bill.getStatus() != CreditCardBillStatus.CLOSED) {
+        if (bill.getStatus() != CreditCardBillStatus.CLOSED || bill.getPaymentTransaction() != null) {
             throw new IllegalStateException("Only closed bills can be paid");
         }
 
@@ -238,7 +242,7 @@ public class CreditCardService {
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
 
-        if (bill.getStatus() != CreditCardBillStatus.CLOSED) {
+        if (bill.getStatus() != CreditCardBillStatus.CLOSED || bill.getPaymentTransaction() != null) {
             throw new IllegalStateException("Only closed bills can be reopened");
         }
 
@@ -255,7 +259,7 @@ public class CreditCardService {
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
 
-        if (bill.getStatus() != CreditCardBillStatus.OPEN) {
+        if (bill.getStatus() != CreditCardBillStatus.OPEN || bill.getPaymentTransaction() != null) {
             throw new IllegalStateException("Only open bills can be closed");
         }
 
@@ -325,7 +329,11 @@ public class CreditCardService {
         CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
 
-        creditCardPurchaseRepository.delete(purchase);
+        creditCardInstallmentRepository.findAllByPurchaseId(purchaseId)
+                .forEach(i -> requireEditableComposition(i.getCreditCardBill()));
+        creditCardInstallmentRepository.deleteAllByPurchaseId(purchaseId);
+        creditCardPurchaseRepository.deleteById(purchaseId);
+        creditCardPurchaseRepository.flush();
     }
 
     // -------------------------------------------------------------------------
@@ -356,12 +364,7 @@ public class CreditCardService {
 
         CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, installmentDate);
 
-        if (bill.getStatus() == CreditCardBillStatus.PAID) {
-            throw new IllegalStateException("Cannot add installment to a paid bill");
-        }
-        if (bill.getStatus() == CreditCardBillStatus.CLOSED) {
-            throw new IllegalStateException("Bill is closed. Reopen it before adding installments");
-        }
+        requireEditableComposition(bill);
 
         CreditCardInstallment installment = CreditCardInstallment.builder()
                 .purchase(purchase)
@@ -402,14 +405,19 @@ public class CreditCardService {
                 .orElseThrow(() -> new EntityNotFoundException("Installment not found"));
 
         CreditCardBill currentBill = installment.getCreditCardBill();
-        if (currentBill.getStatus() == CreditCardBillStatus.PAID) {
-            throw new IllegalStateException("Cannot move installment from a paid bill");
-        }
+        requireEditableComposition(currentBill);
 
         CreditCardBill newBill = creditCardBillRepository.findByIdAndCreditCardId(dto.creditCardBillId(), creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
-
-        installment.setAmount(dto.amount());
+        requireEditableComposition(newBill);
+        if (dto.amount().compareTo(installment.getAmount()) != 0) {
+            throw new IllegalStateException("Moving an installment must preserve its amount");
+        }
+        // D02: an explicit move uses the destination's inclusive period start.
+        // A same-bill request keeps the original date.
+        if (!currentBill.getId().equals(newBill.getId())) {
+            installment.setInstallmentDate(newBill.getPeriodStart());
+        }
         installment.setCreditCardBill(newBill);
 
         return new CreditCardInstallmentDto(creditCardInstallmentRepository.save(installment));
@@ -427,7 +435,8 @@ public class CreditCardService {
         CreditCardInstallment installment = creditCardInstallmentRepository.findByIdAndPurchaseId(installmentId, purchaseId)
                 .orElseThrow(() -> new EntityNotFoundException("Installment not found"));
 
-        creditCardInstallmentRepository.delete(installment);
+        requireEditableComposition(installment.getCreditCardBill());
+        throw new IllegalStateException("Individual installment deletion is not allowed. Delete the eligible purchase instead");
     }
 
     // -------------------------------------------------------------------------
@@ -443,6 +452,8 @@ public class CreditCardService {
 
         CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
+
+        requireEditableComposition(bill);
 
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL));
@@ -477,18 +488,25 @@ public class CreditCardService {
         concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
-        creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
+        CreditCardBill bill = creditCardBillRepository.findByIdAndCreditCardId(billId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Credit card bill not found"));
 
         CreditCardRefund refund = creditCardRefundRepository.findByIdAndBillId(refundId, billId)
                 .orElseThrow(() -> new EntityNotFoundException("Refund not found"));
 
+        requireEditableComposition(bill);
         creditCardRefundRepository.delete(refund);
     }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private void requireEditableComposition(CreditCardBill bill) {
+        if (bill.getStatus() != CreditCardBillStatus.OPEN || bill.getPaymentTransaction() != null) {
+            throw new IllegalStateException("Bill composition is protected. Only open bills without a payment can be changed");
+        }
+    }
 
     private void validateCreditCardOwnership(Long creditCardId, Long userId) {
         if (!creditCardRepository.existsByIdAndUserId(creditCardId, userId)) {

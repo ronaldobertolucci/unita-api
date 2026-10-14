@@ -179,8 +179,11 @@ class FinancialConcurrencyIntegrationTest {
         balance(source,"0");
     }
     @Test void editingBeforePaymentUsesCommittedComposition() throws Exception {
-        leader(()->locks.lockCard(cardId()),()->cards.updateInstallment(cardId(),purchaseId,installmentId,
-                new CreditCardInstallmentUpdateDto(new BigDecimal("80"),bill.getId()),auth()),()->assertEquals(200,pay()));
+        leader(()->locks.lockCard(cardId()),()->{
+            cards.reopenBill(cardId(),bill.getId(),auth());
+            cards.createRefund(cardId(),bill.getId(),new CreditCardRefundCreateDto("Correction",new BigDecimal("20"),LocalDate.now(),received.getId()),auth());
+            cards.closeBill(cardId(),bill.getId(),auth());
+        },()->assertEquals(200,pay()));
         balance(source,"20");
     }
     @Test void closingJobSharesTheCardProtocol() throws Exception {
@@ -212,7 +215,9 @@ class FinancialConcurrencyIntegrationTest {
     @Test void zeroTotalCannotCreateExpense() { rejectNonPositiveTotal("100"); }
     @Test void creditTotalCannotCreateNegativeExpense() { rejectNonPositiveTotal("120"); }
     void rejectNonPositiveTotal(String refundAmount) {
+        cards.reopenBill(cardId(),bill.getId(),auth());
         cards.createRefund(cardId(), bill.getId(), new CreditCardRefundCreateDto("Refund", new BigDecimal(refundAmount), LocalDate.now(), received.getId()), auth());
+        cards.closeBill(cardId(),bill.getId(),auth());
         assertEquals(409, pay());
         balance(source, "100");
         tx.executeWithoutResult(status -> {

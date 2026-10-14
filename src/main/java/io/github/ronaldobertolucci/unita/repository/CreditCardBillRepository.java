@@ -103,6 +103,12 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
             @Param("newStatus") CreditCardBillStatus newStatus,
             @Param("cardIds") List<Long> cardIds);
 
+    @Query("SELECT COUNT(b) > 0 FROM CreditCardBill b WHERE b.creditCard.id = :cardId AND (b.status <> 'OPEN' OR b.paymentTransaction IS NOT NULL)")
+    boolean existsProtectedCompositionByCardId(@Param("cardId") Long cardId);
+
+    @Query("SELECT COUNT(b) > 0 FROM CreditCardBill b WHERE b.creditCard.user.id = :userId AND (b.status <> 'OPEN' OR b.paymentTransaction IS NOT NULL)")
+    boolean existsProtectedCompositionByUserId(@Param("userId") Long userId);
+
     boolean existsByCreditCardIdAndPaymentTransactionIsNotNull(Long creditCardId);
     boolean existsByCreditCardUserIdAndPaymentTransactionIsNotNull(Long userId);
 
