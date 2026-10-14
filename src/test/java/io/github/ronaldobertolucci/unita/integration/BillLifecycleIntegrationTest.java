@@ -194,11 +194,11 @@ class BillLifecycleIntegrationTest {
         tx.executeWithoutResult(s -> em.find(CreditCardPurchase.class,purchaseId).setPurchaseDate(bill.getPeriodStart().plusDays(1)));
         mvc.perform(post("/api/credit-cards/"+cardId()+"/purchases/"+purchaseId+"/installments").contextPath("/api").with(user(owner))
                 .contentType("application/json").content("{\"installmentNumber\":2,\"amount\":100,\"categoryId\":"+sent.getId()+"}"))
-                .andExpect(status().isCreated()); // next period remains eligible; resolver never skips a protected period
-        // First period targets the protected bill, not the new future bill.
+                .andExpect(status().isConflict()); // US-04 retires all staged installment creation
+        // Even an otherwise eligible first period cannot use the retired route.
         mvc.perform(post("/api/credit-cards/"+cardId()+"/purchases/"+purchaseId+"/installments").contextPath("/api").with(user(owner))
                 .contentType("application/json").content("{\"installmentNumber\":1,\"amount\":100,\"categoryId\":"+sent.getId()+"}"))
-                .andExpect(status().is(state==CreditCardBillStatus.OPEN?201:409));
+                .andExpect(status().isConflict());
     }
     @Test void mixedPurchaseBlocksWholeDeletion() throws Exception {
         state(CreditCardBillStatus.OPEN);var protectedBill=destination(CreditCardBillStatus.CLOSED);

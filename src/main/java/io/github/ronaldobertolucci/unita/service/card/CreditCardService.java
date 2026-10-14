@@ -299,25 +299,86 @@ public class CreditCardService {
         CreditCard creditCard = creditCardRepository.findByIdAndUserId(creditCardId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
 
-        CreditCardPurchase purchase = CreditCardPurchase.builder()
-                .creditCard(creditCard)
-                .description(dto.description())
-                .totalValue(dto.totalValue())
-                .purchaseDate(dto.purchaseDate())
-                .installmentsCount(dto.installmentsCount())
-                .build();
-
-        return new CreditCardPurchaseDto(creditCardPurchaseRepository.save(purchase));
+        List<PurchaseInstallmentPlanDto> plan = PurchasePlan.validate(dto);
+        List<CreditCardInstallment> installments = resolvePlan(creditCard, dto, plan, currentUser);
+        CreditCardPurchase purchase = CreditCardPurchase.builder().creditCard(creditCard).build();
+        applyPurchase(purchase, dto);
+        creditCardPurchaseRepository.save(purchase);
+        return savePlan(purchase, installments);
     }
 
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public CreditCardPurchaseDto updatePurchase(Long creditCardId, Long purchaseId, CreditCardPurchaseCreateDto dto,
+                                                 Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        concurrency.lockOwnedCard(creditCardId, user.getId());
+        CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
+                .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
+        List<PurchaseInstallmentPlanDto> plan = PurchasePlan.validate(dto);
+        List<CreditCardInstallment> old = creditCardInstallmentRepository.findAllByPurchaseId(purchaseId);
+        old.forEach(i -> {
+            if (!i.getCreditCardBill().getCreditCard().getId().equals(creditCardId)) {
+                throw new EntityNotFoundException("Credit card bill not found");
+            }
+            requireEditableComposition(i.getCreditCardBill());
+        });
+        List<CreditCardInstallment> replacement = resolvePlan(purchase.getCreditCard(), dto, plan, user);
+        // Flush removal before inserting the same (purchase_id, installment_number).
+        // Entity deletion keeps the managed purchase attached; all changes share this transaction.
+        creditCardInstallmentRepository.deleteAll(old);
+        creditCardInstallmentRepository.flush();
+        applyPurchase(purchase, dto);
+        return savePlan(purchase, replacement);
+    }
+
+    private List<CreditCardInstallment> resolvePlan(CreditCard card, CreditCardPurchaseCreateDto dto,
+                                                    List<PurchaseInstallmentPlanDto> plan, User user) {
+        Category defaultCategory = categoryService.resolveCategory(dto.categoryId(), user,
+                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
+        return plan.stream().map(entry -> {
+            Category category = entry.categoryId() == null || entry.categoryId().equals(dto.categoryId())
+                    ? defaultCategory : categoryService.resolveCategory(entry.categoryId(), user,
+                    EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
+            LocalDate date = dto.purchaseDate().plusMonths(entry.installmentNumber() - 1);
+            CreditCardBill bill = billResolverService.findOrCreateForDate(card, date);
+            requireEditableComposition(bill);
+            return CreditCardInstallment.builder().installmentNumber(entry.installmentNumber())
+                    .amount(entry.amount().setScale(2)).installmentDate(date).creditCardBill(bill).category(category).build();
+        }).toList();
+    }
+
+    private void applyPurchase(CreditCardPurchase purchase, CreditCardPurchaseCreateDto dto) {
+        purchase.setDescription(dto.description());
+        purchase.setTotalValue(dto.totalValue().setScale(2));
+        purchase.setPurchaseDate(dto.purchaseDate());
+        purchase.setInstallmentsCount(dto.installmentsCount());
+    }
+
+    private CreditCardPurchaseDto savePlan(CreditCardPurchase purchase, List<CreditCardInstallment> installments) {
+        installments.forEach(i -> { i.setPurchase(purchase); creditCardInstallmentRepository.save(i); });
+        creditCardInstallmentRepository.flush();
+        return new CreditCardPurchaseDto(purchase, installments.stream().map(CreditCardInstallmentDto::new).toList());
+    }
+
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public CreditCardPurchaseDto findPurchase(Long creditCardId, Long purchaseId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        validateCreditCardOwnership(creditCardId, user.getId());
+        CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
+                .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
+        return toPurchaseDto(purchase);
+    }
+
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public List<CreditCardPurchaseDto> findPurchases(Long creditCardId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         validateCreditCardOwnership(creditCardId, currentUser.getId());
+        return creditCardPurchaseRepository.findAllByCreditCardId(creditCardId).stream().map(this::toPurchaseDto).toList();
+    }
 
-        return creditCardPurchaseRepository.findAllByCreditCardId(creditCardId)
-                .stream()
-                .map(CreditCardPurchaseDto::new)
-                .toList();
+    private CreditCardPurchaseDto toPurchaseDto(CreditCardPurchase purchase) {
+        return new CreditCardPurchaseDto(purchase, creditCardInstallmentRepository.findAllByPurchaseId(purchase.getId())
+                .stream().map(CreditCardInstallmentDto::new).toList());
     }
 
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
@@ -347,37 +408,12 @@ public class CreditCardService {
         concurrency.lockOwnedCard(creditCardId, currentUser.getId());
         validateCreditCardOwnership(creditCardId, currentUser.getId());
 
-        CreditCard creditCard = creditCardRepository.findByIdAndUserId(creditCardId, currentUser.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Credit card not found"));
-
-        CreditCardPurchase purchase = creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
+        creditCardPurchaseRepository.findByIdAndCreditCardId(purchaseId, creditCardId)
                 .orElseThrow(() -> new EntityNotFoundException("Purchase not found"));
-
-        Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
-                EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
-
-        LocalDate installmentMonth = purchase
-                .getPurchaseDate()
-                .plusMonths(dto.installmentNumber() - 1);
-        LocalDate installmentDate = installmentMonth
-                .withDayOfMonth(Math.min(purchase.getPurchaseDate().getDayOfMonth(), installmentMonth.lengthOfMonth()));
-
-        CreditCardBill bill = billResolverService.findOrCreateForDate(creditCard, installmentDate);
-
-        requireEditableComposition(bill);
-
-        CreditCardInstallment installment = CreditCardInstallment.builder()
-                .purchase(purchase)
-                .installmentNumber(dto.installmentNumber())
-                .installmentDate(installmentDate)
-                .amount(dto.amount())
-                .creditCardBill(bill)
-                .category(category)
-                .build();
-
-        return new CreditCardInstallmentDto(creditCardInstallmentRepository.save(installment));
+        throw new IllegalStateException("Individual installment creation is not allowed. Submit the complete purchase plan instead");
     }
 
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public List<CreditCardInstallmentDto> findInstallments(Long creditCardId, Long purchaseId, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         validateCreditCardOwnership(creditCardId, currentUser.getId());

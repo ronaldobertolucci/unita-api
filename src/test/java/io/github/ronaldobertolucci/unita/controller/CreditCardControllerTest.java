@@ -511,7 +511,7 @@ class CreditCardControllerTest {
     @Test
     void createPurchase_WhenDataIsValid_ShouldReturn201() throws Exception {
         CreditCardPurchaseCreateDto dto = new CreditCardPurchaseCreateDto(
-                "Supermercado", new BigDecimal("300.00"), LocalDate.of(2025, 1, 5), 1);
+                "Supermercado", new BigDecimal("300.00"), LocalDate.of(2025, 1, 5), 1, 1L, null, null);
         when(creditCardService.createPurchase(eq(1L), any(), any())).thenReturn(purchaseDto());
 
         mockMvc.perform(post("/credit-cards/1/purchases").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
@@ -525,7 +525,7 @@ class CreditCardControllerTest {
     @Test
     void createPurchase_WhenUnauthenticated_ShouldReturn401() throws Exception {
         CreditCardPurchaseCreateDto dto = new CreditCardPurchaseCreateDto(
-                "Supermercado", new BigDecimal("300.00"), LocalDate.of(2025, 1, 5), 1);
+                "Supermercado", new BigDecimal("300.00"), LocalDate.of(2025, 1, 5), 1, 1L, null, null);
         when(creditCardService.createPurchase(eq(1L), any(), any())).thenReturn(purchaseDto());
 
         mockMvc.perform(post("/credit-cards/1/purchases")
@@ -536,7 +536,7 @@ class CreditCardControllerTest {
 
     @Test
     void createPurchase_WhenRequiredFieldsAreMissing_ShouldReturn400() throws Exception {
-        CreditCardPurchaseCreateDto dto = new CreditCardPurchaseCreateDto("", null, null, null);
+        CreditCardPurchaseCreateDto dto = new CreditCardPurchaseCreateDto("", null, null, null, null, null, null);
 
         mockMvc.perform(post("/credit-cards/1/purchases").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -592,18 +592,16 @@ class CreditCardControllerTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void createInstallment_WhenDataIsValid_ShouldReturn201() throws Exception {
+    void createInstallment_WhenDataIsValid_ShouldReturn409() throws Exception {
         CreditCardInstallmentCreateDto dto = new CreditCardInstallmentCreateDto(
                 1, new BigDecimal("300.00"), 1L);
         when(creditCardService.createInstallment(eq(1L), eq(1L), any(), any()))
-                .thenReturn(installmentDto());
+                .thenThrow(new IllegalStateException("Individual installment creation is not allowed. Submit the complete purchase plan instead"));
 
         mockMvc.perform(post("/credit-cards/1/purchases/1/installments").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.installmentNumber").value(1))
-                .andExpect(jsonPath("$.creditCardBillId").value(1));
+                .andExpect(status().isConflict());
     }
 
     @Test

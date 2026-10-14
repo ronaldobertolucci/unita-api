@@ -20,6 +20,13 @@ public class CreditCardController {
 
     private final CreditCardService creditCardService;
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<io.github.ronaldobertolucci.unita.dto.exception.ErrorResponseDto> invalidJson(
+            jakarta.servlet.http.HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(new io.github.ronaldobertolucci.unita.dto.exception.ErrorResponseDto(
+                400, "Bad Request", "Invalid JSON, field type, date or installmentMode", request.getRequestURI()));
+    }
+
     // -------------------------------------------------------------------------
     // CreditCard
     // -------------------------------------------------------------------------
@@ -127,6 +134,12 @@ public class CreditCardController {
     // CreditCardPurchase
     // -------------------------------------------------------------------------
 
+    @Operation(description = "Creates the entire purchase and plan atomically. AUTOMATIC defaults to cents truncated with remainder in the last installment; CUSTOM requires a complete plan. 1..120 installments; positive NUMERIC(15,2). Dates anchored to purchaseDate. No idempotency key: repeated POST creates another purchase.")
+    @ApiResponse(responseCode = "201", description = "Complete purchase and installment plan created atomically")
+    @ApiResponse(responseCode = "400", description = "Invalid input or inconsistent plan; nothing persisted")
+    @ApiResponse(responseCode = "404", description = "Unavailable card/category")
+    @ApiResponse(responseCode = "409", description = "An affected bill is not OPEN or has payment; nothing persisted")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; consult state before retrying")
     @PostMapping("/{id}/purchases")
     public ResponseEntity<CreditCardPurchaseDto> createPurchase(
             @PathVariable Long id,
@@ -134,6 +147,23 @@ public class CreditCardController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(creditCardService.createPurchase(id, dto, authentication));
+    }
+
+    @Operation(description = "Replaces the complete purchase plan atomically. All old and new bills must be OPEN without payment. Installment IDs are replaced. No optimistic version or idempotency key; serialized edits validate current states.")
+    @ApiResponse(responseCode = "400", description = "Invalid complete plan; previous purchase preserved")
+    @ApiResponse(responseCode = "404", description = "Unavailable card, purchase or category")
+    @ApiResponse(responseCode = "409", description = "Protected old or new bill; previous purchase preserved")
+    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; consult state before retrying")
+    @PutMapping("/{id}/purchases/{purchaseId}")
+    public ResponseEntity<CreditCardPurchaseDto> updatePurchase(@PathVariable Long id, @PathVariable Long purchaseId,
+            @RequestBody @Valid CreditCardPurchaseCreateDto dto, Authentication authentication) {
+        return ResponseEntity.ok(creditCardService.updatePurchase(id, purchaseId, dto, authentication));
+    }
+
+    @GetMapping("/{id}/purchases/{purchaseId}")
+    public ResponseEntity<CreditCardPurchaseDto> findPurchase(@PathVariable Long id, @PathVariable Long purchaseId,
+                                                             Authentication authentication) {
+        return ResponseEntity.ok(creditCardService.findPurchase(id, purchaseId, authentication));
     }
 
     @GetMapping("/{id}/purchases")
@@ -159,9 +189,8 @@ public class CreditCardController {
     // CreditCardInstallment
     // -------------------------------------------------------------------------
 
-    @Operation(description = "Composition requires OPEN bills without payment; protected composition is preserved atomically")
-    @ApiResponse(responseCode = "409", description = "Protected bill composition or incomplete purchase")
-    @ApiResponse(responseCode = "503", description = "Concurrency Timeout; reload state before retrying")
+    @ApiResponse(responseCode = "409", description = "Individual installment creation retired")
+    @Operation(deprecated = true, description = "Retired staged creation: always returns 409 for an owned existing purchase. Use POST/PUT of the complete purchase plan, including legacy repairs.")
     @PostMapping("/{id}/purchases/{purchaseId}/installments")
     public ResponseEntity<CreditCardInstallmentDto> createInstallment(
             @PathVariable Long id,
