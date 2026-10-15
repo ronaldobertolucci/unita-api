@@ -41,6 +41,8 @@ public class InvestmentTransactionService {
 
     @Transactional
     public InvestmentTransactionDto buy(Long assetId, InvestmentBuyDto dto, Authentication authentication) {
+        requirePositive(dto.amount(), "amount");
+        requirePositive(dto.quantity(), "quantity");
         User currentUser = (User) authentication.getPrincipal();
 
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
@@ -104,6 +106,7 @@ public class InvestmentTransactionService {
 
     @Transactional
     public InvestmentTransactionDto yield(Long assetId, InvestmentYieldDto dto, Authentication authentication) {
+        requirePositive(dto.amount(), "amount");
         User currentUser = (User) authentication.getPrincipal();
 
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
@@ -118,6 +121,13 @@ public class InvestmentTransactionService {
 
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL));
+
+        InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
+                .orElseThrow(() -> new EntityNotFoundException("Position not found"));
+
+        if (dto.amount().compareTo(position.getCurrentValue()) > 0) {
+            throw new IllegalStateException("Yield value cannot be greater than current value.");
+        }
 
         // Cria Transaction INCOME no pocket
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
@@ -141,13 +151,6 @@ public class InvestmentTransactionService {
                         .build());
 
         // Atualiza posição — acumula em redeemedValue para evitar duplicidade no resgate final
-        InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
-                .orElseThrow(() -> new EntityNotFoundException("Position not found"));
-
-        if (dto.amount().compareTo(position.getCurrentValue()) > 0) {
-            throw new IllegalStateException("Yield value cannot be greater than current value.");
-        }
-
         position.setRedeemedValue(position.getRedeemedValue().add(dto.amount()));
         position.setCurrentValue(position.getCurrentValue().subtract(dto.amount()));
 
@@ -236,6 +239,12 @@ public class InvestmentTransactionService {
         return List.of(
                 new InvestmentTransactionDto(sellTransaction),
                 new InvestmentTransactionDto(taxTransaction));
+    }
+
+    private static void requirePositive(BigDecimal value, String field) {
+        if (value == null || value.signum() <= 0) {
+            throw new IllegalArgumentException(field + " must be greater than zero");
+        }
     }
 
     // -------------------------------------------------------------------------

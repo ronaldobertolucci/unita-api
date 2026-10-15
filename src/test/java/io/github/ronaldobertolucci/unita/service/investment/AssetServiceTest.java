@@ -16,6 +16,10 @@ import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import org.mockito.Spy;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +39,8 @@ class AssetServiceTest {
     @Mock private LegalEntityRepository legalEntityRepository;
     @Mock private TaxCalculationService taxCalculationService;
     @Mock private Authentication authentication;
+
+    @Spy private Clock investmentClock = Clock.fixed(Instant.parse("2026-10-15T01:00:00Z"), ZoneId.of("America/Sao_Paulo"));
 
     @InjectMocks
     private AssetService assetService;
@@ -295,8 +301,8 @@ class AssetServiceTest {
         when(fixedIncomeDetailsRepository.findByAssetId(1L)).thenReturn(Optional.of(details));
         when(taxCalculationService.calculateFixedIncomeTaxRate(any(), any()))
                 .thenReturn(new BigDecimal("0.150"));
-        when(taxCalculationService.describeTaxBasis(anyLong(), eq("REGRESSIVO")))
-                .thenReturn("Tabela regressiva IR - acima de 720 dias (15,0%)");
+        when(taxCalculationService.describeFixedIncomeTaxBasis(anyLong()))
+                .thenReturn("Renda fixa: tabela regressiva IR - acima de 720 dias (15,0%)");
         when(taxCalculationService.calculateTaxAmount(any(), any()))
                 .thenReturn(new BigDecimal("300.00000000")); // 15% sobre rendimento de 2.000
 
@@ -343,8 +349,8 @@ class AssetServiceTest {
         when(pensionDetailsRepository.findByAssetId(1L)).thenReturn(Optional.of(details));
         when(taxCalculationService.calculatePensionRegressiveTaxRate(any(), any()))
                 .thenReturn(new BigDecimal("0.150"));
-        when(taxCalculationService.describeTaxBasis(anyLong(), eq("REGRESSIVO")))
-                .thenReturn("Tabela regressiva IR - acima de 720 dias (15,0%)");
+        when(taxCalculationService.describePensionTaxBasis(anyLong(), eq(TaxRegime.REGRESSIVO)))
+                .thenReturn("Previdência regressiva: 2921 a 3650 dias (15,0%)");
         when(taxCalculationService.calculateTaxAmount(any(), any()))
                 .thenReturn(new BigDecimal("300.00000000"));
 
@@ -369,8 +375,8 @@ class AssetServiceTest {
         when(pensionDetailsRepository.findByAssetId(1L)).thenReturn(Optional.of(details));
         when(taxCalculationService.calculatePensionRegressiveTaxRate(any(), any()))
                 .thenReturn(new BigDecimal("0.150"));
-        when(taxCalculationService.describeTaxBasis(anyLong(), eq("REGRESSIVO")))
-                .thenReturn("Tabela regressiva IR - acima de 720 dias (15,0%)");
+        when(taxCalculationService.describePensionTaxBasis(anyLong(), eq(TaxRegime.REGRESSIVO)))
+                .thenReturn("Previdência regressiva: 2921 a 3650 dias (15,0%)");
         when(taxCalculationService.calculateTaxAmount(any(), any()))
                 .thenReturn(new BigDecimal("1800.00000000"));
 
@@ -396,7 +402,7 @@ class AssetServiceTest {
         when(pensionDetailsRepository.findByAssetId(1L)).thenReturn(Optional.of(details));
         when(taxCalculationService.getPensionProgressiveTaxRate())
                 .thenReturn(new BigDecimal("0.150"));
-        when(taxCalculationService.describeTaxBasis(anyLong(), eq("PROGRESSIVO")))
+        when(taxCalculationService.describePensionTaxBasis(anyLong(), eq(TaxRegime.PROGRESSIVO)))
                 .thenReturn("15% retidos na fonte (antecipação) — ajuste final na Declaração Anual");
         when(taxCalculationService.calculateTaxAmount(any(), any()))
                 .thenReturn(new BigDecimal("1800.00000000"));

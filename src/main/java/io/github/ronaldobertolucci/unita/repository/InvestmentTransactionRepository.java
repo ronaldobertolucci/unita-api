@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,14 @@ public interface InvestmentTransactionRepository extends JpaRepository<Investmen
     boolean existsByAssetId(Long assetId);
 
     Optional<InvestmentTransaction> findFirstByAssetIdAndTypeOrderByTransactionDateAsc(Long assetId, InvestmentTransactionType type);
+
+    @Query("""
+        SELECT DISTINCT it.transactionDate FROM InvestmentTransaction it
+        WHERE it.asset.id = :assetId
+          AND it.type = io.github.ronaldobertolucci.unita.model.investment.InvestmentTransactionType.BUY
+        ORDER BY it.transactionDate
+        """)
+    List<LocalDate> findDistinctPurchaseDatesByAssetId(@Param("assetId") Long assetId);
 
     @Query("""
         SELECT COALESCE(SUM(it.amount), 0)

@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.controller;
 import io.github.ronaldobertolucci.unita.dto.dashboard.*;
 import io.github.ronaldobertolucci.unita.service.dashboard.DashboardService;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -58,6 +59,10 @@ public class DashboardController {
         return ResponseEntity.ok(dashboardService.getLiquiditySummary(authentication));
     }
 
+    @Operation(summary = "Read net profit of redeemed legacy investments",
+            description = "Sum of redeemedValue minus totalInvested for redeemed assets owned by the authenticated user. "
+                    + "redeemedValue already includes net redemptions and credited legacy yields; TAX is not deducted again. "
+                    + "Returns a numeric amount, including zero or a loss, without changing cash or historical movements.")
     @GetMapping("/net-profit")
     public ResponseEntity<BigDecimal> getNetProfit(Authentication authentication) {
         return ResponseEntity.ok(dashboardService.getNetProfit(authentication));

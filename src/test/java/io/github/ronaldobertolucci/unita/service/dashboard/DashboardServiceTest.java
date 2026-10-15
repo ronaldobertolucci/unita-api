@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
@@ -305,39 +306,19 @@ class DashboardServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getNetProfit_ShouldSubtractTaxFromGrossProfit() {
-        when(assetRepository.sumGrossProfitByUserId(currentUser.getId()))
-                .thenReturn(new BigDecimal("500.00"));
-        when(investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(currentUser.getId()))
-                .thenReturn(new BigDecimal("100.00"));
+    void getNetProfit_ShouldUseAlreadyNetLegacyResultWithoutDeductingTaxAgain() {
+        // The old test mocked this as gross profit and crystallized the double deduction.
+        when(assetRepository.sumLegacyNetProfitByUserId(currentUser.getId()))
+                .thenReturn(new BigDecimal("85.00"));
 
-        BigDecimal result = dashboardService.getNetProfit(authentication);
-
-        assertEquals(0, new BigDecimal("400.00").compareTo(result));
-    }
-
-    @Test
-    void getNetProfit_WhenNoTaxes_ShouldReturnGrossProfit() {
-        when(assetRepository.sumGrossProfitByUserId(currentUser.getId()))
-                .thenReturn(new BigDecimal("500.00"));
-        when(investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(currentUser.getId()))
-                .thenReturn(BigDecimal.ZERO);
-
-        BigDecimal result = dashboardService.getNetProfit(authentication);
-
-        assertEquals(0, new BigDecimal("500.00").compareTo(result));
+        assertEquals(0, new BigDecimal("85.00").compareTo(dashboardService.getNetProfit(authentication)));
+        verifyNoInteractions(investmentTransactionRepository);
     }
 
     @Test
     void getNetProfit_WhenNoRedeemedAssets_ShouldReturnZero() {
-        when(assetRepository.sumGrossProfitByUserId(currentUser.getId()))
-                .thenReturn(BigDecimal.ZERO);
-        when(investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(currentUser.getId()))
-                .thenReturn(BigDecimal.ZERO);
-
-        BigDecimal result = dashboardService.getNetProfit(authentication);
-
-        assertEquals(0, BigDecimal.ZERO.compareTo(result));
+        when(assetRepository.sumLegacyNetProfitByUserId(currentUser.getId())).thenReturn(BigDecimal.ZERO);
+        assertEquals(0, BigDecimal.ZERO.compareTo(dashboardService.getNetProfit(authentication)));
     }
 
     // -------------------------------------------------------------------------

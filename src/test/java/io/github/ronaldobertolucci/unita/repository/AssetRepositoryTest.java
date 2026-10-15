@@ -274,23 +274,23 @@ class AssetRepositoryTest extends BaseRepositoryTest {
     }
 
     // -------------------------------------------------------------------------
-    // sumGrossProfitByUserId
+    // sumLegacyNetProfitByUserId
     // -------------------------------------------------------------------------
 
     @Test
-    void sumGrossProfitByUserId_ShouldSumRedeemedValueMinusTotalInvested() {
+    void sumLegacyNetProfitByUserId_ShouldSumRedeemedValueMinusTotalInvested() {
         saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
                 new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
         saveAssetWithPositionAndInvested("CDB B", user, legalEntity,
                 new BigDecimal("600.00"), new BigDecimal("500.00"), AssetStatus.REDEEMED);
 
-        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+        BigDecimal result = assetRepository.sumLegacyNetProfitByUserId(user.getId());
 
         assertEquals(0, new BigDecimal("300.00").compareTo(result));
     }
 
     @Test
-    void sumGrossProfitByUserId_ShouldExcludeNonRedeemedAssets() {
+    void sumLegacyNetProfitByUserId_ShouldExcludeNonRedeemedAssets() {
         saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
                 new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
         saveAssetWithPositionAndInvested("CDB B", user, legalEntity,
@@ -298,26 +298,26 @@ class AssetRepositoryTest extends BaseRepositoryTest {
         saveAssetWithPositionAndInvested("CDB C", user, legalEntity,
                 new BigDecimal("800.00"), new BigDecimal("700.00"), AssetStatus.MATURED);
 
-        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+        BigDecimal result = assetRepository.sumLegacyNetProfitByUserId(user.getId());
 
         assertEquals(0, new BigDecimal("200.00").compareTo(result));
     }
 
     @Test
-    void sumGrossProfitByUserId_ShouldNotReturnOtherUsersAssets() {
+    void sumLegacyNetProfitByUserId_ShouldNotReturnOtherUsersAssets() {
         saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
                 new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
         saveAssetWithPositionAndInvested("CDB B", otherUser, legalEntity,
                 new BigDecimal("600.00"), new BigDecimal("500.00"), AssetStatus.REDEEMED);
 
-        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+        BigDecimal result = assetRepository.sumLegacyNetProfitByUserId(user.getId());
 
         assertEquals(0, new BigDecimal("200.00").compareTo(result));
     }
 
     @Test
-    void sumGrossProfitByUserId_WhenNoRedeemedAssets_ShouldReturnZero() {
-        BigDecimal result = assetRepository.sumGrossProfitByUserId(user.getId());
+    void sumLegacyNetProfitByUserId_WhenNoRedeemedAssets_ShouldReturnZero() {
+        BigDecimal result = assetRepository.sumLegacyNetProfitByUserId(user.getId());
 
         assertEquals(0, BigDecimal.ZERO.compareTo(result));
     }

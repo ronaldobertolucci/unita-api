@@ -25,7 +25,6 @@ public class DashboardService {
     private final TransactionRepository transactionRepository;
     private final CreditCardInstallmentRepository creditCardInstallmentRepository;
     private final CreditCardRefundRepository creditCardRefundRepository;
-    private final InvestmentTransactionRepository investmentTransactionRepository;
 
     // -------------------------------------------------------------------------
     // Public Authentication-based methods (DashboardController)
@@ -177,9 +176,7 @@ public class DashboardService {
     }
 
     public BigDecimal getNetProfitByUserId(Long userId) {
-        BigDecimal grossProfit = assetRepository.sumGrossProfitByUserId(userId);
-        BigDecimal totalTax = investmentTransactionRepository.sumTaxByUserIdAndRedeemedAssets(userId);
-        return grossProfit.subtract(totalTax);
+        return assetRepository.sumLegacyNetProfitByUserId(userId);
     }
 
     // -------------------------------------------------------------------------

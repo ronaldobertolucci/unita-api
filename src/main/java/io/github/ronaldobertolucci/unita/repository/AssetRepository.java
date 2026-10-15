@@ -80,6 +80,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         """)
     List<LiquidityTypeSummaryDto> sumCurrentValueByLiquidityTypeAndUserId(@Param("userId") Long userId);
 
+    // redeemedValue already includes net redemptions and credited legacy yields.
     @Query("""
         SELECT COALESCE(SUM(p.redeemedValue - p.totalInvested), 0)
         FROM Asset a
@@ -87,5 +88,5 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         WHERE a.user.id = :userId
           AND a.status = io.github.ronaldobertolucci.unita.model.investment.AssetStatus.REDEEMED
         """)
-    BigDecimal sumGrossProfitByUserId(@Param("userId") Long userId);
+    BigDecimal sumLegacyNetProfitByUserId(@Param("userId") Long userId);
 }

@@ -7,13 +7,12 @@ import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -95,13 +94,23 @@ public class AssetController {
     // Tax Suggestion
     // -------------------------------------------------------------------------
 
+    @Operation(summary = "Estimate legacy redemption tax",
+            description = "Read-only estimate using purchaseDate and today's date in America/Sao_Paulo. "
+                    + "Fixed income and VGBL use non-negative earnings; PGBL/closed pension use gross amount. "
+                    + "LIMITED_ESTIMATE and warnings identify missing, conflicting or multiple purchase dates. "
+                    + "No IOF or monthly/annual assessment; never replaces taxAmount informed on sell.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Numeric suggestion with taxable base, estimation status and warnings"),
+                    @ApiResponse(responseCode = "400", description = "Invalid amount, purchase date or legacy investment base"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user")
+            })
     @GetMapping("/{id}/tax-suggestion")
     public ResponseEntity<TaxSuggestionDto> getTaxSuggestion(
             @PathVariable Long id,
-            @RequestParam BigDecimal grossAmount,
-            @RequestParam LocalDate purchaseDate,
+            @Valid @ModelAttribute @ParameterObject TaxSuggestionRequestDto request,
             Authentication authentication) {
-        return ResponseEntity.ok(assetService.getTaxSuggestion(id, grossAmount, purchaseDate, authentication));
+        return ResponseEntity.ok(assetService.getTaxSuggestion(id, request.grossAmount(), request.purchaseDate(), authentication));
     }
 
     // -------------------------------------------------------------------------
@@ -123,7 +132,14 @@ public class AssetController {
     }
 
     @Operation(summary = "Register a legacy contribution",
-            description = "amount is the unit price; amount multiplied by quantity is debited from the pocket and added to totalInvested.")
+            description = "amount is a strictly positive unit price and quantity must be strictly positive; amount multiplied by quantity is debited from the pocket and added to totalInvested.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "BUY movement with numeric amount and cash reference"),
+                    @ApiResponse(responseCode = "400", description = "Missing or non-positive amount/quantity, or invalid category"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user"),
+                    @ApiResponse(responseCode = "409", description = "Asset is not active")
+            })
     @PostMapping("/{id}/transactions/buy")
     public ResponseEntity<InvestmentTransactionDto> buy(
             @PathVariable Long id,
@@ -134,7 +150,14 @@ public class AssetController {
     }
 
     @Operation(summary = "Register a legacy yield withdrawal",
-            description = "Credits amount to the pocket, adds it to redeemedValue and subtracts it from currentValue without changing quantity.")
+            description = "Requires amount > 0 and amount <= currentValue. Credits amount to the pocket, adds it to redeemedValue and subtracts it from currentValue without changing quantity.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "YIELD movement with numeric amount and cash reference"),
+                    @ApiResponse(responseCode = "400", description = "Missing or non-positive amount, or invalid category"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user"),
+                    @ApiResponse(responseCode = "409", description = "Asset is not active or amount exceeds currentValue")
+            })
     @PostMapping("/{id}/transactions/yield")
     public ResponseEntity<InvestmentTransactionDto> yield(
             @PathVariable Long id,

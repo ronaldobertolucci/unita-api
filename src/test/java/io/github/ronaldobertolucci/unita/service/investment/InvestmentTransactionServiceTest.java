@@ -226,20 +226,16 @@ class InvestmentTransactionServiceTest {
         InvestmentYieldDto dto = new InvestmentYieldDto(
                 new BigDecimal("50.00"), LocalDate.now(), 5L, 1L, "Rendimento mensal");
 
-        Transaction savedPocketTx = buildPocketTransaction(10L, pocket, Direction.INCOME,
-                new BigDecimal("50.00"), category);
-        InvestmentTransaction savedInvTx = buildInvestmentTransaction(
-                2L, asset, InvestmentTransactionType.YIELD, new BigDecimal("50.00"), LocalDate.now());
-
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
         when(categoryService.resolveCategory(eq(1L), any(), any())).thenReturn(category);
-        when(transactionRepository.save(any())).thenReturn(savedPocketTx);
-        when(investmentTransactionRepository.save(any())).thenReturn(savedInvTx);
         when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
 
         assertThrows(java.lang.IllegalStateException.class,
                 () -> investmentTransactionService.yield(1L, dto, authentication));
+        verify(transactionRepository, never()).save(any());
+        verify(investmentTransactionRepository, never()).save(any());
+        verify(investmentPositionRepository, never()).save(any());
     }
 
     @Test
@@ -252,6 +248,26 @@ class InvestmentTransactionServiceTest {
 
         assertThrows(IllegalStateException.class,
                 () -> investmentTransactionService.yield(1L, dto, authentication));
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"null,1", "0,1", "-1,1", "1,null", "1,0", "1,-1", "-1,-1"}, nullValues = "null")
+    void invalidBuyRejectsBeforeAccessingRepositories(BigDecimal price, BigDecimal quantity) {
+        reset(authentication);
+        var dto = new InvestmentBuyDto(price, quantity, LocalDate.of(2026, 10, 14), 5L, 1L, null);
+        assertThrows(IllegalArgumentException.class, () -> investmentTransactionService.buy(1L, dto, authentication));
+        verifyNoInteractions(assetRepository, pocketRepository, transactionRepository, investmentTransactionRepository,
+                investmentPositionRepository, categoryService, authentication);
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"null", "0", "-1"}, nullValues = "null")
+    void invalidYieldRejectsBeforeAccessingRepositories(BigDecimal amount) {
+        reset(authentication);
+        var dto = new InvestmentYieldDto(amount, LocalDate.of(2026, 10, 14), 5L, 1L, null);
+        assertThrows(IllegalArgumentException.class, () -> investmentTransactionService.yield(1L, dto, authentication));
+        verifyNoInteractions(assetRepository, pocketRepository, transactionRepository, investmentTransactionRepository,
+                investmentPositionRepository, categoryService, authentication);
     }
 
     // -------------------------------------------------------------------------

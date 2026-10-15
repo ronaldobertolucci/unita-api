@@ -1,6 +1,9 @@
 package io.github.ronaldobertolucci.unita.service.investment;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import io.github.ronaldobertolucci.unita.model.investment.TaxRegime;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -10,6 +13,7 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(MockitoExtension.class)
 class TaxCalculationServiceTest {
@@ -89,18 +93,53 @@ class TaxCalculationServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // describeTaxBasis
+    // Category-specific descriptions
     // -------------------------------------------------------------------------
 
     @Test
-    void describeTaxBasis_WhenRegressivoUpTo180Days_ShouldDescribeCorrectly() {
-        String description = taxCalculationService.describeTaxBasis(100, "REGRESSIVO");
+    void describeFixedIncomeTaxBasis_WhenUpTo180Days_ShouldDescribeCorrectly() {
+        String description = taxCalculationService.describeFixedIncomeTaxBasis(100);
         assertTrue(description.contains("22,5%"));
     }
 
     @Test
-    void describeTaxBasis_WhenProgressivo_ShouldDescribeCorrectly() {
-        String description = taxCalculationService.describeTaxBasis(500, "PROGRESSIVO");
+    void describePensionTaxBasis_WhenProgressivo_ShouldDescribeCorrectly() {
+        String description = taxCalculationService.describePensionTaxBasis(500, TaxRegime.PROGRESSIVO);
         assertTrue(description.contains("antecipação"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0,0.35,35", "730,0.35,35", "731,0.30,30", "1460,0.30,30", "1461,0.25,25",
+            "2190,0.25,25", "2191,0.20,20", "2920,0.20,20", "2921,0.15,15", "3650,0.15,15", "3651,0.10,10"})
+    void pensionRegressiveDescriptionAndRateAgreeAtEveryBoundary(int days, BigDecimal expected, String percent) {
+        LocalDate purchase = LocalDate.of(2010, 1, 1);
+        assertEquals(0, expected.compareTo(taxCalculationService.calculatePensionRegressiveTaxRate(purchase, purchase.plusDays(days))));
+        String description = taxCalculationService.describePensionTaxBasis(days, TaxRegime.REGRESSIVO);
+        assertTrue(description.startsWith("Previdência regressiva:"));
+        assertTrue(description.contains(percent + ",0%"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0,0.225,22;5", "180,0.225,22;5", "181,0.20,20;0", "360,0.20,20;0", "361,0.175,17;5",
+            "720,0.175,17;5", "721,0.15,15;0"})
+    void fixedIncomeDescriptionAndRateAgreeAtEveryBoundary(int days, BigDecimal expected, String percent) {
+        LocalDate purchase = LocalDate.of(2020, 1, 1);
+        assertEquals(0, expected.compareTo(taxCalculationService.calculateFixedIncomeTaxRate(purchase, purchase.plusDays(days))));
+        assertTrue(taxCalculationService.describeFixedIncomeTaxBasis(days).contains(percent.replace(';', ',') + "%"));
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"null,0.15", "-1,0.15", "10,null", "10,-0.1", "10,1.1"}, nullValues = "null")
+    void invalidTaxBasesAndRatesAreRejected(BigDecimal base, BigDecimal rate) {
+        assertThrows(IllegalArgumentException.class, () -> taxCalculationService.calculateTaxAmount(base, rate));
+    }
+
+    @Test
+    void acquisitionAfterRedemptionIsRejectedByBothRegimes() {
+        LocalDate date = LocalDate.of(2026, 10, 14);
+        assertThrows(IllegalArgumentException.class, () -> taxCalculationService.calculateFixedIncomeTaxRate(date.plusDays(1), date));
+        assertThrows(IllegalArgumentException.class, () -> taxCalculationService.calculatePensionRegressiveTaxRate(date.plusDays(1), date));
+        assertThrows(IllegalArgumentException.class, () -> taxCalculationService.describeFixedIncomeTaxBasis(-1));
+        assertThrows(IllegalArgumentException.class, () -> taxCalculationService.describePensionTaxBasis(-1, TaxRegime.REGRESSIVO));
     }
 }

@@ -85,7 +85,8 @@ class AssetControllerTest {
                 new BigDecimal("15.00000000"),   // suggestedTaxAmount (15% sobre 100)
                 new BigDecimal("1085.00000000"), // suggestedNetAmount (1100 - 15)
                 800,                             // daysElapsed
-                "Tabela regressiva IR - acima de 720 dias (15,0%)" // taxBasis
+                "Renda fixa: tabela regressiva IR - acima de 720 dias (15,0%)",
+                new BigDecimal("100.00"), TaxSuggestionStatus.ESTIMATE, List.of()
         );
     }
 

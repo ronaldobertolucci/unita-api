@@ -12,8 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -27,6 +30,7 @@ public class AssetService {
     private final InvestmentTransactionRepository investmentTransactionRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final TaxCalculationService taxCalculationService;
+    private final Clock investmentClock;
 
     // -------------------------------------------------------------------------
     // Create
@@ -224,6 +228,7 @@ public class AssetService {
     // Tax Suggestion
     // -------------------------------------------------------------------------
 
+    @Transactional(readOnly = true)
     public TaxSuggestionDto getTaxSuggestion(Long id, BigDecimal grossAmount, LocalDate purchaseDate,
                                              Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
@@ -234,10 +239,23 @@ public class AssetService {
         InvestmentPosition position = investmentPositionRepository.findByAssetId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(investmentClock.withZone(ZoneId.of("America/Sao_Paulo")));
+        if (purchaseDate == null || purchaseDate.isAfter(today)) {
+            throw new IllegalArgumentException("purchaseDate is required and must not be in the future");
+        }
+        if (grossAmount == null || grossAmount.signum() <= 0) {
+            throw new IllegalArgumentException("grossAmount must be greater than zero");
+        }
         long days = ChronoUnit.DAYS.between(purchaseDate, today);
+        if (days > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("purchaseDate exceeds the supported holding period");
+        }
 
         BigDecimal totalInvested = position.getTotalInvested();
+        if (totalInvested == null || totalInvested.signum() <= 0) {
+            throw new IllegalArgumentException("totalInvested must be greater than zero for a tax suggestion");
+        }
+        BigDecimal earnings = grossAmount.subtract(totalInvested);
         BigDecimal rate;
         BigDecimal taxBase;
         String taxBasis;
@@ -245,42 +263,53 @@ public class AssetService {
         if (asset.getCategory() == AssetCategory.RENDA_FIXA) {
             FixedIncomeDetails details = fixedIncomeDetailsRepository.findByAssetId(id)
                     .orElseThrow(() -> new EntityNotFoundException("Fixed income details not found"));
-
             if (details.isTaxFree()) {
-                BigDecimal earnings = grossAmount.subtract(totalInvested);
-                return new TaxSuggestionDto(grossAmount, totalInvested, earnings,
-                        BigDecimal.ZERO, BigDecimal.ZERO, grossAmount,
-                        (int) days, "Isento de IR (LCI/LCA/Debênture Incentivada)");
+                rate = BigDecimal.ZERO;
+                taxBase = BigDecimal.ZERO;
+                taxBasis = "Isento de IR (LCI/LCA/Debênture Incentivada)";
+            } else {
+                taxBase = earnings.max(BigDecimal.ZERO);
+                rate = taxCalculationService.calculateFixedIncomeTaxRate(purchaseDate, today);
+                taxBasis = taxCalculationService.describeFixedIncomeTaxBasis(days)
+                        + "; base: rendimento positivo";
             }
-
-            // Renda Fixa: IR sobre rendimento
-            taxBase = grossAmount.subtract(totalInvested);
-            rate = taxCalculationService.calculateFixedIncomeTaxRate(purchaseDate, today);
-            taxBasis = taxCalculationService.describeTaxBasis(days, "REGRESSIVO");
-
-        } else {
+        } else if (asset.getCategory() == AssetCategory.PREVIDENCIA) {
             PensionDetails details = pensionDetailsRepository.findByAssetId(id)
                     .orElseThrow(() -> new EntityNotFoundException("Pension details not found"));
-
-            if (details.getTaxRegime() == TaxRegime.PROGRESSIVO) {
-                rate = taxCalculationService.getPensionProgressiveTaxRate();
-                taxBasis = taxCalculationService.describeTaxBasis(days, "PROGRESSIVO");
-            } else {
-                rate = taxCalculationService.calculatePensionRegressiveTaxRate(purchaseDate, today);
-                taxBasis = taxCalculationService.describeTaxBasis(days, "REGRESSIVO");
+            if (details.getTaxRegime() == null || details.getPensionType() == null) {
+                throw new IllegalArgumentException("pension type and tax regime are required for a tax suggestion");
             }
-
-            // PGBL e ENTIDADE_FECHADA: IR sobre total; VGBL: IR sobre rendimento
-            taxBase = details.getPensionType() == PensionType.VGBL
-                    ? grossAmount.subtract(totalInvested)
-                    : grossAmount;
+            rate = details.getTaxRegime() == TaxRegime.PROGRESSIVO
+                    ? taxCalculationService.getPensionProgressiveTaxRate()
+                    : taxCalculationService.calculatePensionRegressiveTaxRate(purchaseDate, today);
+            boolean earningsBased = details.getPensionType() == PensionType.VGBL;
+            taxBase = earningsBased ? earnings.max(BigDecimal.ZERO) : grossAmount;
+            taxBasis = taxCalculationService.describePensionTaxBasis(days, details.getTaxRegime())
+                    + (earningsBased ? "; base: rendimento positivo (VGBL)" : "; base: valor bruto total (PGBL/entidade fechada)");
+        } else {
+            throw new IllegalArgumentException("Tax suggestion is unavailable for this asset category");
         }
 
-        BigDecimal earnings = grossAmount.subtract(totalInvested);
-        BigDecimal taxAmount = taxCalculationService.calculateTaxAmount(taxBase, rate);
+        // The legacy ledger has no per-contribution units or remaining tax lots.
+        List<LocalDate> purchaseDates = investmentTransactionRepository.findDistinctPurchaseDatesByAssetId(id);
+        List<String> warnings = new ArrayList<>();
+        if (purchaseDates.size() > 1) {
+            warnings.add("Estimativa limitada: há aportes em datas distintas e o histórico legado não permite apuração por lote; a data informada não representa todos os aportes.");
+        } else if (purchaseDates.isEmpty()) {
+            warnings.add("Estimativa limitada: histórico de aportes ausente; cálculo baseado somente na data informada.");
+        } else if (!purchaseDates.getFirst().equals(purchaseDate)) {
+            warnings.add("Estimativa limitada: a data informada difere da data do aporte registrado.");
+        }
+        TaxSuggestionStatus estimationStatus = warnings.isEmpty()
+                ? TaxSuggestionStatus.ESTIMATE : TaxSuggestionStatus.LIMITED_ESTIMATE;
+        if (!warnings.isEmpty()) {
+            taxBasis += "; " + String.join(" ", warnings);
+        }
+        BigDecimal taxAmount = rate.signum() == 0 ? BigDecimal.ZERO
+                : taxCalculationService.calculateTaxAmount(taxBase, rate);
         BigDecimal netAmount = grossAmount.subtract(taxAmount);
 
         return new TaxSuggestionDto(grossAmount, totalInvested, earnings,
-                rate, taxAmount, netAmount, (int) days, taxBasis);
+                rate, taxAmount, netAmount, (int) days, taxBasis, taxBase, estimationStatus, warnings);
     }
 }
