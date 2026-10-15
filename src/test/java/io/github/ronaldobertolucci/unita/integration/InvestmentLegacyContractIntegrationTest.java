@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
-@Sql("/investments/legacy-baseline.sql")
+@Sql("/investments/institution-validated-baseline.sql")
 class InvestmentLegacyContractIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired UserRepository users;

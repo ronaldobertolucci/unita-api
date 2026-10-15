@@ -5,7 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "legal_entities")
+@Table(name = "legal_entities", uniqueConstraints = @UniqueConstraint(
+        name = "uk_legal_entities_user_cnpj", columnNames = {"user_id", "cnpj"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,7 +19,7 @@ public class LegalEntity {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "cnpj", nullable = false, unique = true, length = 14)
+    @Column(name = "cnpj", nullable = false, length = 14)
     private String cnpj;
 
     @Column(name = "corporate_name", nullable = false, length = 255)

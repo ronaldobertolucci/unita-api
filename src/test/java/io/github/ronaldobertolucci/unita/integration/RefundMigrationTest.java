@@ -26,7 +26,7 @@ class RefundMigrationTest {
             stmt.executeUpdate("INSERT INTO credit_card_bills (id,credit_card_id,period_start,closing_date,due_date,closing_day,due_day,status,payment_transaction_id) VALUES (90001,90001,DATE '2026-09-10',DATE '2026-10-10',DATE '2026-10-20',10,20,'PAID',90001)");
             stmt.executeUpdate("INSERT INTO credit_card_purchases (id,credit_card_id,description,total_value,purchase_date,installments_count) VALUES (90001,90001,'Original',100,DATE '2026-09-15',1)");
             stmt.executeUpdate("INSERT INTO credit_card_refunds (id,credit_card_bill_id,description,amount,refund_date,category_id) VALUES (90001,90001,'Legacy refund',50,DATE '2026-10-13',3)");
-            var upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).load();
+            var upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).target("24").load();
             assertEquals(1,upgrade.migrate().migrationsExecuted);upgrade.validate();assertEquals(0,upgrade.migrate().migrationsExecuted);
             try(var rows=stmt.executeQuery("SELECT amount,description,purchase_id FROM credit_card_refunds WHERE id=90001")) {
                 assertTrue(rows.next());assertEquals(new BigDecimal("50.00"),rows.getBigDecimal(1));assertEquals("Legacy refund",rows.getString(2));assertNull(rows.getObject(3));

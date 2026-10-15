@@ -148,8 +148,23 @@ public class GlobalExceptionHandler {
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation) {
                 constraint = violation.getConstraintName();
             } else if (cause instanceof java.sql.SQLException sql
-                    && ("23001".equals(sql.getSQLState()) || "23503".equals(sql.getSQLState()))) {
+                    && ("23001".equals(sql.getSQLState()) || "23503".equals(sql.getSQLState()) || "23505".equals(sql.getSQLState()))) {
                 constraint = sql.getMessage();
+            }
+            if (constraint != null) {
+                String name = constraint.toLowerCase(java.util.Locale.ROOT);
+                if (name.contains("uk_legal_entities_user_cnpj")) {
+                    return handleIllegalArgument(new IllegalArgumentException(
+                            "A legal entity with this CNPJ already exists in your registrations"), request);
+                }
+                if (java.util.Set.of("fk_assets_legal_entity", "fk_assets_custodian_legal_entity",
+                        "fk_assets_legal_entity_owner", "fk_assets_custodian_owner",
+                        "fk_bank_accounts_legal_entity", "fk_benefit_accounts_legal_entity",
+                        "fk_credit_cards_legal_entity", "fk_legal_entity_employers_legal_entity")
+                        .stream().anyMatch(name::contains)) {
+                    return handleIllegalStateException(new IllegalStateException(
+                            "Legal entity is in use and cannot be deleted"), request);
+                }
             }
             if (constraint != null && (constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_transfer_source")
                     || constraint.toLowerCase(java.util.Locale.ROOT).contains("fk_transfer_target")

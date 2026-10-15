@@ -22,6 +22,10 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     boolean existsByIdAndUserId(Long id, Long userId);
 
+    boolean existsByLegalEntityId(Long id);
+
+    boolean existsByCustodianLegalEntityId(Long id);
+
     boolean existsByNameAndUserId(String name, Long userId);
 
     @Query("SELECT COUNT(a) > 0 FROM Asset a WHERE a.id = :assetId AND a.user.id = :userId AND a.status = 'ACTIVE'")

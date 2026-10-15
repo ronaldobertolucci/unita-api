@@ -6,6 +6,9 @@ import io.github.ronaldobertolucci.unita.dto.legal.LegalEntityUpdateDto;
 import io.github.ronaldobertolucci.unita.model.finance.LegalEntity;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.BankAccountRepository;
+import io.github.ronaldobertolucci.unita.repository.AssetRepository;
+import io.github.ronaldobertolucci.unita.repository.LegalEntityEmployerRepository;
+import io.github.ronaldobertolucci.unita.validation.Cnpj;
 import io.github.ronaldobertolucci.unita.repository.BenefitAccountRepository;
 import io.github.ronaldobertolucci.unita.repository.CreditCardRepository;
 import io.github.ronaldobertolucci.unita.repository.LegalEntityRepository;
@@ -25,18 +28,21 @@ public class LegalEntityService {
     private final BankAccountRepository bankAccountRepository;
     private final BenefitAccountRepository benefitAccountRepository;
     private final CreditCardRepository creditCardRepository;
+    private final AssetRepository assetRepository;
+    private final LegalEntityEmployerRepository legalEntityEmployerRepository;
 
     @Transactional
     public LegalEntityDto create(LegalEntityCreateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
-        if (legalEntityRepository.existsByCnpjAndUserId(dto.cnpj(), currentUser.getId())) {
-            throw new IllegalArgumentException("A legal entity with this CNPJ already exists");
+        String cnpj = Cnpj.requireValid(dto.cnpj());
+        if (legalEntityRepository.existsByCnpjAndUserId(cnpj, currentUser.getId())) {
+            throw new IllegalArgumentException("A legal entity with this CNPJ already exists in your registrations");
         }
 
         LegalEntity legalEntity = LegalEntity.builder()
                 .user(currentUser)
-                .cnpj(dto.cnpj())
+                .cnpj(cnpj)
                 .corporateName(dto.corporateName())
                 .tradeName(dto.tradeName())
                 .stateRegistration(dto.stateRegistration())
@@ -67,12 +73,13 @@ public class LegalEntityService {
         LegalEntity legalEntity = legalEntityRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Legal entity not found"));
 
-        if (!legalEntity.getCnpj().equals(dto.cnpj()) &&
-                legalEntityRepository.existsByCnpjAndUserId(dto.cnpj(), currentUser.getId())) {
-            throw new IllegalArgumentException("A legal entity with this CNPJ already exists");
+        String cnpj = Cnpj.requireValid(dto.cnpj());
+        if (!Cnpj.normalize(legalEntity.getCnpj()).equals(cnpj) &&
+                legalEntityRepository.existsByCnpjAndUserId(cnpj, currentUser.getId())) {
+            throw new IllegalArgumentException("A legal entity with this CNPJ already exists in your registrations");
         }
 
-        legalEntity.setCnpj(dto.cnpj());
+        legalEntity.setCnpj(cnpj);
         legalEntity.setCorporateName(dto.corporateName());
         legalEntity.setTradeName(dto.tradeName());
         legalEntity.setStateRegistration(dto.stateRegistration());
@@ -98,6 +105,9 @@ public class LegalEntityService {
     private boolean isLegalEntityInUse(Long id) {
         return bankAccountRepository.existsByLegalEntityId(id)
                 || benefitAccountRepository.existsByLegalEntityId(id)
-                || creditCardRepository.existsByLegalEntityId(id);
+                || creditCardRepository.existsByLegalEntityId(id)
+                || assetRepository.existsByLegalEntityId(id)
+                || assetRepository.existsByCustodianLegalEntityId(id)
+                || legalEntityEmployerRepository.existsByLegalEntityId(id);
     }
 }

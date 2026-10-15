@@ -36,6 +36,8 @@ class LegalEntityServiceTest {
     private BenefitAccountRepository benefitAccountRepository;
     @Mock
     private CreditCardRepository creditCardRepository;
+    @Mock private io.github.ronaldobertolucci.unita.repository.AssetRepository assetRepository;
+    @Mock private io.github.ronaldobertolucci.unita.repository.LegalEntityEmployerRepository legalEntityEmployerRepository;
     @Mock
     private Authentication authentication;
 
@@ -238,6 +240,27 @@ class LegalEntityServiceTest {
 
         assertThrows(IllegalStateException.class,
                 () -> legalEntityService.delete(1L, authentication));
+        verify(legalEntityRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void serviceNormalizesBeforeDuplicateLookupAndRejectsInvalidDirectCalls() {
+        var masked = new LegalEntityCreateDto("00.000.000/e08g-12", "Company", null, null);
+        when(legalEntityRepository.existsByCnpjAndUserId("00000000E08G12", 1L)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> legalEntityService.create(masked, authentication));
+        assertThrows(IllegalArgumentException.class, () -> legalEntityService.create(
+                new LegalEntityCreateDto("00000000E08G1A", "Company", null, null), authentication));
+        verify(legalEntityRepository, never()).save(any());
+    }
+
+    @Test
+    void assetsAndLegacyCustodiansPreventDeletion() {
+        when(legalEntityRepository.existsByIdAndUserId(1L, 1L)).thenReturn(true);
+        when(assetRepository.existsByLegalEntityId(1L)).thenReturn(true);
+        assertThrows(IllegalStateException.class, () -> legalEntityService.delete(1L, authentication));
+        when(assetRepository.existsByLegalEntityId(1L)).thenReturn(false);
+        when(assetRepository.existsByCustodianLegalEntityId(1L)).thenReturn(true);
+        assertThrows(IllegalStateException.class, () -> legalEntityService.delete(1L, authentication));
         verify(legalEntityRepository, never()).deleteById(any());
     }
 

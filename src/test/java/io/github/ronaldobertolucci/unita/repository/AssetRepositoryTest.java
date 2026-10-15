@@ -29,12 +29,14 @@ class AssetRepositoryTest extends BaseRepositoryTest {
     private User user;
     private User otherUser;
     private LegalEntity legalEntity;
+    private LegalEntity otherLegalEntity;
 
     @BeforeEach
     void setUp() {
         user = saveUser("user@test.com");
         otherUser = saveUser("other@test.com");
         legalEntity = saveLegalEntity(user);
+        otherLegalEntity = saveLegalEntity(otherUser);
     }
 
     @Test
@@ -203,7 +205,7 @@ class AssetRepositoryTest extends BaseRepositoryTest {
     @Test
     void sumCurrentValueByLegalEntityAndUserId_ShouldNotReturnOtherUsersAssets() {
         saveAssetWithPosition("CDB A", user, legalEntity, new BigDecimal("1000.00"), AssetStatus.ACTIVE);
-        saveAssetWithPosition("CDB B", otherUser, legalEntity, new BigDecimal("999.00"), AssetStatus.ACTIVE);
+        saveAssetWithPosition("CDB B", otherUser, otherLegalEntity, new BigDecimal("999.00"), AssetStatus.ACTIVE);
 
         List<IssuerRiskSummaryDto> result = assetRepository.sumCurrentValueByLegalEntityAndUserId(user.getId());
 
@@ -255,7 +257,7 @@ class AssetRepositoryTest extends BaseRepositoryTest {
     @Test
     void sumCurrentValueByIndexerAndUserId_ShouldNotReturnOtherUsersAssets() {
         Asset assetA = saveAssetWithPosition("CDB A", user, legalEntity, new BigDecimal("1000.00"), AssetStatus.ACTIVE);
-        Asset assetB = saveAssetWithPosition("CDB B", otherUser, legalEntity, new BigDecimal("999.00"), AssetStatus.ACTIVE);
+        Asset assetB = saveAssetWithPosition("CDB B", otherUser, otherLegalEntity, new BigDecimal("999.00"), AssetStatus.ACTIVE);
 
         saveFixedIncomeDetails(assetA, Indexer.CDI);
         saveFixedIncomeDetails(assetB, Indexer.CDI);
@@ -307,7 +309,7 @@ class AssetRepositoryTest extends BaseRepositoryTest {
     void sumLegacyNetProfitByUserId_ShouldNotReturnOtherUsersAssets() {
         saveAssetWithPositionAndInvested("CDB A", user, legalEntity,
                 new BigDecimal("1200.00"), new BigDecimal("1000.00"), AssetStatus.REDEEMED);
-        saveAssetWithPositionAndInvested("CDB B", otherUser, legalEntity,
+        saveAssetWithPositionAndInvested("CDB B", otherUser, otherLegalEntity,
                 new BigDecimal("600.00"), new BigDecimal("500.00"), AssetStatus.REDEEMED);
 
         BigDecimal result = assetRepository.sumLegacyNetProfitByUserId(user.getId());
@@ -337,7 +339,7 @@ class AssetRepositoryTest extends BaseRepositoryTest {
     private Asset saveAsset(String name, User user) {
         Asset asset = Asset.builder()
                 .user(user)
-                .legalEntity(legalEntity)
+                .legalEntity(user.getId().equals(this.user.getId()) ? legalEntity : otherLegalEntity)
                 .name(name)
                 .category(AssetCategory.RENDA_FIXA)
                 .status(AssetStatus.ACTIVE)

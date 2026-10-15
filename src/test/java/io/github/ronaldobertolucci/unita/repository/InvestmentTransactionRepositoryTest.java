@@ -24,12 +24,14 @@ class InvestmentTransactionRepositoryTest extends BaseRepositoryTest {
     private User user;
     private User otherUser;
     private LegalEntity legalEntity;
+    private LegalEntity otherLegalEntity;
 
     @BeforeEach
     void setUp() {
         user = saveUser("user@test.com");
         otherUser = saveUser("other@test.com");
         legalEntity = saveLegalEntity(user);
+        otherLegalEntity = saveLegalEntity(otherUser);
     }
 
     // -------------------------------------------------------------------------
@@ -112,7 +114,7 @@ class InvestmentTransactionRepositoryTest extends BaseRepositoryTest {
     private Asset saveAssetWithStatus(String name, User owner, AssetStatus status) {
         Asset asset = Asset.builder()
                 .user(owner)
-                .legalEntity(legalEntity)
+                .legalEntity(owner.getId().equals(user.getId()) ? legalEntity : otherLegalEntity)
                 .name(name)
                 .category(AssetCategory.RENDA_FIXA)
                 .status(status)

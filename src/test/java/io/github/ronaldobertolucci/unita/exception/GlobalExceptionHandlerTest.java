@@ -186,4 +186,28 @@ class GlobalExceptionHandlerTest {
         assertEquals(500,exceptionHandler.handleRuntimeException(unrelated,request).getStatusCode().value());
     }
 
+    @Test
+    void knownInstitutionConstraintsAreTranslatedAndUnrelatedIntegrityFailuresStay500() {
+        for (String constraint : List.of("fk_assets_legal_entity", "fk_assets_custodian_legal_entity",
+                "fk_assets_legal_entity_owner", "fk_assets_custodian_owner",
+                "fk_bank_accounts_legal_entity", "fk_benefit_accounts_legal_entity",
+                "fk_credit_cards_legal_entity", "fk_legal_entity_employers_legal_entity")) {
+            for (String state : List.of("23001", "23503")) {
+                var failure = new RuntimeException(new java.sql.SQLException("private SQL constraint \"" + constraint + "\"", state));
+                var response = exceptionHandler.handleRuntimeException(failure, request);
+                assertEquals(409, response.getStatusCode().value(), constraint);
+                assertFalse(response.getBody().message().contains("private SQL"));
+            }
+        }
+        var duplicate = new org.springframework.dao.DataIntegrityViolationException("insert failed",
+                new java.sql.SQLException("duplicate constraint \"uk_legal_entities_user_cnpj\"", "23505"));
+        var response = exceptionHandler.handleFinancialIntegrity(duplicate, request);
+        assertEquals(400, response.getStatusCode().value());
+        assertTrue(response.getBody().message().contains("your registrations"));
+        for (String state : List.of("23503", "23505", "08006")) {
+            var unrelated = new RuntimeException(new java.sql.SQLException("private SQL unrelated_constraint", state));
+            assertEquals(500, exceptionHandler.handleRuntimeException(unrelated, request).getStatusCode().value());
+        }
+    }
+
 }

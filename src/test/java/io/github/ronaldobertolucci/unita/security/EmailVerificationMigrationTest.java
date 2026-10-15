@@ -42,7 +42,8 @@ class EmailVerificationMigrationTest {
                     + " VALUES (?, ?, ?, ?)", "legacy-token-" + id, 1000 + id,
                     java.sql.Timestamp.valueOf(id >= 5 ? "2000-01-01 00:00:00" : "2099-01-01 00:00:00"), id == 6);
         }
-        var flyway = Flyway.configure().dataSource(source).load();
+        // Characterize V21 only; later migrations have their own upgrade/preservation tests.
+        var flyway = Flyway.configure().dataSource(source).target("21").load();
         assertEquals(1, flyway.migrate().migrationsExecuted);
         for (int id = 1; id <= 6; id++) {
             assertEquals(id <= 2, jdbc.queryForObject("SELECT enabled FROM users WHERE id = ?", Boolean.class, 1000 + id));
