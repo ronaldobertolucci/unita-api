@@ -33,6 +33,13 @@ public class AssetController {
         return ResponseEntity.ok(assetService.findAll(authentication));
     }
 
+    @Operation(summary = "Read a legacy investment asset",
+            description = "Legacy contract: numeric IDs and decimals, a single position, and original status and valuation date.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Owned asset with legacy position and category details"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user")
+            })
     @GetMapping("/{id}")
     public ResponseEntity<AssetDetailDto> findById(
             @PathVariable Long id,
@@ -101,6 +108,13 @@ public class AssetController {
     // InvestmentTransaction
     // -------------------------------------------------------------------------
 
+    @Operation(summary = "Read legacy investment history",
+            description = "Legacy numeric IDs and amounts. pocketTransactionId may be null. SELL and TAX have no explicit pairing.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Original movement types, dates, notes and cash references"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user")
+            })
     @GetMapping("/{id}/transactions")
     public ResponseEntity<List<InvestmentTransactionDto>> findTransactions(
             @PathVariable Long id,
@@ -108,6 +122,8 @@ public class AssetController {
         return ResponseEntity.ok(investmentTransactionService.findAllByAsset(id, authentication));
     }
 
+    @Operation(summary = "Register a legacy contribution",
+            description = "amount is the unit price; amount multiplied by quantity is debited from the pocket and added to totalInvested.")
     @PostMapping("/{id}/transactions/buy")
     public ResponseEntity<InvestmentTransactionDto> buy(
             @PathVariable Long id,
@@ -117,6 +133,8 @@ public class AssetController {
                 .body(investmentTransactionService.buy(id, dto, authentication));
     }
 
+    @Operation(summary = "Register a legacy yield withdrawal",
+            description = "Credits amount to the pocket, adds it to redeemedValue and subtracts it from currentValue without changing quantity.")
     @PostMapping("/{id}/transactions/yield")
     public ResponseEntity<InvestmentTransactionDto> yield(
             @PathVariable Long id,

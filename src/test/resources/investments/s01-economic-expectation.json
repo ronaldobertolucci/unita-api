@@ -1,0 +1,15 @@
+{
+  "assetId": "93001",
+  "pocketId": "94001",
+  "buyInvestmentTransactionId": "97001",
+  "sellInvestmentTransactionId": "97002",
+  "taxInvestmentTransactionId": "97003",
+  "buyCashTransactionId": "95002",
+  "sellCashTransactionId": "95003",
+  "principal": "1000",
+  "grossRedemption": "1100",
+  "withheldTax": "15",
+  "expectedCashCredit": "1085",
+  "expectedGrossProfit": "100",
+  "expectedNetProfit": "85"
+}
