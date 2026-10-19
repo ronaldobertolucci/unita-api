@@ -16,16 +16,22 @@ Este repositório contém o backend. A interface é uma aplicação separada. A 
 
 ## Funcionalidades
 
-| Módulo | Funcionamento |
-|---|---|
-| Usuários e autenticação | Cadastro, confirmação de e-mail, login, renovação de sessão, logout e recuperação de senha |
-| Contas e movimentações | Contas bancárias, benefícios, FGTS, dinheiro em espécie, entradas, saídas e consulta de saldo/extrato |
-| Transferências | Registro atômico de débito e crédito entre contas elegíveis, incluindo saque de FGTS |
-| Cartões | Compras com parcelamento completo, faturas, pagamento registrado em conta e créditos de estorno |
-| Investimentos | Renda fixa e previdência, aportes, rendimentos, posição e resgate integral |
-| Grupos | Convites, membros e compartilhamento de informações conforme permissões |
-| Painéis | Resumos financeiros pessoais e de grupos |
-| Recorrentes | Cadastro mensal/anual, projeção de vencimentos e lembretes individuais por e-mail |
+Resumo dos recursos expostos pela OpenAPI, gerada pelo Springdoc a partir dos controllers e DTOs. As rotas abaixo são relativas à base `/api`; os contratos completos, campos, parâmetros e respostas podem ser consultados no [Swagger UI](#documentação-openapi).
+
+| Módulo | Funcionalidades resumidas | Rotas principais |
+|---|---|---|
+| Usuários e autenticação | Cadastro, confirmação e reenvio de e-mail, login, renovação de sessão, logout, consulta do usuário atual e recuperação de senha | `/auth`, `/password` |
+| Instituições e empregadores | Cadastro particular de pessoas jurídicas/instituições e empregadores pessoa física ou jurídica; consulta, edição e exclusão conforme vínculos existentes | `/legal-entities`, `/employers/individual`, `/employers/legal-entity` |
+| Categorias | Consulta de categorias disponíveis e gerenciamento das categorias pessoais de movimentações | `/categories` |
+| Contas e movimentações | Contas bancárias, benefícios, FGTS e dinheiro em espécie; registro e consulta de entradas/saídas, exclusão de lançamentos permitidos e consulta de saldo | `/pockets` |
+| Transferências | Registro atômico de débito e crédito entre contas elegíveis e saque de FGTS | `/transfers`, `/transfers/fgts/withdrawal` |
+| Cartões e faturas | Cadastro de cartões, compras à vista ou parceladas, consulta e alteração do plano completo, consulta de parcelas, fechamento/reabertura de faturas, registro de pagamento e créditos de estorno | `/credit-cards`, `/credit-cards/{id}/purchases`, `/credit-cards/{id}/bills` |
+| Investimentos | Cadastro de renda fixa e previdência, atualização de posição, histórico, aportes, retirada de rendimentos, estimativa de imposto e resgate integral | `/assets`, `/assets/{id}/transactions`, `/assets/{id}/tax-suggestion` |
+| Grupos e convites | Criação de grupos, membros, transferência de responsabilidade, saída/exclusão, envio e resposta a convites e controle de permissões de compartilhamento | `/groups`, `/invitations`, `/groups/{id}/share` |
+| Painéis pessoais e de grupos | Visão geral, resumos financeiros e mensais, exposição por emissor, indexador e liquidez e lucro líquido de investimentos resgatados | `/dashboard`, `/groups/{groupId}/dashboard` |
+| Contas recorrentes | Cadastro e edição com controle de versão, listagem paginada, pausa/reativação, projeção mensal de vencimentos e lembretes individuais por e-mail | `/recurring-bills`, `/recurring-bills/upcoming?month=YYYY-MM` |
+| Notificações | Fluxo de eventos do servidor para o cliente por Server-Sent Events (SSE) | `/notifications/stream` |
+| Administração | Consulta de tipos de conta bancária, tipos de benefício e bandeiras; criação, edição e exclusão de categorias globais, com autoridade `ADMIN` | `/admin` |
 
 Os cadastros particulares são vinculados ao usuário autenticado. Participar de um grupo não permite utilizar pessoas jurídicas ou empregadores particulares de outro usuário na criação de contas e cartões.
 
@@ -39,7 +45,7 @@ Os cadastros particulares são vinculados ao usuário autenticado. Participar de
 - Pagamentos, transferências e alterações de contas/cartões usam proteção de concorrência no banco. A API não oferece chave de idempotência para cadastros; repetir uma requisição pode criar outro registro.
 - Investimentos continuam com resgate integral, sem venda parcial ou recompra. O bruto do resgate deve ser positivo, com imposto não negativo e menor ou igual ao bruto.
 
-As proteções novas não reconstroem automaticamente vínculos e inconsistências de registros antigos. Transferências históricas sem vínculo explícito e escritores de investimentos conservam suas regras anteriores.
+As proteções de transferências e faturas não reconstroem automaticamente vínculos e inconsistências de registros antigos. O módulo de investimentos mantém o contrato legado descrito na OpenAPI, com uma posição por ativo e resgate integral.
 
 ## Executar com Docker Compose
 
@@ -192,29 +198,167 @@ A fila é persistente e permite retomar tentativas após falhas. O padrão usa e
 
 Outras tarefas agendadas incluem fechamento de faturas vencidas, atualização de status de investimentos vencidos e limpeza de tokens/sessões expirados. O fuso padrão da aplicação é `America/Sao_Paulo`.
 
-## Executar localmente e testar
+## Executar localmente
 
-Para executar fora do Docker, instalar **JDK 25** e disponibilizar PostgreSQL e SMTP. O Maven Wrapper está incluído.
+### Pré-requisitos e perfis
 
-O perfil `dev` usa, por padrão, PostgreSQL em `localhost:5432/postgres`, usuário/senha `postgres`, e SMTP em `localhost:1025`, sem autenticação nem STARTTLS. Ajustar `application-dev.properties` ou fornecer propriedades/variáveis de ambiente equivalentes para o ambiente utilizado. Esse perfil inicializa o administrador `admin@dev.com` com senha de desenvolvimento `dev123456` quando a inicialização está habilitada.
+- **JDK 25**, com `JAVA_HOME` apontando para a instalação do JDK e `java` disponível no `PATH`.
+- PostgreSQL 16 e um servidor SMTP acessível, para os fluxos que enviam e-mail.
+- Acesso à internet no primeiro uso do Maven Wrapper para baixar Maven e dependências. Não é necessário instalar Maven separadamente.
+
+| Perfil | Banco e serviços | Uso |
+|---|---|---|
+| `dev` | PostgreSQL e SMTP locais, com valores de desenvolvimento | Executar a API e consultar a OpenAPI |
+| `test` | H2 em memória por padrão, migrations Flyway e configurações de teste | Testes automatizados; permite sobrescrever o datasource para PostgreSQL |
+| `prod` | Variáveis de ambiente descritas em `.env.example` | Execução pelo Docker Compose ou ambiente de produção |
+
+Selecione o perfil explicitamente. O arquivo `.env` é lido pelo Docker Compose; a execução direta com Maven/Java não o carrega automaticamente. Nesse caso, exporte as variáveis ou forneça propriedades Spring na execução. No Windows, use `mvnw.cmd` no lugar de `./mvnw`.
+
+### 1. Preparar PostgreSQL e SMTP
+
+O perfil `dev` usa PostgreSQL em `localhost:5432/postgres`, usuário/senha `postgres`. Se não houver uma instância local, é possível criar uma com Docker:
 
 ```bash
+docker run -d --name unita-dev-db \
+  -e POSTGRES_DB=postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 127.0.0.1:5432:5432 \
+  postgres:16
+
+# Aguarde o banco informar que aceita conexões antes de iniciar a API.
+docker exec unita-dev-db pg_isready -U postgres -d postgres
+```
+
+Se a porta 5432 estiver ocupada, utilize a instância existente ou publique outra porta e ajuste `SPRING_DATASOURCE_URL`. O serviço `db` do Compose não publica a porta no host por padrão, portanto não fica disponível para uma aplicação iniciada diretamente pelo Maven.
+
+Para e-mails, o perfil `dev` espera SMTP em `localhost:1025`, sem autenticação nem STARTTLS. Disponibilize um servidor de desenvolvimento nesse endereço ou configure `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_AUTH` e `MAIL_STARTTLS` para o servidor utilizado. Os links enviados apontam para `http://localhost:4200` por padrão; para alterar a origem no perfil `dev`, use `APP_FRONTEND_URL`.
+
+### 2. Iniciar a aplicação
+
+```bash
+java -version
+./mvnw -version
 ./mvnw -Dspring-boot.run.profiles=dev spring-boot:run
 ```
 
-Nesse modo, a base é `http://localhost:8080/api`. Em `dev`, a OpenAPI está em `/api/v3/api-docs` e o Swagger UI em `/api/swagger-ui/index.html`. No perfil **`prod` usado pelo Compose, ambos estão desabilitados**.
+A base HTTP será **`http://localhost:8080/api`**. O Flyway prepara o schema na inicialização. Use `Ctrl+C` para encerrar a aplicação.
+
+Esse perfil cria o administrador `admin@dev.com`, com senha `dev123456`, quando a inicialização está habilitada e o usuário ainda não existe. Essas credenciais são exclusivas de desenvolvimento. Para desabilitar a criação, defina `ADMIN_INIT_ENABLED=false`.
+
+Exemplo de execução com outro banco e sem criação do administrador:
 
 ```bash
-# Testes com perfil test, H2 em memória e Flyway.
-./mvnw -Dspring.profiles.active=test test
-
-# Gerar o pacote da aplicação.
-./mvnw package -DskipTests
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:55432/unita_dev \
+SPRING_DATASOURCE_USERNAME=unita_dev \
+SPRING_DATASOURCE_PASSWORD=senha-local \
+ADMIN_INIT_ENABLED=false \
+./mvnw -Dspring-boot.run.profiles=dev spring-boot:run
 ```
 
-O perfil de testes desliga os jobs de recorrentes. Alguns testes de concorrência e atualização de schema só executam quando configurados para PostgreSQL; H2 em modo PostgreSQL não comprova o comportamento do banco real. Para esses cenários, usar um banco exclusivo e descartável de testes, com URL, usuário, senha, driver e dialeto apropriados. Os testes de autenticação em PostgreSQL também utilizam `AUTH_TEST_POSTGRES_URL` e as credenciais de teste definidas na classe correspondente.
+### Documentação OpenAPI
 
-O Dockerfile gera o pacote com testes desativados. Execute a validação pertinente antes de publicar uma nova imagem.
+Com a aplicação em execução no perfil `dev`:
+
+| Formato | Endereço |
+|---|---|
+| Swagger UI | [Interface interativa](http://localhost:8080/api/swagger-ui/index.html) |
+| OpenAPI JSON | [Especificação JSON](http://localhost:8080/api/v3/api-docs) |
+| OpenAPI YAML | [Especificação YAML](http://localhost:8080/api/v3/api-docs.yaml) |
+
+A especificação é gerada a partir do código; não há um arquivo OpenAPI estático versionado. Para salvar o contrato da versão em execução:
+
+```bash
+curl --fail http://localhost:8080/api/v3/api-docs -o /tmp/unita-openapi.json
+```
+
+No perfil **`prod` usado pelo Compose, OpenAPI e Swagger UI estão desabilitados**. Para consumir recursos protegidos, obtenha o JWT em `/api/auth/login` e envie `Authorization: Bearer <token>`. Login, refresh e logout também exigem `X-CSRF-Protection: 1`, conforme a seção de autenticação.
+
+## Testar o projeto
+
+### Suíte padrão com H2
+
+Os testes incluem cenários unitários, de controllers, repositórios, segurança, integração financeira e migrations. O perfil `test` usa H2 em memória no modo PostgreSQL e aplica as migrations pelo Flyway. Não é necessário iniciar a API, PostgreSQL ou um SMTP externo para a suíte padrão; os testes de e-mail usam mocks ou servidor de teste próprio.
+
+```bash
+# Executar a suíte padrão.
+./mvnw -Dspring.profiles.active=test test
+
+# Executar uma classe específica.
+./mvnw -Dspring.profiles.active=test -Dtest=AuthFlowIntegrationTest test
+
+# Validar e gerar o JAR em target/.
+./mvnw -Dspring.profiles.active=test clean verify
+```
+
+Os relatórios de testes ficam em `target/surefire-reports/`. O perfil `test` desliga os jobs de recorrentes e as limpezas agendadas de refresh e recuperação de senha. Alguns cenários de concorrência e migrations são ignorados quando não há PostgreSQL configurado; uma execução bem-sucedida com H2 não valida esses cenários.
+
+### Cenários com PostgreSQL
+
+Use um banco **exclusivo e descartável de testes**: há cenários que apagam sessões e criam schemas/fixtures. Não use o banco da aplicação. Exemplo com as credenciais esperadas pelos testes de autenticação:
+
+```bash
+docker run -d --name unita-test-db \
+  -e POSTGRES_DB=unita_test \
+  -e POSTGRES_USER=auth_test \
+  -e POSTGRES_PASSWORD=auth_test \
+  -p 127.0.0.1:55432:5432 \
+  postgres:16
+
+# Prossiga quando o banco informar que aceita conexões.
+docker exec unita-test-db pg_isready -U auth_test -d unita_test
+```
+
+Para autenticação e migração da confirmação de e-mail, `AUTH_TEST_POSTGRES_URL` habilita os cenários PostgreSQL. Essas classes usam usuário e senha `auth_test`:
+
+```bash
+AUTH_TEST_POSTGRES_URL=jdbc:postgresql://localhost:55432/unita_test \
+./mvnw -Dspring.profiles.active=test \
+  -Dtest=PostgreSQLAuthFlowIntegrationTest,EmailVerificationMigrationTest test
+```
+
+Para concorrência financeira, ciclo de faturas, parcelamentos, estornos e migrations financeiras/recorrentes, informe URL, credenciais, driver e dialeto, sobrescrevendo a configuração H2:
+
+```bash
+./mvnw -Dspring.profiles.active=test \
+  -Dspring.datasource.url=jdbc:postgresql://localhost:55432/unita_test \
+  -Dspring.datasource.username=auth_test \
+  -Dspring.datasource.password=auth_test \
+  -Dspring.datasource.driver-class-name=org.postgresql.Driver \
+  -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \
+  -Dtest=FinancialConcurrencyIntegrationTest,BillLifecycleIntegrationTest,PurchasePlanIntegrationTest,RefundIntegrationTest,FinancialOperationMigrationTest,RefundMigrationTest,RecurringMigrationTest \
+  test
+```
+
+Os testes de baseline de investimentos e de migração das instituições usam propriedades próprias e schemas temporários:
+
+```bash
+./mvnw -Dspring.profiles.active=test \
+  -Dinv001.postgres.url=jdbc:postgresql://localhost:55432/unita_test \
+  -Dinv001.postgres.username=auth_test \
+  -Dinv001.postgres.password=auth_test \
+  -Dinv003.postgres.url=jdbc:postgresql://localhost:55432/unita_test \
+  -Dinv003.postgres.username=auth_test \
+  -Dinv003.postgres.password=auth_test \
+  -Dtest=InvestmentBaselinePostgreSQLTest,InstitutionMigrationTest test
+```
+
+Ao terminar, remova o contêiner e seu volume anônimo de testes:
+
+```bash
+docker rm -f -v unita-test-db
+```
+
+### Gerar e executar o pacote
+
+Depois da validação, o JAR pode ser executado diretamente com o JDK 25 e as dependências externas configuradas:
+
+```bash
+./mvnw -Dspring.profiles.active=test clean verify
+java -jar target/unita-api-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
+```
+
+Para gerar o pacote sem executar testes, use `./mvnw package -DskipTests`. O Dockerfile também desativa os testes durante o build; execute a validação pertinente antes de publicar uma nova imagem.
 
 ## Estrutura do projeto
 
