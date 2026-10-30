@@ -372,10 +372,14 @@ public class CreditCardService {
     }
 
     @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
-    public List<CreditCardPurchaseDto> findPurchases(Long creditCardId, Authentication authentication) {
+    public List<CreditCardPurchaseDto> findPurchases(Long creditCardId, LocalDate startDate, LocalDate endDate, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
         validateCreditCardOwnership(creditCardId, currentUser.getId());
-        return creditCardPurchaseRepository.findAllByCreditCardId(creditCardId).stream().map(this::toPurchaseDto).toList();
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("startDate must be before or equal to endDate");
+        }
+        return creditCardPurchaseRepository.findByCreditCardIdAndPeriod(creditCardId, startDate, endDate)
+                .stream().map(this::toPurchaseDto).toList();
     }
 
     private CreditCardPurchaseDto toPurchaseDto(CreditCardPurchase purchase) {

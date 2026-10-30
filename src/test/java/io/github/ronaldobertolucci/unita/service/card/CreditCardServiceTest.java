@@ -68,6 +68,31 @@ class CreditCardServiceTest {
         when(authentication.getPrincipal()).thenReturn(currentUser);
     }
 
+    @Test
+    void findPurchases_ShouldRejectInvertedDates() {
+        when(creditCardRepository.existsByIdAndUserId(1L, 1L)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> creditCardService.findPurchases(
+                1L, LocalDate.of(2026, 10, 30), LocalDate.of(2026, 9, 1), authentication));
+        verifyNoInteractions(creditCardPurchaseRepository);
+    }
+
+    @Test
+    void findPurchases_ShouldRejectAnotherUsersCard() {
+        assertThrows(EntityNotFoundException.class,
+                () -> creditCardService.findPurchases(1L, null, null, authentication));
+        verifyNoInteractions(creditCardPurchaseRepository);
+    }
+
+    @Test
+    void findPurchases_ShouldApplyDatesAfterOwnershipCheck() {
+        var start = LocalDate.of(2026, 9, 1);
+        var end = LocalDate.of(2026, 10, 30);
+        when(creditCardRepository.existsByIdAndUserId(1L, 1L)).thenReturn(true);
+        when(creditCardPurchaseRepository.findByCreditCardIdAndPeriod(1L, start, end)).thenReturn(List.of());
+        assertTrue(creditCardService.findPurchases(1L, start, end, authentication).isEmpty());
+        verify(creditCardPurchaseRepository).findByCreditCardIdAndPeriod(1L, start, end);
+    }
+
     // -------------------------------------------------------------------------
     // CreditCard CRUD
     // -------------------------------------------------------------------------

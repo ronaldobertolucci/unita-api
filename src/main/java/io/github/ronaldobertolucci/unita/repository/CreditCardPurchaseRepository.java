@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Repository
@@ -18,6 +19,18 @@ public interface CreditCardPurchaseRepository extends JpaRepository<CreditCardPu
             ORDER BY p.purchaseDate DESC
             """)
     List<CreditCardPurchase> findAllByCreditCardId(@Param("creditCardId") Long creditCardId);
+
+    @Query("""
+            SELECT p FROM CreditCardPurchase p
+            WHERE p.creditCard.id = :creditCardId
+            AND p.purchaseDate >= COALESCE(:startDate, p.purchaseDate)
+            AND p.purchaseDate <= COALESCE(:endDate, p.purchaseDate)
+            ORDER BY p.purchaseDate DESC, p.id DESC
+            """)
+    List<CreditCardPurchase> findByCreditCardIdAndPeriod(
+            @Param("creditCardId") Long creditCardId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 
     @Query("""
             SELECT p FROM CreditCardPurchase p

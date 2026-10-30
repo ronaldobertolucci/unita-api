@@ -100,6 +100,32 @@ class CreditCardPurchaseRepositoryTest extends BaseRepositoryTest {
         assertTrue(purchaseRepository.findByIdAndCreditCardId(999L, card.getId()).isEmpty());
     }
 
+    @Test
+    void findByPeriod_ShouldIncludeBoundsAndExcludeOtherCardsAndDates() {
+        var start = LocalDate.of(2026, 9, 1);
+        var end = LocalDate.of(2026, 10, 30);
+        savePurchase(card, start.minusDays(1));
+        var first = savePurchase(card, start);
+        var last = savePurchase(card, end);
+        var sameDate = savePurchase(card, end);
+        savePurchase(card, end.plusDays(1));
+        savePurchase(otherCard, end);
+        assertEquals(List.of(sameDate.getId(), last.getId(), first.getId()),
+                purchaseRepository.findByCreditCardIdAndPeriod(card.getId(), start, end)
+                        .stream().map(CreditCardPurchase::getId).toList());
+    }
+
+    @Test
+    void findByPeriod_ShouldSupportMissingBounds() {
+        var date = LocalDate.of(2026, 9, 1);
+        savePurchase(card, date.minusDays(1));
+        savePurchase(card, date);
+        savePurchase(card, date.plusDays(1));
+        assertEquals(3, purchaseRepository.findByCreditCardIdAndPeriod(card.getId(), null, null).size());
+        assertEquals(2, purchaseRepository.findByCreditCardIdAndPeriod(card.getId(), date, null).size());
+        assertEquals(2, purchaseRepository.findByCreditCardIdAndPeriod(card.getId(), null, date).size());
+    }
+
     private CreditCardPurchase savePurchase(CreditCard card, LocalDate date) {
         return purchaseRepository.save(CreditCardPurchase.builder()
                 .creditCard(card)

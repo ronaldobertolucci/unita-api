@@ -12,6 +12,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/credit-cards")
@@ -20,7 +22,8 @@ public class CreditCardController {
 
     private final CreditCardService creditCardService;
 
-    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
     public ResponseEntity<io.github.ronaldobertolucci.unita.dto.exception.ErrorResponseDto> invalidJson(
             jakarta.servlet.http.HttpServletRequest request) {
         return ResponseEntity.badRequest().body(new io.github.ronaldobertolucci.unita.dto.exception.ErrorResponseDto(
@@ -167,10 +170,13 @@ public class CreditCardController {
     }
 
     @GetMapping("/{id}/purchases")
+    @Operation(description = "Filter by purchase date (inclusive). Omit dates to retrieve the full history.")
     public ResponseEntity<List<CreditCardPurchaseDto>> findPurchases(
             @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Authentication authentication) {
-        return ResponseEntity.ok(creditCardService.findPurchases(id, authentication));
+        return ResponseEntity.ok(creditCardService.findPurchases(id, startDate, endDate, authentication));
     }
 
     @Operation(description = "Purchase must have no linked refunds, and its composition must be in OPEN bills without payment; protected history is preserved atomically")

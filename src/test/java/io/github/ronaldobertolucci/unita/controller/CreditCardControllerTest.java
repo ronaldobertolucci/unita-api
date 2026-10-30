@@ -26,6 +26,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -546,7 +547,7 @@ class CreditCardControllerTest {
 
     @Test
     void findPurchases_ShouldReturn200WithList() throws Exception {
-        when(creditCardService.findPurchases(eq(1L), any())).thenReturn(List.of(purchaseDto()));
+        when(creditCardService.findPurchases(eq(1L), isNull(), isNull(), any())).thenReturn(List.of(purchaseDto()));
 
         mockMvc.perform(get("/credit-cards/1/purchases").with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
@@ -555,8 +556,27 @@ class CreditCardControllerTest {
     }
 
     @Test
+    void findPurchases_ShouldForwardDateBounds() throws Exception {
+        var start = java.time.LocalDate.of(2026, 9, 1);
+        var end = java.time.LocalDate.of(2026, 10, 30);
+        when(creditCardService.findPurchases(eq(1L), eq(start), eq(end), any())).thenReturn(List.of());
+        mockMvc.perform(get("/credit-cards/1/purchases")
+                        .param("startDate", "2026-09-01").param("endDate", "2026-10-30")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isOk());
+        verify(creditCardService).findPurchases(eq(1L), eq(start), eq(end), any());
+    }
+
+    @Test
+    void findPurchases_ShouldRejectInvalidDate() throws Exception {
+        mockMvc.perform(get("/credit-cards/1/purchases").param("startDate", "invalid")
+                        .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void findPurchases_WhenUnauthenticated_ShouldReturn401() throws Exception {
-        when(creditCardService.findPurchases(eq(1L), any())).thenReturn(List.of(purchaseDto()));
+        when(creditCardService.findPurchases(eq(1L), isNull(), isNull(), any())).thenReturn(List.of(purchaseDto()));
 
         mockMvc.perform(get("/credit-cards/1/purchases"))
                 .andExpect(status().isUnauthorized());

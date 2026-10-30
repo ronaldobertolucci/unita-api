@@ -95,7 +95,7 @@ class PurchasePlanIntegrationTest {
                 .andExpect(jsonPath("$.installments[1].installmentDate").value("2027-02-28"))
                 .andExpect(jsonPath("$.installments[2].installmentDate").value("2027-03-31"))
                 .andExpect(jsonPath("$.installments[0].creditCardBillId").isNumber());
-        var list=cards.findPurchases(card.getId(),auth());assertEquals(1,list.size());assertEquals(3,list.getFirst().installments().size());
+        var list=cards.findPurchases(card.getId(),null,null,auth());assertEquals(1,list.size());assertEquals(3,list.getFirst().installments().size());
         mvc.perform(get(path()+"/"+list.getFirst().id()).contextPath("/api").with(user(owner)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.installments.length()").value(3));
         amount(list.getFirst().installments().stream().map(CreditCardInstallmentDto::amount).reduce(BigDecimal.ZERO,BigDecimal::add),"100");
