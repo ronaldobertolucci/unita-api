@@ -114,6 +114,50 @@ class InvestmentSellIntegrationTest {
     }
 
     @Test
+    void completeHttpJourneyPreservesCashCostHistoryAndSingleFinalResult() throws Exception {
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        position.setQuantity(BigDecimal.ZERO);
+        position.setAveragePrice(BigDecimal.ZERO);
+        position.setTotalInvested(BigDecimal.ZERO);
+        position.setRemainingCost(BigDecimal.ZERO);
+        position.setCurrentValue(BigDecimal.ZERO);
+        position.setRedeemedValue(BigDecimal.ZERO);
+        investments.deleteAll(investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()));
+        em.flush(); em.clear();
+        String base = "/api/assets/" + asset.getId();
+        String buy = "{\"amount\":1000,\"quantity\":3,\"transactionDate\":\"2026-10-13\",\"categoryId\":39,\"pocketId\":" + pocket.getId() + "}";
+        mvc.perform(post(base + "/transactions/buy").contextPath("/api").with(user(owner))
+                .contentType("application/json").content(buy)).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.amount").value(3000)).andExpect(jsonPath("$.quantity").value(3));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(base + "/position")
+                .contextPath("/api").with(user(owner)).contentType("application/json")
+                .content("{\"currentValue\":3300,\"lastValuationDate\":\"2026-10-13\"}"))
+                .andExpect(status().isOk());
+        sell("1", "1050", "10");
+        mvc.perform(get("/api/dashboard/net-profit").contextPath("/api").with(user(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").value(0));
+        mvc.perform(post(base + "/transactions/buy").contextPath("/api").with(user(owner))
+                .contentType("application/json").content(buy.replace("1000", "1200").replace("\"quantity\":3", "\"quantity\":1")))
+                .andExpect(status().isCreated());
+        String finalSale = body("3400", "40").replace("\"quantity\":2", "\"quantity\":3");
+        String original = mvc.perform(post(path()).contextPath("/api").with(user(owner))
+                .contentType("application/json").content(finalSale)).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json").content(finalSale))
+                .andExpect(status().isCreated()).andExpect(content().json(original));
+        em.flush(); em.clear();
+        position = positions.findByAssetId(asset.getId()).orElseThrow();
+        assertClosed(position, LocalDate.of(2026, 10, 13));
+        decimal("4200", position.getTotalInvested());
+        decimal("4400", position.getRedeemedValue());
+        decimal("220", transactions.calculateBalanceByPocketId(pocket.getId())); // initial 20 + result 200
+        assertEquals(6, investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).size());
+        mvc.perform(get("/api/dashboard/net-profit").contextPath("/api").with(user(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").value(200));
+        assertEquals(LocalDate.of(2026, 10, 13), position.getLastValuationDate());
+    }
+
+    @Test
     void threeUnitsPartialSaleThenNewContributionUsesRemainingCost() throws Exception {
         setPosition("3", "3000", "3300", AssetStatus.ACTIVE);
         var result = sell("1", "1050", "10");
@@ -208,12 +252,16 @@ class InvestmentSellIntegrationTest {
     }
 
     private void assertClosed(InvestmentPosition position) {
+        assertClosed(position, LocalDate.of(2026, 10, 12));
+    }
+
+    private void assertClosed(InvestmentPosition position, LocalDate valuationDate) {
         decimal("0", position.getQuantity());
         decimal("0", position.getRemainingCost());
         decimal("0", position.getCurrentValue());
         decimal("0", position.getAveragePrice());
         assertEquals(AssetStatus.REDEEMED, assets.findById(asset.getId()).orElseThrow().getStatus());
-        assertEquals(LocalDate.of(2026, 10, 12), position.getLastValuationDate());
+        assertEquals(valuationDate, position.getLastValuationDate());
     }
 
     @Test

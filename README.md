@@ -26,9 +26,9 @@ Resumo dos recursos expostos pela OpenAPI, gerada pelo Springdoc a partir dos co
 | Contas e movimentações | Contas bancárias, benefícios, FGTS e dinheiro em espécie; registro e consulta de entradas/saídas, exclusão de lançamentos permitidos e consulta de saldo | `/pockets` |
 | Transferências | Registro atômico de débito e crédito entre contas elegíveis e saque de FGTS | `/transfers`, `/transfers/fgts/withdrawal` |
 | Cartões e faturas | Cadastro de cartões, compras à vista ou parceladas, consulta e alteração do plano completo, consulta de parcelas, fechamento/reabertura de faturas, registro de pagamento e créditos de estorno | `/credit-cards`, `/credit-cards/{id}/purchases`, `/credit-cards/{id}/bills` |
-| Investimentos | Cadastro de renda fixa e previdência, atualização de posição, histórico, aportes, retirada de rendimentos, estimativa de imposto e resgate integral | `/assets`, `/assets/{id}/transactions`, `/assets/{id}/tax-suggestion` |
+| Investimentos | Cadastro de renda fixa e previdência, atualização de posição, histórico, aportes, retirada de rendimentos, estimativa de imposto e venda parcial ou integral por quantidade | `/assets`, `/assets/{id}/transactions`, `/assets/{id}/tax-suggestion` |
 | Grupos e convites | Criação de grupos, membros, transferência de responsabilidade, saída/exclusão, envio e resposta a convites e controle de permissões de compartilhamento | `/groups`, `/invitations`, `/groups/{id}/share` |
-| Painéis pessoais e de grupos | Visão geral, resumos financeiros e mensais, exposição por emissor, indexador e liquidez e lucro líquido de investimentos resgatados | `/dashboard`, `/groups/{groupId}/dashboard` |
+| Painéis pessoais e de grupos | Visão geral, resumos financeiros e mensais, exposição por emissor, indexador e liquidez e resultado de investimentos totalmente resgatados | `/dashboard`, `/groups/{groupId}/dashboard` |
 | Contas recorrentes | Cadastro e edição com controle de versão, listagem paginada, pausa/reativação, projeção mensal de vencimentos e lembretes individuais por e-mail | `/recurring-bills`, `/recurring-bills/upcoming?month=YYYY-MM` |
 | Notificações | Fluxo de eventos do servidor para o cliente por Server-Sent Events (SSE) | `/notifications/stream` |
 | Administração | Consulta de tipos de conta bancária, tipos de benefício e bandeiras; criação, edição e exclusão de categorias globais, com autoridade `ADMIN` | `/admin` |
@@ -43,9 +43,83 @@ Os cadastros particulares são vinculados ao usuário autenticado. Participar de
 - Estornos são créditos em uma fatura aberta escolhida explicitamente. Podem referenciar a compra original; nesse caso, a soma dos estornos vinculados não pode superar o valor da compra, e a compra referenciada não pode ser corrigida ou excluída.
 - O registro de pagamento exige fatura fechada e total positivo. Total zero ou saldo credor permanece na fatura, sem débito ou transporte automático de crédito.
 - Pagamentos, transferências e alterações de contas/cartões usam proteção de concorrência no banco. A API não oferece chave de idempotência para cadastros; repetir uma requisição pode criar outro registro.
-- Investimentos continuam com resgate integral, sem venda parcial ou recompra. O bruto do resgate deve ser positivo, com imposto não negativo e menor ou igual ao bruto.
+- Investimentos permitem venda parcial ou integral por quantidade. Apenas a venda de todas as unidades restantes encerra o ativo. O bruto deve ser positivo, com imposto não negativo e menor ou igual ao bruto; líquido zero é permitido.
 
-As proteções de transferências e faturas não reconstroem automaticamente vínculos e inconsistências de registros antigos. O módulo de investimentos mantém o contrato legado descrito na OpenAPI, com uma posição por ativo e resgate integral.
+As proteções de transferências e faturas não reconstroem automaticamente vínculos e inconsistências de registros antigos. O módulo de investimentos mantém uma posição por ativo e preserva o histórico anterior, sem inferir quantidades ou vínculos desconhecidos.
+
+## Investimentos
+
+As categorias suportadas são **renda fixa** e **previdência**. Um ativo agrupa unidades tratadas como equivalentes; títulos com condições ou vencimentos diferentes devem permanecer em cadastros distintos. A avaliação é manual e o custo médio é gerencial: não há lotes fiscais, cotações automáticas, eventos corporativos ou reabertura de um ativo totalmente resgatado.
+
+### Posição e movimentações
+
+| Campo da posição | Significado |
+|---|---|
+| `quantity` | Quantidade restante de unidades |
+| `remainingCost` | Custo de aquisição das unidades restantes |
+| `averagePrice` | Custo restante dividido pela quantidade; zero após a venda final |
+| `totalInvested` | Total histórico de aportes, sem redução pelas vendas |
+| `currentValue` | Avaliação manual do saldo restante |
+| `redeemedValue` | Recebido acumulado: rendimentos e líquido das vendas |
+| `lastValuationDate` | Data da última avaliação manual, preservada nas vendas |
+
+- **Aporte (`BUY`)**: `amount` é o preço unitário; `amount × quantity` é debitado da conta e acrescido aos aportes, custo e avaliação. Um aporte após venda parcial usa o custo restante para recalcular o preço médio.
+- **Receber rendimento (`YIELD`)**: credita o valor informado na conta, aumenta o recebido acumulado e reduz a avaliação, sem alterar unidades ou custo. O valor deve estar incluído na avaliação atual, ser positivo e não superar essa avaliação. Esta regra é habilitada apenas para as duas categorias atuais; retirada com baixa de unidades usa venda.
+- **Vender/resgatar (`SELL`)**: exige quantidade positiva e disponível. Custo e avaliação são baixados proporcionalmente às unidades, independentemente do bruto negociado. O crédito na conta é `grossAmount - taxAmount`; o registro `TAX` não cria um segundo débito.
+- **Avaliar**: altera valor atual e data da avaliação, sem mudar quantidade, custo ou recebimentos. Avaliação negativa é rejeitada; sem unidades, não se admite avaliação positiva.
+
+BUY e YIELD exigem ativo `ACTIVE`. Venda parcial preserva `ACTIVE` ou `MATURED`; somente a venda final zera quantidade, custo, preço médio e avaliação e muda para `REDEEMED`. Isso também vale quando o líquido é zero. Cadastro sem aporte permanece ativo. O job de vencimento não reabre ativos resgatados.
+
+Quantidade e valores usam `DECIMAL(18,8)`, com limite de `9999999999.99999999`. Entradas com precisão significativa excedente são rejeitadas; derivados usam arredondamento `HALF_UP`. A última venda baixa os saldos exatos, incluindo resíduos de arredondamento. Operações afetam a posição corrente na ordem de registro: informar uma data passada não reconstrói a posição histórica.
+
+### Venda parcial e reenvio
+
+`POST /api/assets/{id}/transactions/sell` recebe o bruto **total** negociado, o imposto informado e a quantidade a vender. `quantity` e `operationId` são obrigatórios; sua ausência nunca significa vender tudo.
+
+```json
+{
+  "operationId": "f627f953-ffbd-4e4b-92c3-333ce72f22d5",
+  "quantity": 1,
+  "grossAmount": 1050,
+  "taxAmount": 10,
+  "pocketId": 5,
+  "categoryId": 41,
+  "transactionDate": "2026-11-05",
+  "notes": "Venda de uma unidade"
+}
+```
+
+Substitua os IDs pelos recursos disponíveis ao usuário autenticado. Para uma posição com três unidades, custo/aportes de R$ 3.000 e avaliação de R$ 3.300, essa venda deixa duas unidades, custo de R$ 2.000 e avaliação de R$ 2.200. A conta recebe R$ 1.040 e o ativo continua aberto. Um novo aporte de uma unidade por R$ 1.200 deixa custo de R$ 3.200, três unidades e preço médio de R$ 1.066,66666667. Para encerrar, envie explicitamente toda a quantidade restante em uma nova venda.
+
+A resposta é `201` com os movimentos SELL/TAX. O UUID identifica a venda por usuário: reenvio do mesmo comando retorna o resultado original, inclusive após o encerramento, sem novo crédito, baixa ou imposto. Ativo, conta, categoria financeira, quantidade, bruto, imposto, data e notas participam da comparação. Zeros decimais insignificantes são normalizados; notas preservam espaços e diferença entre null e texto vazio. Comando diferente com o mesmo UUID retorna `409`. Uma operação revertida integralmente pode ser tentada com o mesmo UUID.
+
+O cliente deve guardar UUID e comando antes de enviar e repeti-los sem alteração quando a resposta for incerta. Uma venda intencional nova recebe outro UUID após a resolução da anterior. O frontend mantém a pendência durante navegação e recarga da mesma aba, isolada por usuário e removida no logout; confirmação seguida de falha de atualização exige novas consultas, sem nova venda. A confirmação no histórico usa `operationId`, pois uma venda parcial pode manter o ativo aberto.
+
+| Resposta | Situação |
+|---|---|
+| `400` | Campos ausentes, UUID inválido, valores/datas ou precisão inválidos |
+| `401` / `404` | Autenticação necessária ou recurso indisponível ao usuário |
+| `409` | Saldo insuficiente, nova venda de ativo encerrado, detalhes de categoria incoerentes ou conflito de UUID |
+
+Alterações da posição são serializadas por bloqueio do ativo. Venda, crédito, imposto e registro de idempotência participam da mesma transação. A OpenAPI inclui exemplos de venda parcial, final e reenvio.
+
+### Histórico, resultado e estimativa de imposto
+
+Novos movimentos expõem `quantity` em BUY/SELL, `costBasis` no SELL, `relatedSellId` no TAX e `operationId` em SELL/TAX. Campos desconhecidos no legado ou não aplicáveis continuam nulos; não representam zero. Não são inferidas unidades por divisão de valores nem vínculos entre impostos e vendas por proximidade de datas. `amount` no histórico é o total do movimento, não o preço unitário.
+
+Lista e detalhe usam **resultado acumulado simples = avaliação restante + recebido acumulado − total de aportes**. No exemplo da venda de uma entre três unidades, o resultado é R$ 240, ou 8% sobre os aportes. Sem aportes, não há base para percentual. Esse resultado inclui avaliação estimada e não representa lucro realizado ou rentabilidade anualizada. Os dashboards pessoal e de grupos mantêm o indicador de encerrados: `redeemedValue - totalInvested`, uma vez por ativo totalmente resgatado, sem somar novamente lucros parciais.
+
+`GET /api/assets/{id}/tax-suggestion` exige `grossAmount`, `quantity`, `purchaseDate` e `saleDate`. Usa o custo proporcional da parcela e o período entre as datas informadas; compra posterior à venda é inválida. Datas futuras são permitidas para simulação sobre a posição corrente. Renda fixa e VGBL usam rendimento positivo da parcela, enquanto PGBL/entidade fechada mantêm base no bruto, conforme o regime existente. Isenção continua respeitada.
+
+A sugestão expõe `costBasis`, `taxBase`, `estimationStatus` e `warnings`. Continua limitada pela ausência de lotes, múltiplos aportes/datas, dados legados desconhecidos e ambiguidade de YIELD entre rendimento e retirada de principal. Não inclui IOF ou apuração mensal/anual e nunca substitui automaticamente o imposto informado na venda.
+
+### Expansão e atualização dos consumidores
+
+Uma categoria nova exige alteração explícita de enum/CHECK por nova migration, detalhes e DTOs tipados, criação e validações, políticas de rendimento, vencimento e tributação, além de formulários, labels, indicadores e testes no frontend. `InvestmentPositionMath` reúne a aritmética comum; `InvestmentCategoryRules` delimita as categorias atuais. Não basta ampliar o enum: categorias desconhecidas não herdam operações ou regras fiscais de outra categoria. O frontend preserva consulta de posição/histórico, mas não habilita movimentações desconhecidas.
+
+A publicação deve ser coordenada com os consumidores que enviam quantidade e UUID. Clientes antigos recebem erro de validação, sem fallback de venda integral. Antes de aplicar V26/V27, fazer backup consistente e ensaiar as migrations em cópia isolada: V26 interrompe em inconsistências de saldo, status ou histórico, exigindo correção explícita; V27 preserva movimentos antigos sem atribuir UUIDs. Conferir também os detalhes obrigatórios das categorias, além de caixa, posição e histórico antes/depois.
+
+Após vendas parciais ou outras novas escritas, não executar código antigo sobre o banco atualizado nem remover campos/snapshots para tentar reverter. Restaurar backup perde escritas posteriores e exige reconciliação; preferir correção adiante quando viável. Nenhuma publicação é realizada pelos testes de aceite.
 
 ## Executar com Docker Compose
 
@@ -317,7 +391,7 @@ AUTH_TEST_POSTGRES_URL=jdbc:postgresql://localhost:55432/unita_test \
   -Dtest=PostgreSQLAuthFlowIntegrationTest,EmailVerificationMigrationTest test
 ```
 
-Para concorrência financeira, ciclo de faturas, parcelamentos, estornos e migrations financeiras/recorrentes, informe URL, credenciais, driver e dialeto, sobrescrevendo a configuração H2:
+Para concorrência financeira, vendas de investimentos, ciclo de faturas, parcelamentos, estornos e migrations financeiras/recorrentes, informe URL, credenciais, driver e dialeto, sobrescrevendo a configuração H2:
 
 ```bash
 ./mvnw -Dspring.profiles.active=test \
@@ -326,21 +400,25 @@ Para concorrência financeira, ciclo de faturas, parcelamentos, estornos e migra
   -Dspring.datasource.password=auth_test \
   -Dspring.datasource.driver-class-name=org.postgresql.Driver \
   -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \
-  -Dtest=FinancialConcurrencyIntegrationTest,BillLifecycleIntegrationTest,PurchasePlanIntegrationTest,RefundIntegrationTest,FinancialOperationMigrationTest,RefundMigrationTest,RecurringMigrationTest \
+  -DargLine=-Duser.timezone=America/Sao_Paulo \
+  -Dtest=FinancialConcurrencyIntegrationTest,InvestmentConcurrencyPostgreSQLTest,InvestmentSellIntegrationTest,InvestmentLegacyCorrectionsIntegrationTest,InvestmentLegacyContractIntegrationTest,BillLifecycleIntegrationTest,PurchasePlanIntegrationTest,RefundIntegrationTest,FinancialOperationMigrationTest,RefundMigrationTest,RecurringMigrationTest \
   test
 ```
 
-Os testes de baseline de investimentos e de migração das instituições usam propriedades próprias e schemas temporários:
+Os testes de baseline/migração de investimentos e de migração das instituições usam propriedades próprias e schemas temporários:
 
 ```bash
 ./mvnw -Dspring.profiles.active=test \
   -Dinv001.postgres.url=jdbc:postgresql://localhost:55432/unita_test \
   -Dinv001.postgres.username=auth_test \
   -Dinv001.postgres.password=auth_test \
+  -Dbe01.postgres.url=jdbc:postgresql://localhost:55432/unita_test \
+  -Dbe01.postgres.username=auth_test \
+  -Dbe01.postgres.password=auth_test \
   -Dinv003.postgres.url=jdbc:postgresql://localhost:55432/unita_test \
   -Dinv003.postgres.username=auth_test \
   -Dinv003.postgres.password=auth_test \
-  -Dtest=InvestmentBaselinePostgreSQLTest,InstitutionMigrationTest test
+  -Dtest=InvestmentBaselinePostgreSQLTest,InvestmentModelMigrationTest,InstitutionMigrationTest test
 ```
 
 Ao terminar, remova o contêiner e seu volume anônimo de testes:
