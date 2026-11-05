@@ -13,7 +13,9 @@ public record InvestmentPositionDto(
     BigDecimal currentValue,
     @Schema(description = "Legacy cumulative received amount, including yield withdrawals and net redemption proceeds")
     BigDecimal redeemedValue,
-    LocalDate lastValuationDate
+    LocalDate lastValuationDate,
+    @Schema(description = "Acquisition cost of the remaining units; distinct from cumulative totalInvested")
+    BigDecimal remainingCost
 ) {
     public InvestmentPositionDto(InvestmentPosition position) {
         this(
@@ -22,7 +24,8 @@ public record InvestmentPositionDto(
             position.getTotalInvested(),
             position.getCurrentValue(),
             position.getRedeemedValue(),
-            position.getLastValuationDate()
+            position.getLastValuationDate(),
+            position.getRemainingCost()
         );
     }
 }

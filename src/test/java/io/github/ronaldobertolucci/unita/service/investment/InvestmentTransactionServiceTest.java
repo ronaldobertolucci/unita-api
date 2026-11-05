@@ -160,6 +160,7 @@ class InvestmentTransactionServiceTest {
         Category category = buildCategory(1L, CategoryType.NEUTRAL);
         InvestmentPosition position = buildPosition(asset);
         position.setTotalInvested(new BigDecimal("500.00000000"));
+        position.setRemainingCost(new BigDecimal("500.00000000"));
         position.setQuantity(new BigDecimal("0.50000000"));
 
         InvestmentBuyDto dto = new InvestmentBuyDto(
@@ -179,6 +180,7 @@ class InvestmentTransactionServiceTest {
         investmentTransactionService.buy(1L, dto, authentication);
 
         assertEquals(0, new BigDecimal("1500.00000000").compareTo(position.getTotalInvested()));
+        assertEquals(0, new BigDecimal("1500.00000000").compareTo(position.getRemainingCost()));
         assertEquals(0, new BigDecimal("1.50000000").compareTo(position.getQuantity()));
     }
 

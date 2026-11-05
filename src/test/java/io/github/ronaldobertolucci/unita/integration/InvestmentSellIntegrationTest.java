@@ -47,6 +47,43 @@ class InvestmentSellIntegrationTest {
     private Asset asset;
     private Cash pocket;
 
+    @Test
+    void persistsAndSerializesNewHistoryFieldsWithoutInventingLegacyUnits() throws Exception {
+        var sell = investments.save(InvestmentTransaction.builder().asset(asset)
+                .type(InvestmentTransactionType.SELL).amount(new BigDecimal("50"))
+                .quantity(new BigDecimal("0.12500001")).costBasis(new BigDecimal("40.12345678"))
+                .transactionDate(LocalDate.of(2026, 10, 13)).build());
+        var tax = investments.save(InvestmentTransaction.builder().asset(asset)
+                .type(InvestmentTransactionType.TAX).amount(new BigDecimal("1"))
+                .relatedSell(sell).transactionDate(LocalDate.of(2026, 10, 13)).build());
+        em.flush();
+        em.clear();
+        var persistedSell = investments.findById(sell.getId()).orElseThrow();
+        decimal("0.12500001", persistedSell.getQuantity());
+        decimal("40.12345678", persistedSell.getCostBasis());
+        assertEquals(sell.getId(), investments.findById(tax.getId()).orElseThrow().getRelatedSell().getId());
+        var response = mvc.perform(get("/api/assets/" + asset.getId() + "/transactions")
+                        .contextPath("/api").with(user(owner)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var history = tools.jackson.databind.json.JsonMapper.builder().build().readTree(response);
+        for (var movement : history) {
+            switch (movement.get("type").asString()) {
+                case "SELL" -> {
+                    decimal("0.12500001", movement.get("quantity").decimalValue());
+                    decimal("40.12345678", movement.get("costBasis").decimalValue());
+                    assertTrue(movement.get("relatedSellId").isNull());
+                }
+                case "TAX" -> {
+                    assertEquals(sell.getId().longValue(), movement.get("relatedSellId").asLong());
+                    assertTrue(movement.get("quantity").isNull());
+                    assertTrue(movement.get("costBasis").isNull());
+                }
+                case "BUY" -> assertTrue(movement.get("quantity").isNull());
+                default -> fail("Unexpected movement");
+            }
+        }
+    }
+
     @BeforeEach
     void setup() {
         owner = users.save(User.builder().firstName("Sell").lastName("Test")

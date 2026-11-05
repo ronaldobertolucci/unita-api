@@ -68,6 +68,9 @@ class InvestmentLegacyContractIntegrationTest {
         for (var movement : movements) {
             assertTrue(movement.get("id").isNumber());
             assertTrue(movement.get("amount").isNumber());
+            assertTrue(movement.get("quantity").isNull());
+            assertTrue(movement.get("costBasis").isNull());
+            assertTrue(movement.get("relatedSellId").isNull());
             if (movement.get("id").asLong() == 97007) {
                 assertTrue(movement.get("pocketTransactionId").isNull());
                 assertEquals("2026-10-12", movement.get("transactionDate").asString());
@@ -103,6 +106,7 @@ class InvestmentLegacyContractIntegrationTest {
         mvc.perform(get(path).contextPath("/api").with(user(owner())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.position.quantity").value(2))
                 .andExpect(jsonPath("$.position.currentValue").value(190))
+                .andExpect(jsonPath("$.position.remainingCost").value(200))
                 .andExpect(jsonPath("$.position.redeemedValue").value(10));
         mvc.perform(post(path + "/transactions/sell").contextPath("/api").with(user(owner()))
                 .contentType("application/json").content("""
@@ -117,6 +121,7 @@ class InvestmentLegacyContractIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REDEEMED"))
                 .andExpect(jsonPath("$.position.quantity").value(0))
                 .andExpect(jsonPath("$.position.totalInvested").value(200))
+                .andExpect(jsonPath("$.position.remainingCost").value(0))
                 .andExpect(jsonPath("$.position.redeemedValue").value(215));
         assertEquals(0, new BigDecimal("15").compareTo(cash.calculateBalanceByPocketId(94003L)));
     }

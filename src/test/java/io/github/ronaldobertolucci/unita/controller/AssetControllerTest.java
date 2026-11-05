@@ -63,7 +63,7 @@ class AssetControllerTest {
         InvestmentPositionDto positionDto = new InvestmentPositionDto(
                 new BigDecimal("1.00000000"), new BigDecimal("1000.00000000"),
                 new BigDecimal("1000.00000000"), new BigDecimal("1100.00000000"),
-                BigDecimal.ZERO, LocalDate.of(2025, 1, 1));
+                BigDecimal.ZERO, LocalDate.of(2025, 1, 1), new BigDecimal("1000.00000000"));
         FixedIncomeDetailsDto detailsDto = new FixedIncomeDetailsDto(
                 Indexer.CDI, new BigDecimal("0.12000000"),
                 LocalDate.of(2027, 1, 1), false);
@@ -73,7 +73,7 @@ class AssetControllerTest {
 
     private InvestmentTransactionDto investmentTransactionDto() {
         return new InvestmentTransactionDto(1L, InvestmentTransactionType.BUY,
-                new BigDecimal("1000.00000000"), LocalDate.now(), null, 10L);
+                new BigDecimal("1000.00000000"), LocalDate.now(), null, 10L, null, null, null);
     }
 
     private TaxSuggestionDto taxSuggestionDto() {
@@ -222,7 +222,7 @@ class AssetControllerTest {
 
         LegalEntityDto leDto = new LegalEntityDto(10L, "12345678000190", "Banco Teste", null, null);
         InvestmentPositionDto positionDto = new InvestmentPositionDto(
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null);
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null, BigDecimal.ZERO);
         PensionDetailsDto detailsDto = new PensionDetailsDto(PensionType.PGBL, TaxRegime.REGRESSIVO);
         AssetDetailDto pensionDto = new AssetDetailDto(2L, "PGBL Banco X", AssetCategory.PREVIDENCIA,
                 AssetStatus.ACTIVE, LiquidityType.DIARIA, leDto, null, positionDto, null, detailsDto);
@@ -530,7 +530,7 @@ class AssetControllerTest {
                 new BigDecimal("50.00"), LocalDate.now(), 5L, 1L, "Rendimento mensal");
         InvestmentTransactionDto yieldDto = new InvestmentTransactionDto(
                 2L, InvestmentTransactionType.YIELD,
-                new BigDecimal("50.00"), LocalDate.now(), "Rendimento mensal", 10L);
+                new BigDecimal("50.00"), LocalDate.now(), "Rendimento mensal", 10L, null, null, null);
         when(investmentTransactionService.yield(eq(1L), any(), any())).thenReturn(yieldDto);
 
         mockMvc.perform(post("/assets/1/transactions/yield")
@@ -572,10 +572,10 @@ class AssetControllerTest {
 
         InvestmentTransactionDto sellDto = new InvestmentTransactionDto(
                 3L, InvestmentTransactionType.SELL,
-                new BigDecimal("1100.00"), LocalDate.now(), "Resgate total", 10L);
+                new BigDecimal("1100.00"), LocalDate.now(), "Resgate total", 10L, null, null, null);
         InvestmentTransactionDto taxDto = new InvestmentTransactionDto(
                 4L, InvestmentTransactionType.TAX,
-                new BigDecimal("165.00"), LocalDate.now(), null, null);
+                new BigDecimal("165.00"), LocalDate.now(), null, null, null, null, null);
 
         when(investmentTransactionService.sell(eq(1L), any(), any()))
                 .thenReturn(List.of(sellDto, taxDto));

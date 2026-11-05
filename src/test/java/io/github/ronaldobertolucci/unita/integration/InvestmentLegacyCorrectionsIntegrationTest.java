@@ -235,12 +235,19 @@ class InvestmentLegacyCorrectionsIntegrationTest {
         assertState("1000", "1000", "0", "10", "0", 1, 2);
     }
 
-    @ParameterizedTest
-    @CsvSource({"0", "-1"})
-    void invalidLegacyInvestmentBaseIsRejected(String invested) throws Exception {
-        positions.findByAssetId(asset.getId()).orElseThrow().setTotalInvested(new BigDecimal(invested));
+    @Test
+    void zeroInvestmentBaseIsRejectedByTaxSuggestion() throws Exception {
+        positions.findByAssetId(asset.getId()).orElseThrow().setTotalInvested(BigDecimal.ZERO);
         suggestion("1100", TODAY.minusDays(1000)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("totalInvested must be greater than zero for a tax suggestion"));
+    }
+
+    @Test
+    void negativeInvestmentBaseCannotBePersistedAfterV26() {
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        position.setTotalInvested(new BigDecimal("-1"));
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+                () -> positions.saveAndFlush(position));
     }
 
     @Test

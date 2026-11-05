@@ -35,6 +35,18 @@ public class InvestmentTransaction {
     @Column(name = "amount", nullable = false, precision = 18, scale = 8)
     private BigDecimal amount;
 
+    // Null for legacy movements whose units were never recorded.
+    @Column(name = "quantity", precision = 18, scale = 8)
+    private BigDecimal quantity;
+
+    @Column(name = "cost_basis", precision = 18, scale = 8)
+    private BigDecimal costBasis;
+
+    // The database also enforces that this references a SELL of the same asset.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "related_sell_id")
+    private InvestmentTransaction relatedSell;
+
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 

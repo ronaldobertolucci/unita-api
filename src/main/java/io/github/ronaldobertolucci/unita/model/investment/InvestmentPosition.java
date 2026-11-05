@@ -35,6 +35,10 @@ public class InvestmentPosition {
     @Builder.Default
     private BigDecimal totalInvested = BigDecimal.ZERO;
 
+    @Column(name = "remaining_cost", nullable = false, precision = 18, scale = 8)
+    @Builder.Default
+    private BigDecimal remainingCost = BigDecimal.ZERO;
+
     @Column(name = "current_value", nullable = false, precision = 18, scale = 8)
     @Builder.Default
     private BigDecimal currentValue = BigDecimal.ZERO;

@@ -43,6 +43,12 @@ public final class LegacyInvestmentFixture implements AutoCloseable {
                 + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH", "sa", "");
     }
 
+    /** Keep H2 CHECK comparator sessions alive when a migration alters an existing table. */
+    public Flyway migrationTo(String version) {
+        return Flyway.configure().dataSource(new SingleConnectionDataSource(keeper, true))
+                .schemas(schema).defaultSchema(schema).target(version).load();
+    }
+
     public Map<String, List<Map<String, Object>>> rawRows() {
         var rows = new LinkedHashMap<String, List<Map<String, Object>>>();
         for (String table : List.of("users", "legal_entities", "assets", "investment_positions",

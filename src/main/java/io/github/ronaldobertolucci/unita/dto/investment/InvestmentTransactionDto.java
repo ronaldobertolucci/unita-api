@@ -14,7 +14,13 @@ public record InvestmentTransactionDto(
     LocalDate transactionDate,
     String notes,
     @Schema(description = "Original cash transaction reference; may be absent or shared by legacy movements")
-    Long pocketTransactionId
+    Long pocketTransactionId,
+    @Schema(description = "Units bought or sold; null when unknown in legacy history or not applicable")
+    BigDecimal quantity,
+    @Schema(description = "Cost removed by a sale; null when unknown in legacy history or not applicable")
+    BigDecimal costBasis,
+    @Schema(description = "SELL linked to this TAX; null for unpaired legacy movements or when not applicable")
+    Long relatedSellId
 ) {
     public InvestmentTransactionDto(InvestmentTransaction tx) {
         this(
@@ -23,7 +29,10 @@ public record InvestmentTransactionDto(
             tx.getAmount(),
             tx.getTransactionDate(),
             tx.getNotes(),
-            tx.getTransaction() != null ? tx.getTransaction().getId() : null
+            tx.getTransaction() != null ? tx.getTransaction().getId() : null,
+            tx.getQuantity(),
+            tx.getCostBasis(),
+            tx.getRelatedSell() != null ? tx.getRelatedSell().getId() : null
         );
     }
 }

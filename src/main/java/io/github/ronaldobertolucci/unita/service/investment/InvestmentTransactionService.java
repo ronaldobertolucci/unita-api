@@ -92,6 +92,7 @@ public class InvestmentTransactionService {
                 : BigDecimal.ZERO;
 
         position.setTotalInvested(newTotalInvested);
+        position.setRemainingCost(position.getRemainingCost().add(multiplied));
         position.setQuantity(newQuantity);
         position.setAveragePrice(newAveragePrice);
         position.setCurrentValue(position.getCurrentValue().add(multiplied));
@@ -229,6 +230,7 @@ public class InvestmentTransactionService {
 
         position.setRedeemedValue(position.getRedeemedValue().add(netAmount));
         position.setQuantity(BigDecimal.ZERO);
+        position.setRemainingCost(BigDecimal.ZERO);
         position.setAveragePrice(BigDecimal.ZERO);
         position.setCurrentValue(BigDecimal.ZERO);
         investmentPositionRepository.save(position);
