@@ -47,6 +47,139 @@ class InvestmentSellIntegrationTest {
     private Asset asset;
     private Cash pocket;
 
+    private void setPosition(String quantity, String cost, String value, AssetStatus status) {
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        position.setQuantity(new BigDecimal(quantity));
+        position.setRemainingCost(new BigDecimal(cost));
+        position.setTotalInvested(new BigDecimal(cost));
+        position.setAveragePrice(new BigDecimal(cost).divide(new BigDecimal(quantity), 8, java.math.RoundingMode.HALF_UP));
+        position.setCurrentValue(new BigDecimal(value));
+        position.setRedeemedValue(BigDecimal.ZERO);
+        var managedAsset = assets.findById(asset.getId()).orElseThrow();
+        managedAsset.setStatus(status);
+        investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).getFirst().setAmount(new BigDecimal(cost));
+        em.flush();
+        em.clear();
+    }
+
+    private tools.jackson.databind.JsonNode sell(String quantity, String gross, String tax) throws Exception {
+        var response = mvc.perform(post(path()).contextPath("/api").with(user(owner))
+                        .contentType("application/json").content(body(gross, tax).replace("\"quantity\":2", "\"quantity\":" + quantity)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        em.flush();
+        em.clear();
+        var result = tools.jackson.databind.json.JsonMapper.builder().build().readTree(response);
+        assertEquals(result.get(0).get("id").asLong(), result.get(1).get("relatedSellId").asLong());
+        decimal(quantity, result.get(0).get("quantity").decimalValue());
+        decimal(gross, result.get(0).get("amount").decimalValue());
+        assertEquals(result.get(0).get("id").asLong(), investments.findById(result.get(1).get("id").asLong())
+                .orElseThrow().getRelatedSell().getId().longValue());
+        return result;
+    }
+
+    @Test
+    void threeUnitsPartialSaleThenNewContributionUsesRemainingCost() throws Exception {
+        setPosition("3", "3000", "3300", AssetStatus.ACTIVE);
+        var result = sell("1", "1050", "10");
+        decimal("1000", result.get(0).get("costBasis").decimalValue());
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        decimal("2", position.getQuantity());
+        decimal("2000", position.getRemainingCost());
+        decimal("3000", position.getTotalInvested());
+        decimal("1000", position.getAveragePrice());
+        decimal("2200", position.getCurrentValue());
+        decimal("1040", position.getRedeemedValue());
+        assertEquals(AssetStatus.ACTIVE, assets.findById(asset.getId()).orElseThrow().getStatus());
+        assertEquals(LocalDate.of(2026, 10, 12), position.getLastValuationDate());
+        decimal("1060", transactions.calculateBalanceByPocketId(pocket.getId()));
+        mvc.perform(post("/api/assets/" + asset.getId() + "/transactions/buy").contextPath("/api").with(user(owner))
+                        .contentType("application/json").content("{\"amount\":1200,\"quantity\":1,\"transactionDate\":\"2026-10-14\",\"categoryId\":39,\"pocketId\":" + pocket.getId() + "}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.quantity").value(1))
+                .andExpect(jsonPath("$.amount").value(1200));
+        em.flush(); em.clear();
+        var newBuy = investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).stream()
+                .filter(t -> t.getType() == InvestmentTransactionType.BUY && t.getQuantity() != null).findFirst().orElseThrow();
+        decimal("1", newBuy.getQuantity());
+        decimal("1200", newBuy.getAmount());
+        position = positions.findByAssetId(asset.getId()).orElseThrow();
+        decimal("3", position.getQuantity());
+        decimal("4200", position.getTotalInvested());
+        decimal("3200", position.getRemainingCost());
+        decimal("1066.66666667", position.getAveragePrice());
+        decimal("3400", position.getCurrentValue());
+        decimal("1040", position.getRedeemedValue());
+        var next = sell("1", "1100", "0");
+        decimal("1066.66666667", next.get(0).get("costBasis").decimalValue());
+        var last = sell("2", "2200", "0");
+        decimal("2133.33333333", last.get(0).get("costBasis").decimalValue());
+        position = positions.findByAssetId(asset.getId()).orElseThrow();
+        decimal("4200", position.getTotalInvested());
+        decimal("4340", position.getRedeemedValue());
+        assertClosed(position);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"ACTIVE,500,0", "ACTIVE,1500,0", "ACTIVE,100,100", "MATURED,1050,10", "MATURED,100,100"})
+    void partialSalePreservesStatusAndValuationRegardlessOfNegotiatedPrice(String status, String gross, String tax) throws Exception {
+        setPosition("3", "3000", "3300", AssetStatus.valueOf(status));
+        sell("1", gross, tax);
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        assertEquals(AssetStatus.valueOf(status), assets.findById(asset.getId()).orElseThrow().getStatus());
+        decimal("2", position.getQuantity());
+        decimal("2000", position.getRemainingCost());
+        decimal("2200", position.getCurrentValue());
+        decimal("1000", position.getAveragePrice());
+        decimal(new BigDecimal(gross).subtract(new BigDecimal(tax)).toPlainString(), position.getRedeemedValue());
+        sell("2", "1", "1");
+        assertClosed(positions.findByAssetId(asset.getId()).orElseThrow());
+    }
+
+    @Test
+    void fractionalSalesAllocateRoundingResidualToFinalSale() throws Exception {
+        setPosition("1", "1", "2", AssetStatus.ACTIVE);
+        var first = sell("0.33333333", "0.50", "0");
+        var second = sell("0.33333333", "0.50", "0");
+        var third = sell("0.33333334", "0.50", "0");
+        decimal("1", first.get(0).get("costBasis").decimalValue()
+                .add(second.get(0).get("costBasis").decimalValue()).add(third.get(0).get("costBasis").decimalValue()));
+        assertClosed(positions.findByAssetId(asset.getId()).orElseThrow());
+    }
+
+    @Test
+    void smallestSupportedQuantityDoesNotDisappear() throws Exception {
+        sell("0.00000001", "0.01", "0");
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        decimal("1.99999999", position.getQuantity());
+        decimal("79.99999960", position.getRemainingCost());
+        decimal("99.99999950", position.getCurrentValue());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"null,400", "0,400", "-1,400", "0.000000001,400", "10000000000,400", "2.00000001,409"})
+    void invalidQuantityDoesNotChangePositionHistoryOrCash(String quantity, int expectedStatus) throws Exception {
+        mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json")
+                        .content(body("100", "10").replace("\"quantity\":2", "\"quantity\":" + quantity)))
+                .andExpect(status().is(expectedStatus));
+        assertPreserved();
+    }
+
+    @Test
+    void missingQuantityNeverDefaultsToFullSale() throws Exception {
+        mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json")
+                        .content(body("100", "10").replace("\"quantity\":2,", "")))
+                .andExpect(status().isBadRequest());
+        assertPreserved();
+    }
+
+    private void assertClosed(InvestmentPosition position) {
+        decimal("0", position.getQuantity());
+        decimal("0", position.getRemainingCost());
+        decimal("0", position.getCurrentValue());
+        decimal("0", position.getAveragePrice());
+        assertEquals(AssetStatus.REDEEMED, assets.findById(asset.getId()).orElseThrow().getStatus());
+        assertEquals(LocalDate.of(2026, 10, 12), position.getLastValuationDate());
+    }
+
     @Test
     void persistsAndSerializesNewHistoryFieldsWithoutInventingLegacyUnits() throws Exception {
         var sell = investments.save(InvestmentTransaction.builder().asset(asset)
@@ -98,7 +231,7 @@ class InvestmentSellIntegrationTest {
         pocket.setUser(owner);
         pocket = pockets.save(pocket);
         positions.save(InvestmentPosition.builder().asset(asset).quantity(new BigDecimal("2"))
-                .averagePrice(new BigDecimal("40")).totalInvested(new BigDecimal("80"))
+                .averagePrice(new BigDecimal("40")).totalInvested(new BigDecimal("80")).remainingCost(new BigDecimal("80"))
                 .currentValue(new BigDecimal("100")).redeemedValue(new BigDecimal("5"))
                 .lastValuationDate(LocalDate.of(2026, 10, 12)).build());
         Category category = em.find(Category.class, 41L);
@@ -112,7 +245,7 @@ class InvestmentSellIntegrationTest {
 
     private String path() { return "/api/assets/" + asset.getId() + "/transactions/sell"; }
     private String body(String gross, String tax) {
-        return "{\"grossAmount\":" + gross + ",\"taxAmount\":" + tax
+        return "{\"quantity\":2,\"grossAmount\":" + gross + ",\"taxAmount\":" + tax
                 + ",\"transactionDate\":\"2026-10-13\",\"pocketId\":" + pocket.getId()
                 + ",\"categoryId\":41,\"notes\":\"Resgate total\"}";
     }
@@ -184,9 +317,11 @@ class InvestmentSellIntegrationTest {
         mvc.perform(get("/api/v3/api-docs").contextPath("/api"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/assets/{id}/transactions/sell'].post.description")
-                        .value("Requires grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
+                        .value("Requires 0 < quantity <= available units, grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
                                 + "Tax is supplied by the client. Zero net amount is permitted."))
                 .andExpect(jsonPath("$.paths['/assets/{id}/transactions/sell'].post.responses['400']").exists())
+                .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.required", org.hamcrest.Matchers.hasItem("quantity")))
+                .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.quantity.exclusiveMinimum").value(0))
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.taxAmount.description")
                         .value("Tax informed by the client; must be non-negative and no greater than grossAmount"));
     }

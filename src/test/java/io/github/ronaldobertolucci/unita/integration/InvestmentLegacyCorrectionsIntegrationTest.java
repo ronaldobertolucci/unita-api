@@ -114,7 +114,7 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     void realBuyAndFullSellReportAlreadyNetProfitWithoutAnotherTaxDeduction(String gross, String tax, String profit, String net) throws Exception {
         buy("100", "10", TODAY.minusDays(1000));
         assertState("1000", "1000", "0", "10", "0", 1, 2);
-        postCommand("sell", "\"grossAmount\":" + gross + ",\"taxAmount\":" + tax, TODAY, 41)
+        postCommand("sell", "\"quantity\":10,\"grossAmount\":" + gross + ",\"taxAmount\":" + tax, TODAY, 41)
                 .andExpect(status().isCreated());
         assertState("1000", "0", net, "0", net, 3, 3);
         assertEquals(AssetStatus.REDEEMED, assets.findById(asset.getId()).orElseThrow().getStatus());
@@ -135,7 +135,7 @@ class InvestmentLegacyCorrectionsIntegrationTest {
         buy("100", "10", TODAY.minusDays(1000));
         postCommand("yield", "\"amount\":20", TODAY.minusDays(1), 40).andExpect(status().isCreated());
         assertState("1000", "980", "20", "10", "20", 2, 3);
-        postCommand("sell", "\"grossAmount\":1080,\"taxAmount\":15", TODAY, 41).andExpect(status().isCreated());
+        postCommand("sell", "\"quantity\":10,\"grossAmount\":1080,\"taxAmount\":15", TODAY, 41).andExpect(status().isCreated());
         String response = mvc.perform(get("/api/dashboard/net-profit").contextPath("/api").with(user(owner)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         decimal("85", new BigDecimal(response));
@@ -201,7 +201,7 @@ class InvestmentLegacyCorrectionsIntegrationTest {
                 .andExpect(jsonPath("$.warnings[0]", org.hamcrest.Matchers.containsString("datas distintas")))
                 .andExpect(jsonPath("$.taxBasis", org.hamcrest.Matchers.containsString("não representa todos os aportes")));
         // A subsequent real redemption must use the informed tax, regardless of the estimate.
-        postCommand("sell", "\"grossAmount\":1100,\"taxAmount\":7", TODAY, 41).andExpect(status().isCreated());
+        postCommand("sell", "\"quantity\":10,\"grossAmount\":1100,\"taxAmount\":7", TODAY, 41).andExpect(status().isCreated());
         assertState("1000", "0", "1093", "0", "1093", 4, 4);
     }
 

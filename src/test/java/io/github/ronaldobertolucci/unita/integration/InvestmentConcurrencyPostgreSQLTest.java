@@ -102,8 +102,10 @@ class InvestmentConcurrencyPostgreSQLTest {
         movements.buy(assetId, new InvestmentBuyDto(new BigDecimal(price), new BigDecimal(quantity), date, pocketId, 39L, null), auth());
     }
 
-    private void sell() {
-        movements.sell(assetId, new InvestmentSellDto(new BigDecimal("330"), new BigDecimal("30"), date, pocketId, 41L, null), auth());
+    private void sell() { sellQuantity("3"); }
+
+    private void sellQuantity(String quantity) {
+        movements.sell(assetId, new InvestmentSellDto(new BigDecimal("330"), new BigDecimal("30"), date, pocketId, 41L, null, new BigDecimal(quantity)), auth());
     }
 
     private void yieldCash() {
@@ -162,6 +164,36 @@ class InvestmentConcurrencyPostgreSQLTest {
     }
 
     @Test
+    void concurrentPartialSalesCannotExceedAvailableUnits() throws Exception {
+        race(() -> sellQuantity("2"), () -> assertThrows(IllegalStateException.class, () -> sellQuantity("2")));
+        decimal("1", jdbc.queryForObject("SELECT quantity FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("100", jdbc.queryForObject("SELECT remaining_cost FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("100", jdbc.queryForObject("SELECT current_value FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        assertEquals("ACTIVE", jdbc.queryForObject("SELECT status FROM assets WHERE id=?", String.class, assetId));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=? AND type='SELL'", Integer.class, assetId));
+        decimal("300", jdbc.queryForObject("SELECT redeemed_value FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        sellQuantity("1");
+        assertPosition("REDEEMED", "0", "300", "0", "600", "300");
+    }
+
+    @Test
+    void concurrentPartialSalesConsumingExactlyTheBalanceCloseOnlyOnFinalSale() throws Exception {
+        race(() -> sellQuantity("2"), () -> sellQuantity("1"));
+        assertPosition("REDEEMED", "0", "300", "0", "600", "300");
+        decimal("300", jdbc.queryForObject("SELECT sum(cost_basis) FROM investment_transactions WHERE asset_id=? AND type='SELL'", BigDecimal.class, assetId));
+    }
+
+    @Test
+    void buyWaitingForPartialSaleUsesTheRemainingCost() throws Exception {
+        race(() -> sellQuantity("1"), () -> buy("100", "1"));
+        decimal("3", jdbc.queryForObject("SELECT quantity FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("400", jdbc.queryForObject("SELECT total_invested FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("300", jdbc.queryForObject("SELECT remaining_cost FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("100", jdbc.queryForObject("SELECT average_price FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        assertEquals("ACTIVE", jdbc.queryForObject("SELECT status FROM assets WHERE id=?", String.class, assetId));
+    }
+
+    @Test
     void concurrentFullSalesCannotBothConsumeThePosition() throws Exception {
         race(this::sell, () -> assertThrows(IllegalStateException.class, this::sell));
         assertPosition("REDEEMED", "0", "300", "0", "300", "0");
@@ -170,7 +202,7 @@ class InvestmentConcurrencyPostgreSQLTest {
 
     @Test
     void buyThenSellIncludesTheCommittedContribution() throws Exception {
-        race(() -> buy("100", "1"), this::sell);
+        race(() -> buy("100", "1"), () -> sellQuantity("4"));
         assertPosition("REDEEMED", "0", "400", "0", "300", "-100");
     }
 
@@ -224,11 +256,12 @@ class InvestmentConcurrencyPostgreSQLTest {
         assertPosition("REDEEMED", "0", "300", "0", "300", "0");
     }
 
-    @Test
-    void persistenceFailureAfterCashAndSellInsertionRollsBackEverything() {
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "3"})
+    void persistenceFailureAfterCashAndSellInsertionRollsBackEverything(String quantity) {
         jdbc.execute("ALTER TABLE investment_transactions ADD CONSTRAINT be02_test_tax_failure CHECK (NOT (type='TAX' AND asset_id=" + assetId + "))");
         try {
-            assertThrows(org.springframework.dao.DataIntegrityViolationException.class, this::sell);
+            assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> sellQuantity(quantity));
             assertPosition("ACTIVE", "3", "300", "300", "0", "-300");
             assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=?", Integer.class, assetId));
             assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM transactions WHERE pocket_id=?", Integer.class, pocketId));
@@ -254,7 +287,7 @@ class InvestmentConcurrencyPostgreSQLTest {
     void invalidMovementPrecisionReturns400WithoutMutation(String kind, String field, String value) throws Exception {
         String body = switch (kind) {
             case "buy" -> "\"amount\":100,\"quantity\":1";
-            case "sell" -> "\"grossAmount\":330,\"taxAmount\":30";
+            case "sell" -> "\"quantity\":3,\"grossAmount\":330,\"taxAmount\":30";
             default -> "\"amount\":5";
         };
         body = body.replaceAll("\"" + field + "\":[0-9]+", "\"" + field + "\":" + value);
@@ -299,7 +332,7 @@ class InvestmentConcurrencyPostgreSQLTest {
         stranger.setId(-1L);
         var unauthorized = new UsernamePasswordAuthenticationToken(stranger, null);
         assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> movements.sell(assetId,
-                new InvestmentSellDto(new BigDecimal("330"), BigDecimal.ZERO, date, pocketId, 41L, null), unauthorized));
+                new InvestmentSellDto(new BigDecimal("330"), BigDecimal.ZERO, date, pocketId, 41L, null, new BigDecimal("3")), unauthorized));
         assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> movements.buy(-1L,
                 new InvestmentBuyDto(BigDecimal.ONE, BigDecimal.ONE, date, pocketId, 39L, null), auth()));
         assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> service.updatePosition(assetId,

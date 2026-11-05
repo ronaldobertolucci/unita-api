@@ -110,7 +110,7 @@ class InvestmentLegacyContractIntegrationTest {
                 .andExpect(jsonPath("$.position.redeemedValue").value(10));
         mvc.perform(post(path + "/transactions/sell").contextPath("/api").with(user(owner()))
                 .contentType("application/json").content("""
-                        {"grossAmount":220,"taxAmount":15,"transactionDate":"2026-10-13",
+                        {"quantity":2,"grossAmount":220,"taxAmount":15,"transactionDate":"2026-10-13",
                          "pocketId":94003,"categoryId":41,"notes":"Contract full sell"}
                         """))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(2))

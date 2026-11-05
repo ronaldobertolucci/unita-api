@@ -281,7 +281,7 @@ class InvestmentTransactionServiceTest {
     @CsvSource(value = {"null,0", "0,0", "-1,0", "100,null", "100,-50", "100,150"}, nullValues = "null")
     void sell_WhenAmountsInvalid_ShouldRejectBeforeAnyRepositoryAccess(BigDecimal gross, BigDecimal tax) {
         reset(authentication);
-        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.now(), 5L, 1L, null);
+        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
         assertThrows(IllegalArgumentException.class,
                 () -> investmentTransactionService.sell(1L, dto, authentication));
         verifyNoInteractions(assetRepository, pocketRepository, transactionRepository,
@@ -299,7 +299,7 @@ class InvestmentTransactionServiceTest {
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, "Resgate total");
+                LocalDate.now(), 5L, 1L, "Resgate total", BigDecimal.ONE);
 
         InvestmentTransaction sellTx = buildInvestmentTransaction(
                 3L, asset, InvestmentTransactionType.SELL, new BigDecimal("1100.00"), LocalDate.now());
@@ -337,7 +337,7 @@ class InvestmentTransactionServiceTest {
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, null);
+                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
@@ -365,7 +365,7 @@ class InvestmentTransactionServiceTest {
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, null);
+                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
 
         assertThrows(IllegalStateException.class,
                 () -> investmentTransactionService.sell(1L, dto, authentication));

@@ -16,5 +16,7 @@ public record InvestmentSellDto(
     @NotNull LocalDate transactionDate,
     @NotNull Long pocketId,
     @NotNull Long categoryId,
-    String notes
+    String notes,
+    @Schema(description = "Units to sell; positive and no greater than the available quantity", example = "1")
+    @NotNull @Positive BigDecimal quantity
 ) {}

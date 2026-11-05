@@ -70,7 +70,7 @@ public class InvestmentTransactionService {
         BigDecimal newRemainingCost = InvestmentDecimals.calculated(position.getRemainingCost().add(multiplied), "remainingCost");
         BigDecimal newCurrentValue = InvestmentDecimals.calculated(position.getCurrentValue().add(multiplied), "currentValue");
         BigDecimal newAveragePrice = InvestmentDecimals.calculated(
-                newTotalInvested.divide(newQuantity, 8, RoundingMode.HALF_UP), "averagePrice");
+                newRemainingCost.divide(newQuantity, 8, RoundingMode.HALF_UP), "averagePrice");
 
         // Cria Transaction EXPENSE no pocket
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
@@ -88,6 +88,7 @@ public class InvestmentTransactionService {
                         .asset(asset)
                         .transaction(pocketTransaction)
                         .type(InvestmentTransactionType.BUY)
+                        .quantity(dto.quantity())
                         .amount(multiplied)
                         .transactionDate(dto.transactionDate())
                         .notes(dto.notes())
@@ -172,6 +173,7 @@ public class InvestmentTransactionService {
 
     @Transactional
     public List<InvestmentTransactionDto> sell(Long assetId, InvestmentSellDto dto, Authentication authentication) {
+        InvestmentDecimals.positive(dto.quantity(), "quantity");
         InvestmentDecimals.positive(dto.grossAmount(), "grossAmount");
         InvestmentDecimals.nonNegative(dto.taxAmount(), "taxAmount");
         if (dto.taxAmount().compareTo(dto.grossAmount()) > 0) {
@@ -199,6 +201,19 @@ public class InvestmentTransactionService {
         if (position.getQuantity().signum() <= 0) {
             throw new IllegalStateException("Cannot sell a position without units");
         }
+        if (dto.quantity().compareTo(position.getQuantity()) > 0) {
+            throw new IllegalStateException("Sale quantity exceeds available units");
+        }
+        boolean fullSale = dto.quantity().compareTo(position.getQuantity()) == 0;
+        BigDecimal costBasis = fullSale ? position.getRemainingCost()
+                : position.getRemainingCost().multiply(dto.quantity()).divide(position.getQuantity(), 8, RoundingMode.HALF_UP);
+        BigDecimal valuationRemoved = fullSale ? position.getCurrentValue()
+                : position.getCurrentValue().multiply(dto.quantity()).divide(position.getQuantity(), 8, RoundingMode.HALF_UP);
+        BigDecimal newQuantity = position.getQuantity().subtract(dto.quantity());
+        BigDecimal newRemainingCost = position.getRemainingCost().subtract(costBasis);
+        BigDecimal newCurrentValue = position.getCurrentValue().subtract(valuationRemoved);
+        BigDecimal newAveragePrice = fullSale ? BigDecimal.ZERO : InvestmentDecimals.calculated(
+                newRemainingCost.divide(newQuantity, 8, RoundingMode.HALF_UP), "averagePrice");
         BigDecimal netAmount = dto.grossAmount().subtract(dto.taxAmount());
         BigDecimal newRedeemedValue = InvestmentDecimals.calculated(position.getRedeemedValue().add(netAmount), "redeemedValue");
 
@@ -218,6 +233,8 @@ public class InvestmentTransactionService {
                         .asset(asset)
                         .transaction(pocketTransaction)
                         .type(InvestmentTransactionType.SELL)
+                        .quantity(dto.quantity())
+                        .costBasis(costBasis)
                         .amount(dto.grossAmount())
                         .transactionDate(dto.transactionDate())
                         .notes(dto.notes())
@@ -228,6 +245,7 @@ public class InvestmentTransactionService {
                 InvestmentTransaction.builder()
                         .asset(asset)
                         .type(InvestmentTransactionType.TAX)
+                        .relatedSell(sellTransaction)
                         .amount(dto.taxAmount())
                         .transactionDate(dto.transactionDate())
                         .notes("IR retido no resgate de " + asset.getName())
@@ -235,14 +253,16 @@ public class InvestmentTransactionService {
 
         // Atualiza posição
         position.setRedeemedValue(newRedeemedValue);
-        position.setQuantity(BigDecimal.ZERO);
-        position.setRemainingCost(BigDecimal.ZERO);
-        position.setAveragePrice(BigDecimal.ZERO);
-        position.setCurrentValue(BigDecimal.ZERO);
+        position.setQuantity(newQuantity);
+        position.setRemainingCost(newRemainingCost);
+        position.setAveragePrice(newAveragePrice);
+        position.setCurrentValue(newCurrentValue);
         investmentPositionRepository.save(position);
 
-        asset.setStatus(AssetStatus.REDEEMED);
-        assetRepository.save(asset);
+        if (fullSale) {
+            asset.setStatus(AssetStatus.REDEEMED);
+            assetRepository.save(asset);
+        }
 
         return List.of(
                 new InvestmentTransactionDto(sellTransaction),

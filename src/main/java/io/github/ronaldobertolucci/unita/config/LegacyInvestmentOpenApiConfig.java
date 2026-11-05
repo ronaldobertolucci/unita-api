@@ -19,6 +19,7 @@ public class LegacyInvestmentOpenApiConfig {
             Map<String, Schema> schemas = api.getComponents().getSchemas();
             requirePositive(schemas.get("InvestmentBuyDto"), "amount", "quantity");
             requirePositive(schemas.get("InvestmentYieldDto"), "amount");
+            requirePositive(schemas.get("InvestmentSellDto"), "quantity");
         };
     }
 

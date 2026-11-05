@@ -118,7 +118,7 @@ public class AssetController {
     // -------------------------------------------------------------------------
 
     @Operation(summary = "Read legacy investment history",
-            description = "Legacy numeric IDs and amounts. pocketTransactionId may be null. SELL and TAX have no explicit pairing.",
+            description = "Legacy numeric IDs and amounts. pocketTransactionId may be null. Legacy SELL and TAX may have no explicit pairing.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Original movement types, dates, notes and cash references"),
                     @ApiResponse(responseCode = "401", description = "Authentication required"),
@@ -168,15 +168,15 @@ public class AssetController {
     }
 
     @Operation(
-            summary = "Redeem the entire investment position",
-            description = "Requires grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
+            summary = "Sell part or all of the investment position",
+            description = "Requires 0 < quantity <= available units, grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
                     + "Tax is supplied by the client. Zero net amount is permitted.",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "Full redemption registered with SELL and TAX transactions"),
+                    @ApiResponse(responseCode = "201", description = "Sale registered with quantity, cost basis and linked SELL/TAX transactions"),
                     @ApiResponse(responseCode = "400", description = "Missing or invalid input amounts"),
                     @ApiResponse(responseCode = "401", description = "Authentication required"),
                     @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user"),
-                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed")
+                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed or insufficient units")
             })
     @PostMapping("/{id}/transactions/sell")
     public ResponseEntity<List<InvestmentTransactionDto>> sell(
