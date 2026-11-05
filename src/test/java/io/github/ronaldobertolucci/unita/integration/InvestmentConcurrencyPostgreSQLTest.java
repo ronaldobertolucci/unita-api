@@ -82,6 +82,8 @@ class InvestmentConcurrencyPostgreSQLTest {
                     .corporateName("Test issuer").build());
             var asset = assets.save(Asset.builder().user(owner).legalEntity(issuer).name("Concurrency asset")
                     .category(AssetCategory.RENDA_FIXA).status(AssetStatus.ACTIVE).build());
+            io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(asset);
+            em.persist(asset.getFixedIncomeDetails());
             assetId = asset.getId();
             positions.save(InvestmentPosition.builder().asset(asset).build());
             var cash = new Cash();
@@ -175,6 +177,8 @@ class InvestmentConcurrencyPostgreSQLTest {
             var issuer = assets.findById(assetId).orElseThrow().getLegalEntity();
             var another = assets.save(Asset.builder().user(owner).legalEntity(issuer).name("Another asset")
                     .category(AssetCategory.RENDA_FIXA).build());
+            io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(another);
+            em.persist(another.getFixedIncomeDetails());
             positions.save(InvestmentPosition.builder().asset(another).quantity(BigDecimal.ONE)
                     .totalInvested(new BigDecimal("100")).remainingCost(new BigDecimal("100"))
                     .averagePrice(new BigDecimal("100")).currentValue(new BigDecimal("100")).build());

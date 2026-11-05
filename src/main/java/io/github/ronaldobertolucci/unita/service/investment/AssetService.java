@@ -37,6 +37,8 @@ public class AssetService {
 
     @Transactional
     public AssetDetailDto createFixedIncome(FixedIncomeAssetCreateDto dto, Authentication authentication) {
+        if (dto.indexer() == null || dto.annualRate() == null || dto.maturityDate() == null || dto.taxFree() == null)
+            throw new IllegalArgumentException("Complete fixed-income details are required");
         User currentUser = (User) authentication.getPrincipal();
 
         if (assetRepository.existsByNameAndUserId(dto.name(), currentUser.getId())) {
@@ -78,6 +80,7 @@ public class AssetService {
 
         asset.setFixedIncomeDetails(savedDetails);
         asset.setPosition(savedPosition);
+        InvestmentCategoryRules.validateDetails(asset);
 
         return new AssetDetailDto(assetRepository.findByIdAndUserId(asset.getId(), currentUser.getId())
                 .orElseThrow());
@@ -85,6 +88,8 @@ public class AssetService {
 
     @Transactional
     public AssetDetailDto createPension(PensionAssetCreateDto dto, Authentication authentication) {
+        if (dto.pensionType() == null || dto.taxRegime() == null)
+            throw new IllegalArgumentException("Complete pension details are required");
         User currentUser = (User) authentication.getPrincipal();
 
         if (assetRepository.existsByNameAndUserId(dto.name(), currentUser.getId())) {
@@ -124,6 +129,7 @@ public class AssetService {
 
         asset.setPensionDetails(savedDetails);
         asset.setPosition(savedPosition);
+        InvestmentCategoryRules.validateDetails(asset);
 
         return new AssetDetailDto(assetRepository.findByIdAndUserId(asset.getId(), currentUser.getId())
                 .orElseThrow());
@@ -197,6 +203,8 @@ public class AssetService {
             throw new IllegalStateException("Cannot update position of a redeemed asset");
         }
 
+        InvestmentCategoryRules.validateDetails(asset);
+
         InvestmentPosition position = investmentPositionRepository.findByAssetId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
@@ -242,6 +250,8 @@ public class AssetService {
         Asset asset = assetRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
+        InvestmentCategoryRules.validateDetails(asset);
+
         InvestmentPosition position = investmentPositionRepository.findByAssetId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
@@ -259,8 +269,7 @@ public class AssetService {
             throw new IllegalStateException("Tax suggestion requires available units for the proposed sale");
         }
         BigDecimal totalInvested = position.getTotalInvested();
-        BigDecimal costBasis = quantity.compareTo(position.getQuantity()) == 0 ? position.getRemainingCost()
-                : position.getRemainingCost().multiply(quantity).divide(position.getQuantity(), 8, java.math.RoundingMode.HALF_UP);
+        BigDecimal costBasis = InvestmentPositionMath.proportionalValue(position.getRemainingCost(), quantity, position.getQuantity());
         BigDecimal earnings = grossAmount.subtract(costBasis);
         BigDecimal rate;
         BigDecimal taxBase;
@@ -285,10 +294,16 @@ public class AssetService {
             if (details.getTaxRegime() == null || details.getPensionType() == null) {
                 throw new IllegalArgumentException("pension type and tax regime are required for a tax suggestion");
             }
-            rate = details.getTaxRegime() == TaxRegime.PROGRESSIVO
-                    ? taxCalculationService.getPensionProgressiveTaxRate()
-                    : taxCalculationService.calculatePensionRegressiveTaxRate(purchaseDate, saleDate);
-            boolean earningsBased = details.getPensionType() == PensionType.VGBL;
+            rate = switch (details.getTaxRegime()) {
+                case PROGRESSIVO -> taxCalculationService.getPensionProgressiveTaxRate();
+                case REGRESSIVO -> taxCalculationService.calculatePensionRegressiveTaxRate(purchaseDate, saleDate);
+                default -> throw new IllegalArgumentException("Unsupported pension tax regime");
+            };
+            boolean earningsBased = switch (details.getPensionType()) {
+                case VGBL -> true;
+                case PGBL, ENTIDADE_FECHADA -> false;
+                default -> throw new IllegalArgumentException("Unsupported pension type");
+            };
             taxBase = earningsBased ? earnings.max(BigDecimal.ZERO) : grossAmount;
             taxBasis = taxCalculationService.describePensionTaxBasis(days, details.getTaxRegime())
                     + (earningsBased ? "; base: rendimento positivo (VGBL)" : "; base: valor bruto total (PGBL/entidade fechada)");

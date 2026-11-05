@@ -32,6 +32,7 @@ class AssetMaturityJobProcessorTest {
                 .status(AssetStatus.ACTIVE)
                 .build();
         asset.setId(1L);
+        io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(asset);
 
         when(assetRepository.findById(1L)).thenReturn(Optional.of(asset));
 
@@ -53,6 +54,29 @@ class AssetMaturityJobProcessorTest {
         var order = inOrder(locks, assetRepository);
         order.verify(locks).lockAsset(1L);
         order.verify(assetRepository).findById(1L);
+    }
+
+    @Test
+    void process_WhenPension_ShouldPreserveActiveStatus() {
+        Asset asset = Asset.builder().id(1L).category(AssetCategory.PREVIDENCIA).status(AssetStatus.ACTIVE).build();
+        io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(asset);
+        when(assetRepository.findById(1L)).thenReturn(Optional.of(asset));
+
+        processor.process(1L);
+
+        assertEquals(AssetStatus.ACTIVE, asset.getStatus());
+        verify(assetRepository, never()).save(any());
+    }
+
+    @Test
+    void process_WhenDetailsMissing_ShouldRejectWithoutChangingStatus() {
+        Asset asset = Asset.builder().id(1L).category(AssetCategory.RENDA_FIXA).status(AssetStatus.ACTIVE).build();
+        when(assetRepository.findById(1L)).thenReturn(Optional.of(asset));
+
+        assertThrows(IllegalStateException.class, () -> processor.process(1L));
+
+        assertEquals(AssetStatus.ACTIVE, asset.getStatus());
+        verify(assetRepository, never()).save(any());
     }
 
     @Test

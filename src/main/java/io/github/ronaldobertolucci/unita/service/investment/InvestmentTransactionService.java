@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -52,6 +51,8 @@ public class InvestmentTransactionService {
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
+        InvestmentCategoryRules.validateDetails(asset);
+
         if (asset.getStatus() != AssetStatus.ACTIVE) {
             throw new IllegalStateException("Cannot buy into a non-active asset");
         }
@@ -70,8 +71,7 @@ public class InvestmentTransactionService {
         BigDecimal newTotalInvested = InvestmentDecimals.calculated(position.getTotalInvested().add(multiplied), "totalInvested");
         BigDecimal newRemainingCost = InvestmentDecimals.calculated(position.getRemainingCost().add(multiplied), "remainingCost");
         BigDecimal newCurrentValue = InvestmentDecimals.calculated(position.getCurrentValue().add(multiplied), "currentValue");
-        BigDecimal newAveragePrice = InvestmentDecimals.calculated(
-                newRemainingCost.divide(newQuantity, 8, RoundingMode.HALF_UP), "averagePrice");
+        BigDecimal newAveragePrice = InvestmentPositionMath.averagePrice(newRemainingCost, newQuantity);
 
         // Cria Transaction EXPENSE no pocket
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
@@ -119,9 +119,7 @@ public class InvestmentTransactionService {
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
-        if (asset.getCategory() != AssetCategory.RENDA_FIXA && asset.getCategory() != AssetCategory.PREVIDENCIA) {
-            throw new IllegalArgumentException("Yield withdrawal is unavailable for this asset category");
-        }
+        InvestmentCategoryRules.requireYield(asset);
         if (asset.getStatus() != AssetStatus.ACTIVE) {
             throw new IllegalStateException("Cannot register yield for a non-active asset");
         }
@@ -203,6 +201,8 @@ public class InvestmentTransactionService {
             return InvestmentSaleSnapshot.response(previous.get().getResponsePayload());
         }
 
+        InvestmentCategoryRules.validateDetails(asset);
+
         if (asset.getStatus() == AssetStatus.REDEEMED) {
             throw new IllegalStateException("Asset has already been fully redeemed");
         }
@@ -222,15 +222,12 @@ public class InvestmentTransactionService {
             throw new IllegalStateException("Sale quantity exceeds available units");
         }
         boolean fullSale = dto.quantity().compareTo(position.getQuantity()) == 0;
-        BigDecimal costBasis = fullSale ? position.getRemainingCost()
-                : position.getRemainingCost().multiply(dto.quantity()).divide(position.getQuantity(), 8, RoundingMode.HALF_UP);
-        BigDecimal valuationRemoved = fullSale ? position.getCurrentValue()
-                : position.getCurrentValue().multiply(dto.quantity()).divide(position.getQuantity(), 8, RoundingMode.HALF_UP);
+        BigDecimal costBasis = InvestmentPositionMath.proportionalValue(position.getRemainingCost(), dto.quantity(), position.getQuantity());
+        BigDecimal valuationRemoved = InvestmentPositionMath.proportionalValue(position.getCurrentValue(), dto.quantity(), position.getQuantity());
         BigDecimal newQuantity = position.getQuantity().subtract(dto.quantity());
         BigDecimal newRemainingCost = position.getRemainingCost().subtract(costBasis);
         BigDecimal newCurrentValue = position.getCurrentValue().subtract(valuationRemoved);
-        BigDecimal newAveragePrice = fullSale ? BigDecimal.ZERO : InvestmentDecimals.calculated(
-                newRemainingCost.divide(newQuantity, 8, RoundingMode.HALF_UP), "averagePrice");
+        BigDecimal newAveragePrice = InvestmentPositionMath.averagePrice(newRemainingCost, newQuantity);
         BigDecimal netAmount = dto.grossAmount().subtract(dto.taxAmount());
         BigDecimal newRedeemedValue = InvestmentDecimals.calculated(position.getRedeemedValue().add(netAmount), "redeemedValue");
 

@@ -47,6 +47,42 @@ class InvestmentSellIntegrationTest {
     private Asset asset;
     private Cash pocket;
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"missing", "both", "wrongCategory"})
+    void incoherentDetailsBlockOperationsButRemainInspectable(String corruption) throws Exception {
+        var managed = assets.findById(asset.getId()).orElseThrow();
+        if (corruption.equals("missing")) managed.setFixedIncomeDetails(null);
+        if (corruption.equals("wrongCategory")) managed.setCategory(AssetCategory.PREVIDENCIA);
+        if (corruption.equals("both")) {
+            var pension = PensionDetails.builder().asset(managed).pensionType(PensionType.VGBL).taxRegime(TaxRegime.REGRESSIVO).build();
+            em.persist(pension); managed.setPensionDetails(pension);
+        }
+        em.flush(); em.clear();
+        mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json").content(body("100", "10")))
+                .andExpect(status().isConflict());
+        String base = "/api/assets/" + asset.getId();
+        for (String type : new String[]{"buy", "yield"}) {
+            mvc.perform(post(base + "/transactions/" + type).contextPath("/api").with(user(owner)).contentType("application/json")
+                            .content("{\"amount\":5,\"quantity\":1,\"transactionDate\":\"2026-10-14\",\"categoryId\":39,\"pocketId\":" + pocket.getId() + "}"))
+                    .andExpect(status().isConflict());
+        }
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(base + "/position")
+                        .contextPath("/api").with(user(owner)).contentType("application/json")
+                        .content("{\"currentValue\":110,\"lastValuationDate\":\"2026-10-14\"}"))
+                .andExpect(status().isConflict());
+        mvc.perform(get(base + "/tax-suggestion").contextPath("/api").with(user(owner))
+                        .param("quantity", "1").param("grossAmount", "100").param("purchaseDate", "2026-01-01").param("saleDate", "2026-10-14"))
+                .andExpect(status().isConflict());
+        mvc.perform(get(base).contextPath("/api").with(user(owner))).andExpect(status().isOk());
+        assertPreserved();
+    }
+
+    @Test
+    void schemaStillRejectsUnsupportedCategory() {
+        assertThrows(jakarta.persistence.PersistenceException.class, () -> em.createNativeQuery(
+                "UPDATE assets SET category='FUNDOS' WHERE id=:id").setParameter("id", asset.getId()).executeUpdate());
+    }
+
     private void setPosition(String quantity, String cost, String value, AssetStatus status) {
         var position = positions.findByAssetId(asset.getId()).orElseThrow();
         position.setQuantity(new BigDecimal(quantity));
@@ -227,6 +263,8 @@ class InvestmentSellIntegrationTest {
                 .cnpj("12345678000190").corporateName("Test issuer").build());
         asset = assets.save(Asset.builder().user(owner).legalEntity(issuer).name("Test investment")
                 .category(AssetCategory.RENDA_FIXA).status(AssetStatus.ACTIVE).build());
+        io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(asset);
+        em.persist(asset.getFixedIncomeDetails());
         pocket = new Cash();
         pocket.setUser(owner);
         pocket = pockets.save(pocket);

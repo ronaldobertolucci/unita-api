@@ -55,6 +55,20 @@ class AssetServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
+    void create_WhenRequiredDetailsMissing_ShouldRejectBeforePersistence() {
+        reset(authentication);
+        var fixed = new FixedIncomeAssetCreateDto("CDB", 10L, null,
+                BigDecimal.ONE, LocalDate.of(2027, 1, 1), false, LiquidityType.DIARIA, 10L);
+        var pension = new PensionAssetCreateDto("Plano", 10L, PensionType.VGBL, null, 10L);
+
+        assertThrows(IllegalArgumentException.class, () -> assetService.createFixedIncome(fixed, authentication));
+        assertThrows(IllegalArgumentException.class, () -> assetService.createPension(pension, authentication));
+
+        verifyNoInteractions(assetRepository, fixedIncomeDetailsRepository, pensionDetailsRepository,
+                investmentPositionRepository, legalEntityRepository);
+    }
+
+    @Test
     void createFixedIncome_WhenValid_ShouldPersistAndReturnDto() {
         FixedIncomeAssetCreateDto dto = new FixedIncomeAssetCreateDto(
                 "CDB Banco X", 10L, Indexer.CDI,
@@ -493,6 +507,7 @@ class AssetServiceTest {
                 .build();
         asset.setId(id);
         asset.setPosition(position);
+        io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(asset);
         return asset;
     }
 

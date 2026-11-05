@@ -430,6 +430,7 @@ class InvestmentTransactionServiceTest {
                 .status(status)
                 .build();
         asset.setId(id);
+        io.github.ronaldobertolucci.unita.investment.InvestmentTestDetails.complete(asset);
         return asset;
     }
 

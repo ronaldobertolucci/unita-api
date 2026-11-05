@@ -3,6 +3,7 @@ package io.github.ronaldobertolucci.unita.service.scheduled;
 import io.github.ronaldobertolucci.unita.model.investment.Asset;
 import io.github.ronaldobertolucci.unita.model.investment.AssetStatus;
 import io.github.ronaldobertolucci.unita.repository.AssetRepository;
+import io.github.ronaldobertolucci.unita.service.investment.InvestmentCategoryRules;
 import jakarta.persistence.EntityNotFoundException;
 import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,8 @@ public class AssetMaturityJobProcessor {
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found: " + assetId));
 
         if (asset.getStatus() != AssetStatus.ACTIVE) return;
+
+        if (!InvestmentCategoryRules.hasMaturity(asset)) return;
 
         asset.setStatus(AssetStatus.MATURED);
         assetRepository.save(asset);

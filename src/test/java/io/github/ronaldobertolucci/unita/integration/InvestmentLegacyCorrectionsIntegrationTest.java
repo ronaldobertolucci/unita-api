@@ -109,6 +109,8 @@ class InvestmentLegacyCorrectionsIntegrationTest {
             fixedIncome.findByAssetId(asset.getId()).orElseThrow().setTaxFree(Boolean.parseBoolean(regime));
         } else {
             var managed = assets.findById(asset.getId()).orElseThrow();
+            managed.setFixedIncomeDetails(null);
+            em.flush();
             managed.setCategory(AssetCategory.PREVIDENCIA);
             pensions.save(PensionDetails.builder().asset(managed).pensionType(PensionType.valueOf(type))
                     .taxRegime(TaxRegime.valueOf(regime)).build());
@@ -308,6 +310,8 @@ class InvestmentLegacyCorrectionsIntegrationTest {
             fixedIncome.findByAssetId(asset.getId()).orElseThrow().setTaxFree(Boolean.parseBoolean(regime));
         } else {
             Asset managed = assets.findById(asset.getId()).orElseThrow();
+            managed.setFixedIncomeDetails(null);
+            em.flush();
             managed.setCategory(AssetCategory.PREVIDENCIA);
             pensions.save(PensionDetails.builder().asset(managed).pensionType(PensionType.valueOf(type))
                     .taxRegime(TaxRegime.valueOf(regime)).build());
