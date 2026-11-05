@@ -14,6 +14,7 @@ import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
 import io.github.ronaldobertolucci.unita.service.category.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
+import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import java.util.List;
 public class InvestmentTransactionService {
 
     private final AssetRepository assetRepository;
+    private final FinancialConcurrencyService locks;
     private final InvestmentTransactionRepository investmentTransactionRepository;
     private final InvestmentPositionRepository investmentPositionRepository;
     private final PocketRepository pocketRepository;
@@ -41,10 +43,11 @@ public class InvestmentTransactionService {
 
     @Transactional
     public InvestmentTransactionDto buy(Long assetId, InvestmentBuyDto dto, Authentication authentication) {
-        requirePositive(dto.amount(), "amount");
-        requirePositive(dto.quantity(), "quantity");
+        InvestmentDecimals.positive(dto.amount(), "amount");
+        InvestmentDecimals.positive(dto.quantity(), "quantity");
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockOwnedAsset(assetId, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
@@ -58,7 +61,16 @@ public class InvestmentTransactionService {
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.EXPENSE, CategoryType.NEUTRAL));
 
-        BigDecimal multiplied = dto.amount().multiply(dto.quantity());
+        InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
+                .orElseThrow(() -> new EntityNotFoundException("Position not found"));
+        BigDecimal multiplied = InvestmentDecimals.calculated(dto.amount().multiply(dto.quantity()), "contribution");
+        if (multiplied.signum() == 0) throw new IllegalArgumentException("contribution must not round to zero");
+        BigDecimal newQuantity = InvestmentDecimals.calculated(position.getQuantity().add(dto.quantity()), "quantity");
+        BigDecimal newTotalInvested = InvestmentDecimals.calculated(position.getTotalInvested().add(multiplied), "totalInvested");
+        BigDecimal newRemainingCost = InvestmentDecimals.calculated(position.getRemainingCost().add(multiplied), "remainingCost");
+        BigDecimal newCurrentValue = InvestmentDecimals.calculated(position.getCurrentValue().add(multiplied), "currentValue");
+        BigDecimal newAveragePrice = InvestmentDecimals.calculated(
+                newTotalInvested.divide(newQuantity, 8, RoundingMode.HALF_UP), "averagePrice");
 
         // Cria Transaction EXPENSE no pocket
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
@@ -82,20 +94,11 @@ public class InvestmentTransactionService {
                         .build());
 
         // Atualiza posição
-        InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
-                .orElseThrow(() -> new EntityNotFoundException("Position not found"));
-
-        BigDecimal newQuantity = position.getQuantity().add(dto.quantity());
-        BigDecimal newTotalInvested = position.getTotalInvested().add(multiplied);
-        BigDecimal newAveragePrice = newQuantity.compareTo(BigDecimal.ZERO) > 0
-                ? newTotalInvested.divide(newQuantity, 8, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
         position.setTotalInvested(newTotalInvested);
-        position.setRemainingCost(position.getRemainingCost().add(multiplied));
+        position.setRemainingCost(newRemainingCost);
         position.setQuantity(newQuantity);
         position.setAveragePrice(newAveragePrice);
-        position.setCurrentValue(position.getCurrentValue().add(multiplied));
+        position.setCurrentValue(newCurrentValue);
         investmentPositionRepository.save(position);
 
         return new InvestmentTransactionDto(investmentTransaction);
@@ -107,9 +110,10 @@ public class InvestmentTransactionService {
 
     @Transactional
     public InvestmentTransactionDto yield(Long assetId, InvestmentYieldDto dto, Authentication authentication) {
-        requirePositive(dto.amount(), "amount");
+        InvestmentDecimals.positive(dto.amount(), "amount");
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockOwnedAsset(assetId, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
@@ -129,6 +133,8 @@ public class InvestmentTransactionService {
         if (dto.amount().compareTo(position.getCurrentValue()) > 0) {
             throw new IllegalStateException("Yield value cannot be greater than current value.");
         }
+
+        BigDecimal newRedeemedValue = InvestmentDecimals.calculated(position.getRedeemedValue().add(dto.amount()), "redeemedValue");
 
         // Cria Transaction INCOME no pocket
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
@@ -152,7 +158,7 @@ public class InvestmentTransactionService {
                         .build());
 
         // Atualiza posição — acumula em redeemedValue para evitar duplicidade no resgate final
-        position.setRedeemedValue(position.getRedeemedValue().add(dto.amount()));
+        position.setRedeemedValue(newRedeemedValue);
         position.setCurrentValue(position.getCurrentValue().subtract(dto.amount()));
 
         investmentPositionRepository.save(position);
@@ -166,18 +172,15 @@ public class InvestmentTransactionService {
 
     @Transactional
     public List<InvestmentTransactionDto> sell(Long assetId, InvestmentSellDto dto, Authentication authentication) {
-        if (dto.grossAmount() == null || dto.grossAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("grossAmount must be greater than zero");
-        }
-        if (dto.taxAmount() == null || dto.taxAmount().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("taxAmount must be non-negative");
-        }
+        InvestmentDecimals.positive(dto.grossAmount(), "grossAmount");
+        InvestmentDecimals.nonNegative(dto.taxAmount(), "taxAmount");
         if (dto.taxAmount().compareTo(dto.grossAmount()) > 0) {
             throw new IllegalArgumentException("taxAmount must not exceed grossAmount");
         }
 
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockOwnedAsset(assetId, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
@@ -191,7 +194,13 @@ public class InvestmentTransactionService {
         Category category = categoryService.resolveCategory(dto.categoryId(), currentUser,
                 EnumSet.of(CategoryType.INCOME, CategoryType.NEUTRAL));
 
+        InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
+                .orElseThrow(() -> new EntityNotFoundException("Position not found"));
+        if (position.getQuantity().signum() <= 0) {
+            throw new IllegalStateException("Cannot sell a position without units");
+        }
         BigDecimal netAmount = dto.grossAmount().subtract(dto.taxAmount());
+        BigDecimal newRedeemedValue = InvestmentDecimals.calculated(position.getRedeemedValue().add(netAmount), "redeemedValue");
 
         // Cria Transaction INCOME no pocket com valor líquido
         Transaction pocketTransaction = transactionRepository.save(Transaction.builder()
@@ -225,10 +234,7 @@ public class InvestmentTransactionService {
                         .build());
 
         // Atualiza posição
-        InvestmentPosition position = investmentPositionRepository.findByAssetId(assetId)
-                .orElseThrow(() -> new EntityNotFoundException("Position not found"));
-
-        position.setRedeemedValue(position.getRedeemedValue().add(netAmount));
+        position.setRedeemedValue(newRedeemedValue);
         position.setQuantity(BigDecimal.ZERO);
         position.setRemainingCost(BigDecimal.ZERO);
         position.setAveragePrice(BigDecimal.ZERO);
@@ -241,12 +247,6 @@ public class InvestmentTransactionService {
         return List.of(
                 new InvestmentTransactionDto(sellTransaction),
                 new InvestmentTransactionDto(taxTransaction));
-    }
-
-    private static void requirePositive(BigDecimal value, String field) {
-        if (value == null || value.signum() <= 0) {
-            throw new IllegalArgumentException(field + " must be greater than zero");
-        }
     }
 
     // -------------------------------------------------------------------------

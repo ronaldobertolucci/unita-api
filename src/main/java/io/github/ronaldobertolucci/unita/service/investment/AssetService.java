@@ -6,6 +6,7 @@ import io.github.ronaldobertolucci.unita.model.investment.*;
 import io.github.ronaldobertolucci.unita.model.user.User;
 import io.github.ronaldobertolucci.unita.repository.*;
 import jakarta.persistence.EntityNotFoundException;
+import io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.util.List;
 public class AssetService {
 
     private final AssetRepository assetRepository;
+    private final FinancialConcurrencyService locks;
     private final FixedIncomeDetailsRepository fixedIncomeDetailsRepository;
     private final PensionDetailsRepository pensionDetailsRepository;
     private final InvestmentPositionRepository investmentPositionRepository;
@@ -157,6 +159,7 @@ public class AssetService {
     public AssetDetailDto update(Long id, AssetUpdateDto dto, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockOwnedAsset(id, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
@@ -186,8 +189,10 @@ public class AssetService {
 
     @Transactional
     public AssetDetailDto updatePosition(Long id, InvestmentPositionUpdateDto dto, Authentication authentication) {
+        InvestmentDecimals.nonNegative(dto.currentValue(), "currentValue");
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockOwnedAsset(id, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
@@ -198,6 +203,9 @@ public class AssetService {
         InvestmentPosition position = investmentPositionRepository.findByAssetId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
+        if (position.getQuantity().signum() == 0 && dto.currentValue().signum() > 0) {
+            throw new IllegalStateException("Cannot value a position without units");
+        }
         position.setCurrentValue(dto.currentValue());
         position.setLastValuationDate(dto.lastValuationDate());
         investmentPositionRepository.save(position);
@@ -214,6 +222,7 @@ public class AssetService {
     public void delete(Long id, Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockOwnedAsset(id, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(id, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 

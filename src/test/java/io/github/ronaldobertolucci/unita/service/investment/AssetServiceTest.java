@@ -31,6 +31,7 @@ import static org.mockito.Mockito.*;
 class AssetServiceTest {
 
     @Mock private AssetRepository assetRepository;
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService locks;
     @Mock private FixedIncomeDetailsRepository fixedIncomeDetailsRepository;
     @Mock private PensionDetailsRepository pensionDetailsRepository;
     @Mock private InvestmentPositionRepository investmentPositionRepository;
@@ -424,6 +425,7 @@ class AssetServiceTest {
         LegalEntity le = buildLegalEntity(10L);
         Asset asset = buildAsset(1L, AssetCategory.RENDA_FIXA, le);
         InvestmentPosition position = buildPosition(asset);
+        position.setQuantity(BigDecimal.ONE);
         InvestmentPositionUpdateDto dto = new InvestmentPositionUpdateDto(
                 new BigDecimal("1250.00"), LocalDate.of(2025, 3, 1));
 

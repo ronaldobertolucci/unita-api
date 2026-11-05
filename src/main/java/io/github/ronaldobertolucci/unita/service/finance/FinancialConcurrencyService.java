@@ -1,6 +1,7 @@
 package io.github.ronaldobertolucci.unita.service.finance;
 
 import jakarta.persistence.EntityManager;
+import io.github.ronaldobertolucci.unita.model.investment.Asset;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Session;
@@ -14,7 +15,7 @@ import java.util.Arrays;
  * Transaction-scoped database protocol: cards first (ascending ID), then pockets
  * (ascending ID). Lock before reading bills/composition or calculating balances.
  * Scalar native queries avoid JOINED pocket outer joins and stale entity snapshots.
- * Investment writers intentionally retain their previous behavior.
+ * Investment writers lock their asset before reading its position or writing cash.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,32 @@ public class FinancialConcurrencyService {
                 }
             }
         });
+    }
+
+    public void lockOwnedAsset(Long id, Long userId) {
+        configureWait();
+        if (entityManager.createNativeQuery("SELECT id FROM assets WHERE id = :id AND user_id = :userId FOR UPDATE")
+                .setParameter("id", id).setParameter("userId", userId).getResultList().isEmpty()) {
+            throw new EntityNotFoundException("Asset not found");
+        }
+        refreshAsset(id);
+    }
+
+    public void lockAsset(Long id) {
+        configureWait();
+        if (entityManager.createNativeQuery("SELECT id FROM assets WHERE id = :id FOR UPDATE")
+                .setParameter("id", id).getResultList().isEmpty()) {
+            throw new EntityNotFoundException("Asset not found: " + id);
+        }
+        refreshAsset(id);
+    }
+
+    private void refreshAsset(Long id) {
+        // OSIV or a surrounding transaction may have loaded these before waiting.
+        // Lock only the assets row: eager optional detail joins cannot use FOR UPDATE on PostgreSQL.
+        var asset = entityManager.find(Asset.class, id);
+        entityManager.refresh(asset);
+        if (asset.getPosition() != null) entityManager.refresh(asset.getPosition());
     }
 
     public void lockOwnedCard(Long id, Long userId) {

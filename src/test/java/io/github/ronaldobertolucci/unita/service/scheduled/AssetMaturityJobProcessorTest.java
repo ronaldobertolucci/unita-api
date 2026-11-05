@@ -20,6 +20,7 @@ import static org.mockito.Mockito.*;
 class AssetMaturityJobProcessorTest {
 
     @Mock private AssetRepository assetRepository;
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService locks;
 
     @InjectMocks private AssetMaturityJobProcessor processor;
 
@@ -38,6 +39,20 @@ class AssetMaturityJobProcessorTest {
 
         assertEquals(AssetStatus.MATURED, asset.getStatus());
         verify(assetRepository).save(asset);
+    }
+
+    @Test
+    void process_WhenAlreadyRedeemedOrMatured_ShouldPreserveStatus() {
+        for (AssetStatus status : new AssetStatus[]{AssetStatus.REDEEMED, AssetStatus.MATURED}) {
+            Asset asset = Asset.builder().id(1L).status(status).build();
+            when(assetRepository.findById(1L)).thenReturn(Optional.of(asset));
+            processor.process(1L);
+            assertEquals(status, asset.getStatus());
+        }
+        verify(assetRepository, never()).save(any());
+        var order = inOrder(locks, assetRepository);
+        order.verify(locks).lockAsset(1L);
+        order.verify(assetRepository).findById(1L);
     }
 
     @Test

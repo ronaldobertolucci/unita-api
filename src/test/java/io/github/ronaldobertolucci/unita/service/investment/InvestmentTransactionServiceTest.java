@@ -39,6 +39,7 @@ import static org.mockito.Mockito.*;
 class InvestmentTransactionServiceTest {
 
     @Mock private AssetRepository assetRepository;
+    @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService locks;
     @Mock private InvestmentTransactionRepository investmentTransactionRepository;
     @Mock
     private InvestmentPositionRepository investmentPositionRepository;
@@ -294,6 +295,7 @@ class InvestmentTransactionServiceTest {
         Category category = buildCategory(1L, CategoryType.NEUTRAL);
         InvestmentPosition position = buildPosition(asset);
         position.setCurrentValue(new BigDecimal("1100.00000000"));
+        position.setQuantity(BigDecimal.ONE);
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
@@ -331,6 +333,7 @@ class InvestmentTransactionServiceTest {
         Category category = buildCategory(1L, CategoryType.NEUTRAL);
         InvestmentPosition position = buildPosition(asset);
         position.setCurrentValue(new BigDecimal("1100.00000000"));
+        position.setQuantity(BigDecimal.ONE);
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
