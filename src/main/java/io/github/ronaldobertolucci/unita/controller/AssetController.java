@@ -95,13 +95,14 @@ public class AssetController {
     // -------------------------------------------------------------------------
 
     @Operation(summary = "Estimate legacy redemption tax",
-            description = "Read-only estimate using purchaseDate and today's date in America/Sao_Paulo. "
+            description = "Read-only estimate using quantity, purchaseDate and saleDate. Cost basis is proportional to remaining units; totalInvested remains historical. "
                     + "Fixed income and VGBL use non-negative earnings; PGBL/closed pension use gross amount. "
-                    + "LIMITED_ESTIMATE and warnings identify missing, conflicting or multiple purchase dates. "
+                    + "LIMITED_ESTIMATE and warnings identify missing, conflicting or multiple purchase dates, unknown legacy costs and YIELD ambiguity. "
                     + "No IOF or monthly/annual assessment; never replaces taxAmount informed on sell.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Numeric suggestion with taxable base, estimation status and warnings"),
-                    @ApiResponse(responseCode = "400", description = "Invalid amount, purchase date or legacy investment base"),
+                    @ApiResponse(responseCode = "200", description = "Numeric suggestion with cost basis, taxable base, estimation status and warnings"),
+                    @ApiResponse(responseCode = "409", description = "Position redeemed, empty or insufficient units"),
+                    @ApiResponse(responseCode = "400", description = "Invalid amount, quantity or purchase/sale dates"),
                     @ApiResponse(responseCode = "401", description = "Authentication required"),
                     @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user")
             })
@@ -110,7 +111,7 @@ public class AssetController {
             @PathVariable Long id,
             @Valid @ModelAttribute @ParameterObject TaxSuggestionRequestDto request,
             Authentication authentication) {
-        return ResponseEntity.ok(assetService.getTaxSuggestion(id, request.grossAmount(), request.purchaseDate(), authentication));
+        return ResponseEntity.ok(assetService.getTaxSuggestion(id, request.grossAmount(), request.purchaseDate(), request.quantity(), request.saleDate(), authentication));
     }
 
     // -------------------------------------------------------------------------
@@ -150,7 +151,7 @@ public class AssetController {
     }
 
     @Operation(summary = "Register a legacy yield withdrawal",
-            description = "Requires amount > 0 and amount <= currentValue. Credits amount to the pocket, adds it to redeemedValue and subtracts it from currentValue without changing quantity.",
+            description = "Requires amount > 0 and amount <= currentValue. Credits amount to the pocket, adds it to redeemedValue and subtracts it from currentValue without changing quantity or remaining cost. Supported only for RENDA_FIXA and PREVIDENCIA; the withdrawn amount must already be included in currentValue.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "YIELD movement with numeric amount and cash reference"),
                     @ApiResponse(responseCode = "400", description = "Missing or non-positive amount, or invalid category"),

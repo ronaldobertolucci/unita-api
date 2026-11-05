@@ -16,10 +16,6 @@ import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
-import org.mockito.Spy;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +37,6 @@ class AssetServiceTest {
     @Mock private TaxCalculationService taxCalculationService;
     @Mock private Authentication authentication;
 
-    @Spy private Clock investmentClock = Clock.fixed(Instant.parse("2026-10-15T01:00:00Z"), ZoneId.of("America/Sao_Paulo"));
 
     @InjectMocks
     private AssetService assetService;
@@ -296,6 +291,8 @@ class AssetServiceTest {
         FixedIncomeDetails details = buildFixedIncomeDetails(asset, Indexer.CDI, false);
         InvestmentPosition position = buildPosition(asset);
         position.setTotalInvested(new BigDecimal("10000.00000000"));
+        position.setRemainingCost(new BigDecimal("10000"));
+        position.setQuantity(BigDecimal.ONE);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
@@ -308,7 +305,7 @@ class AssetServiceTest {
                 .thenReturn(new BigDecimal("300.00000000")); // 15% sobre rendimento de 2.000
 
         TaxSuggestionDto result = assetService.getTaxSuggestion(
-                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), authentication);
+                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), BigDecimal.ONE, LocalDate.of(2026, 10, 14), authentication);
 
         assertNotNull(result);
         assertEquals(0, new BigDecimal("0.150").compareTo(result.suggestedTaxRate()));
@@ -323,13 +320,15 @@ class AssetServiceTest {
         FixedIncomeDetails details = buildFixedIncomeDetails(asset, Indexer.CDI, true);
         InvestmentPosition position = buildPosition(asset);
         position.setTotalInvested(new BigDecimal("10000.00000000"));
+        position.setRemainingCost(new BigDecimal("10000"));
+        position.setQuantity(BigDecimal.ONE);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
         when(fixedIncomeDetailsRepository.findByAssetId(1L)).thenReturn(Optional.of(details));
 
         TaxSuggestionDto result = assetService.getTaxSuggestion(
-                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), authentication);
+                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), BigDecimal.ONE, LocalDate.of(2026, 10, 14), authentication);
 
         assertNotNull(result);
         assertEquals(0, BigDecimal.ZERO.compareTo(result.suggestedTaxRate()));
@@ -344,6 +343,8 @@ class AssetServiceTest {
         PensionDetails details = buildPensionDetails(asset, PensionType.VGBL, TaxRegime.REGRESSIVO);
         InvestmentPosition position = buildPosition(asset);
         position.setTotalInvested(new BigDecimal("10000.00000000"));
+        position.setRemainingCost(new BigDecimal("10000"));
+        position.setQuantity(BigDecimal.ONE);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
@@ -356,7 +357,7 @@ class AssetServiceTest {
                 .thenReturn(new BigDecimal("300.00000000"));
 
         TaxSuggestionDto result = assetService.getTaxSuggestion(
-                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), authentication);
+                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), BigDecimal.ONE, LocalDate.of(2026, 10, 14), authentication);
 
         assertNotNull(result);
         // VGBL: base = rendimento — verifica via earnings no resultado
@@ -370,6 +371,8 @@ class AssetServiceTest {
         PensionDetails details = buildPensionDetails(asset, PensionType.PGBL, TaxRegime.REGRESSIVO);
         InvestmentPosition position = buildPosition(asset);
         position.setTotalInvested(new BigDecimal("10000.00000000"));
+        position.setRemainingCost(new BigDecimal("10000"));
+        position.setQuantity(BigDecimal.ONE);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
@@ -382,7 +385,7 @@ class AssetServiceTest {
                 .thenReturn(new BigDecimal("1800.00000000"));
 
         TaxSuggestionDto result = assetService.getTaxSuggestion(
-                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), authentication);
+                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), BigDecimal.ONE, LocalDate.of(2026, 10, 14), authentication);
 
         assertNotNull(result);
         // PGBL: base = total (12.000)
@@ -397,6 +400,8 @@ class AssetServiceTest {
         PensionDetails details = buildPensionDetails(asset, PensionType.PGBL, TaxRegime.PROGRESSIVO);
         InvestmentPosition position = buildPosition(asset);
         position.setTotalInvested(new BigDecimal("10000.00000000"));
+        position.setRemainingCost(new BigDecimal("10000"));
+        position.setQuantity(BigDecimal.ONE);
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(investmentPositionRepository.findByAssetId(1L)).thenReturn(Optional.of(position));
@@ -409,7 +414,7 @@ class AssetServiceTest {
                 .thenReturn(new BigDecimal("1800.00000000"));
 
         TaxSuggestionDto result = assetService.getTaxSuggestion(
-                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), authentication);
+                1L, new BigDecimal("12000.00"), LocalDate.of(2023, 1, 1), BigDecimal.ONE, LocalDate.of(2026, 10, 14), authentication);
 
         assertNotNull(result);
         assertEquals(0, new BigDecimal("0.150").compareTo(result.suggestedTaxRate()));

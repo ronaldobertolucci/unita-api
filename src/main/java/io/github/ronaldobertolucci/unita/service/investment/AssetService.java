@@ -13,9 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +30,6 @@ public class AssetService {
     private final InvestmentTransactionRepository investmentTransactionRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final TaxCalculationService taxCalculationService;
-    private final Clock investmentClock;
 
     // -------------------------------------------------------------------------
     // Create
@@ -238,7 +235,7 @@ public class AssetService {
     // -------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public TaxSuggestionDto getTaxSuggestion(Long id, BigDecimal grossAmount, LocalDate purchaseDate,
+    public TaxSuggestionDto getTaxSuggestion(Long id, BigDecimal grossAmount, LocalDate purchaseDate, BigDecimal quantity, LocalDate saleDate,
                                              Authentication authentication) {
         User currentUser = (User) authentication.getPrincipal();
 
@@ -248,23 +245,23 @@ public class AssetService {
         InvestmentPosition position = investmentPositionRepository.findByAssetId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Position not found"));
 
-        LocalDate today = LocalDate.now(investmentClock.withZone(ZoneId.of("America/Sao_Paulo")));
-        if (purchaseDate == null || purchaseDate.isAfter(today)) {
-            throw new IllegalArgumentException("purchaseDate is required and must not be in the future");
+        InvestmentDecimals.positive(grossAmount, "grossAmount");
+        InvestmentDecimals.positive(quantity, "quantity");
+        if (purchaseDate == null || saleDate == null || purchaseDate.isAfter(saleDate)) {
+            throw new IllegalArgumentException("purchaseDate and saleDate are required; purchaseDate must not be after saleDate");
         }
-        if (grossAmount == null || grossAmount.signum() <= 0) {
-            throw new IllegalArgumentException("grossAmount must be greater than zero");
-        }
-        long days = ChronoUnit.DAYS.between(purchaseDate, today);
+        long days = ChronoUnit.DAYS.between(purchaseDate, saleDate);
         if (days > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("purchaseDate exceeds the supported holding period");
         }
-
-        BigDecimal totalInvested = position.getTotalInvested();
-        if (totalInvested == null || totalInvested.signum() <= 0) {
-            throw new IllegalArgumentException("totalInvested must be greater than zero for a tax suggestion");
+        if (asset.getStatus() == AssetStatus.REDEEMED || position.getQuantity().signum() <= 0
+                || quantity.compareTo(position.getQuantity()) > 0) {
+            throw new IllegalStateException("Tax suggestion requires available units for the proposed sale");
         }
-        BigDecimal earnings = grossAmount.subtract(totalInvested);
+        BigDecimal totalInvested = position.getTotalInvested();
+        BigDecimal costBasis = quantity.compareTo(position.getQuantity()) == 0 ? position.getRemainingCost()
+                : position.getRemainingCost().multiply(quantity).divide(position.getQuantity(), 8, java.math.RoundingMode.HALF_UP);
+        BigDecimal earnings = grossAmount.subtract(costBasis);
         BigDecimal rate;
         BigDecimal taxBase;
         String taxBasis;
@@ -278,7 +275,7 @@ public class AssetService {
                 taxBasis = "Isento de IR (LCI/LCA/Debênture Incentivada)";
             } else {
                 taxBase = earnings.max(BigDecimal.ZERO);
-                rate = taxCalculationService.calculateFixedIncomeTaxRate(purchaseDate, today);
+                rate = taxCalculationService.calculateFixedIncomeTaxRate(purchaseDate, saleDate);
                 taxBasis = taxCalculationService.describeFixedIncomeTaxBasis(days)
                         + "; base: rendimento positivo";
             }
@@ -290,7 +287,7 @@ public class AssetService {
             }
             rate = details.getTaxRegime() == TaxRegime.PROGRESSIVO
                     ? taxCalculationService.getPensionProgressiveTaxRate()
-                    : taxCalculationService.calculatePensionRegressiveTaxRate(purchaseDate, today);
+                    : taxCalculationService.calculatePensionRegressiveTaxRate(purchaseDate, saleDate);
             boolean earningsBased = details.getPensionType() == PensionType.VGBL;
             taxBase = earningsBased ? earnings.max(BigDecimal.ZERO) : grossAmount;
             taxBasis = taxCalculationService.describePensionTaxBasis(days, details.getTaxRegime())
@@ -299,7 +296,7 @@ public class AssetService {
             throw new IllegalArgumentException("Tax suggestion is unavailable for this asset category");
         }
 
-        // The legacy ledger has no per-contribution units or remaining tax lots.
+        // Quantities are recorded for new movements, but this model still has no remaining fiscal lots.
         List<LocalDate> purchaseDates = investmentTransactionRepository.findDistinctPurchaseDatesByAssetId(id);
         List<String> warnings = new ArrayList<>();
         if (purchaseDates.size() > 1) {
@@ -308,6 +305,13 @@ public class AssetService {
             warnings.add("Estimativa limitada: histórico de aportes ausente; cálculo baseado somente na data informada.");
         } else if (!purchaseDates.getFirst().equals(purchaseDate)) {
             warnings.add("Estimativa limitada: a data informada difere da data do aporte registrado.");
+        }
+        if (investmentTransactionRepository.existsByAssetIdAndTypeAndQuantityIsNull(id, InvestmentTransactionType.BUY)
+                || investmentTransactionRepository.existsByAssetIdAndTypeAndCostBasisIsNull(id, InvestmentTransactionType.SELL)) {
+            warnings.add("Estimativa limitada: histórico legado com quantidades ou custos de venda desconhecidos; não há apuração por lote fiscal.");
+        }
+        if (investmentTransactionRepository.existsByAssetIdAndType(id, InvestmentTransactionType.YIELD)) {
+            warnings.add("Estimativa limitada: há recebimentos YIELD; o histórico não distingue distribuição de rendimento de retirada de principal, podendo afetar a base tributável.");
         }
         TaxSuggestionStatus estimationStatus = warnings.isEmpty()
                 ? TaxSuggestionStatus.ESTIMATE : TaxSuggestionStatus.LIMITED_ESTIMATE;
@@ -319,6 +323,6 @@ public class AssetService {
         BigDecimal netAmount = grossAmount.subtract(taxAmount);
 
         return new TaxSuggestionDto(grossAmount, totalInvested, earnings,
-                rate, taxAmount, netAmount, (int) days, taxBasis, taxBase, estimationStatus, warnings);
+                rate, taxAmount, netAmount, (int) days, taxBasis, taxBase, estimationStatus, warnings, costBasis);
     }
 }

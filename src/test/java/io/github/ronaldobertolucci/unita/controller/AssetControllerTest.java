@@ -86,7 +86,7 @@ class AssetControllerTest {
                 new BigDecimal("1085.00000000"), // suggestedNetAmount (1100 - 15)
                 800,                             // daysElapsed
                 "Renda fixa: tabela regressiva IR - acima de 720 dias (15,0%)",
-                new BigDecimal("100.00"), TaxSuggestionStatus.ESTIMATE, List.of()
+                new BigDecimal("100.00"), TaxSuggestionStatus.ESTIMATE, List.of(), new BigDecimal("1000")
         );
     }
 
@@ -404,11 +404,11 @@ class AssetControllerTest {
 
     @Test
     void getTaxSuggestion_WhenValid_ShouldReturn200() throws Exception {
-        when(assetService.getTaxSuggestion(eq(1L), any(), any(), any())).thenReturn(taxSuggestionDto());
+        when(assetService.getTaxSuggestion(eq(1L), any(), any(), any(), any(), any())).thenReturn(taxSuggestionDto());
 
         mockMvc.perform(get("/assets/1/tax-suggestion")
                         .param("grossAmount", "1100.00")
-                        .param("purchaseDate", "2023-01-01")
+                        .param("purchaseDate", "2023-01-01").param("quantity", "1").param("saleDate", "2026-10-14")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.suggestedTaxRate").value(0.150))
@@ -417,12 +417,12 @@ class AssetControllerTest {
 
     @Test
     void getTaxSuggestion_WhenAssetNotFound_ShouldReturn404() throws Exception {
-        when(assetService.getTaxSuggestion(eq(99L), any(), any(), any()))
+        when(assetService.getTaxSuggestion(eq(99L), any(), any(), any(), any(), any()))
                 .thenThrow(new EntityNotFoundException("Asset not found"));
 
         mockMvc.perform(get("/assets/99/tax-suggestion")
                         .param("grossAmount", "1100.00")
-                        .param("purchaseDate", "2023-01-01")
+                        .param("purchaseDate", "2023-01-01").param("quantity", "1").param("saleDate", "2026-10-14")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER")))))
                 .andExpect(status().isNotFound());
     }

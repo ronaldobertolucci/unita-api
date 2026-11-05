@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record InvestmentYieldDto(
-    @Schema(description = "Strictly positive withdrawal from currentValue, credited to the pocket", example = "20.00")
+    @Schema(description = "Strictly positive receipt already included in currentValue; reduces valuation without reducing units or cost, for fixed income and pension only", example = "20.00")
     @NotNull @Positive BigDecimal amount,
     @NotNull LocalDate transactionDate,
     @NotNull Long pocketId,

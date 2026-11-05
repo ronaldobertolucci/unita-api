@@ -21,6 +21,12 @@ public interface InvestmentTransactionRepository extends JpaRepository<Investmen
 
     boolean existsByAssetId(Long assetId);
 
+    boolean existsByAssetIdAndType(Long assetId, InvestmentTransactionType type);
+
+    boolean existsByAssetIdAndTypeAndQuantityIsNull(Long assetId, InvestmentTransactionType type);
+
+    boolean existsByAssetIdAndTypeAndCostBasisIsNull(Long assetId, InvestmentTransactionType type);
+
     Optional<InvestmentTransaction> findFirstByAssetIdAndTypeOrderByTransactionDateAsc(Long assetId, InvestmentTransactionType type);
 
     @Query("""

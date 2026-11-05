@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +25,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -38,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Transactional
 class InvestmentLegacyCorrectionsIntegrationTest {
+    @Autowired io.github.ronaldobertolucci.unita.service.group.GroupDashboardService groupDashboard;
     private static final LocalDate TODAY = LocalDate.of(2026, 10, 14);
     @Autowired MockMvc mvc;
     @Autowired EntityManager em;
@@ -51,15 +49,12 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     @Autowired TransactionRepository cash;
     @Autowired FixedIncomeDetailsRepository fixedIncome;
     @Autowired PensionDetailsRepository pensions;
-    @MockitoBean(name = "investmentClock") Clock clock;
     private User owner;
     private Asset asset;
     private Cash pocket;
 
     @BeforeEach
     void setup() {
-        // UTC is already the next day; the economic date must still be October 14 in São Paulo.
-        when(clock.withZone(any())).thenReturn(Clock.fixed(Instant.parse("2026-10-15T01:00:00Z"), ZoneId.of("America/Sao_Paulo")));
         owner = users.save(User.builder().firstName("INV002").lastName("Synthetic")
                 .email(UUID.randomUUID() + "@example.invalid").password("not-a-login-hash")
                 .dateOfBirth(LocalDate.of(1990, 1, 1)).enabled(true).emailVerified(true)
@@ -95,7 +90,149 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     }
     private ResultActions suggestion(String gross, LocalDate date) throws Exception {
         return mvc.perform(get(path() + "/tax-suggestion").contextPath("/api").with(user(owner))
-                .param("grossAmount", gross).param("purchaseDate", date.toString()));
+                .param("grossAmount", gross).param("purchaseDate", date.toString()).param("quantity", "10").param("saleDate", TODAY.toString()));
+    }
+
+    private ResultActions partialSuggestion(String gross, String quantity, LocalDate purchaseDate, LocalDate saleDate) throws Exception {
+        return mvc.perform(get(path() + "/tax-suggestion").contextPath("/api").with(user(owner))
+                .param("grossAmount", gross).param("quantity", quantity)
+                .param("purchaseDate", purchaseDate.toString()).param("saleDate", saleDate.toString()));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"FIXED,false,1100,100,15", "FIXED,true,1100,0,0", "FIXED,false,900,0,0",
+            "VGBL,REGRESSIVO,1100,100,30", "VGBL,PROGRESSIVO,1100,100,15",
+            "PGBL,REGRESSIVO,1100,1100,330", "PGBL,PROGRESSIVO,1100,1100,165",
+            "ENTIDADE_FECHADA,REGRESSIVO,1100,1100,330", "ENTIDADE_FECHADA,PROGRESSIVO,1100,1100,165"})
+    void partialSuggestionUsesOnlySoldCostAcrossExistingCategories(String type, String regime, String gross, String base, String tax) throws Exception {
+        if (type.equals("FIXED")) {
+            fixedIncome.findByAssetId(asset.getId()).orElseThrow().setTaxFree(Boolean.parseBoolean(regime));
+        } else {
+            var managed = assets.findById(asset.getId()).orElseThrow();
+            managed.setCategory(AssetCategory.PREVIDENCIA);
+            pensions.save(PensionDetails.builder().asset(managed).pensionType(PensionType.valueOf(type))
+                    .taxRegime(TaxRegime.valueOf(regime)).build());
+        }
+        buy("1000", "3", TODAY.minusDays(1000));
+        var response = partialSuggestion(gross, "1", TODAY.minusDays(1000), TODAY)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalInvested").value(3000))
+                .andExpect(jsonPath("$.costBasis").value(1000)).andReturn().getResponse().getContentAsString();
+        var json = JsonMapper.builder().build().readTree(response);
+        decimal(base, json.get("taxBase").decimalValue());
+        decimal(tax, json.get("suggestedTaxAmount").decimalValue());
+        assertState("3000", "3000", "0", "3", "-2000", 1, 2);
+        postCommand("sell", "\"quantity\":1,\"grossAmount\":" + gross + ",\"taxAmount\":7", TODAY, 41)
+                .andExpect(status().isCreated()).andExpect(jsonPath("$[1].amount").value(7));
+        reload();
+        partialSuggestion(gross, "1", TODAY.minusDays(1000), TODAY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.costBasis").value(1000)).andExpect(jsonPath("$.totalInvested").value(3000));
+    }
+
+    @Test
+    void suppliedSaleDateControlsHoldingPeriodAndAllowsFutureSimulation() throws Exception {
+        buy("1000", "3", TODAY.minusDays(1000));
+        partialSuggestion("1100", "1", TODAY.minusDays(1000), TODAY.minusDays(900))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.daysElapsed").value(100))
+                .andExpect(jsonPath("$.suggestedTaxRate").value(0.225));
+        partialSuggestion("1100", "1", TODAY.minusDays(1000), TODAY.plusDays(100))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.daysElapsed").value(1100));
+        partialSuggestion("1100", "1", TODAY, TODAY.minusDays(1)).andExpect(status().isBadRequest());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0,400", "-1,400", "0.000000001,400", "10000000000,400", "3.00000001,409"})
+    void invalidSuggestedQuantityIsRejectedWithoutWrites(String quantity, int statusCode) throws Exception {
+        buy("1000", "3", TODAY.minusDays(1000));
+        partialSuggestion("1100", quantity, TODAY.minusDays(1000), TODAY).andExpect(status().is(statusCode));
+        assertState("3000", "3000", "0", "3", "-2000", 1, 2);
+    }
+
+    @Test
+    void legacyUnitsAndEarlierYieldAreExplicitLimitations() throws Exception {
+        buy("1000", "3", TODAY.minusDays(1000));
+        investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).getFirst().setQuantity(null);
+        reload();
+        partialSuggestion("1100", "1", TODAY.minusDays(1000), TODAY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimationStatus").value("LIMITED_ESTIMATE"))
+                .andExpect(jsonPath("$.warnings[0]", org.hamcrest.Matchers.containsString("histórico legado")));
+        postCommand("yield", "\"amount\":30", TODAY, 40).andExpect(status().isCreated());
+        partialSuggestion("1100", "1", TODAY.minusDays(1000), TODAY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.warnings", org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("YIELD"))));
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        decimal("3000", position.getRemainingCost());
+        decimal("3", position.getQuantity());
+    }
+
+    @Test
+    void suggestionAfterLegacyPartialSaleReportsUnknownHistoricalCost() throws Exception {
+        buy("1000", "3", TODAY.minusDays(1000));
+        postCommand("sell", "\"quantity\":1,\"grossAmount\":1100,\"taxAmount\":10", TODAY, 41).andExpect(status().isCreated());
+        investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).stream()
+                .filter(t -> t.getType() == InvestmentTransactionType.SELL).findFirst().orElseThrow().setCostBasis(null);
+        reload();
+        partialSuggestion("1100", "1", TODAY.minusDays(1000), TODAY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.costBasis").value(1000))
+                .andExpect(jsonPath("$.estimationStatus").value("LIMITED_ESTIMATE"))
+                .andExpect(jsonPath("$.warnings", org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("custos de venda desconhecidos"))));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"quantity", "saleDate"})
+    void newSuggestionParametersAreIndividuallyRequired(String missing) throws Exception {
+        buy("1000", "3", TODAY.minusDays(1000));
+        var request = get(path() + "/tax-suggestion").contextPath("/api").with(user(owner))
+                .param("grossAmount", "1100").param("purchaseDate", TODAY.minusDays(1000).toString());
+        if (!missing.equals("quantity")) request.param("quantity", "1");
+        if (!missing.equals("saleDate")) request.param("saleDate", TODAY.toString());
+        mvc.perform(request).andExpect(status().isBadRequest());
+        assertState("3000", "3000", "0", "3", "-2000", 1, 2);
+    }
+
+    @Test
+    void remainingZeroCostWithUnitsIsAValidEstimateAndFullSaleUsesExactCost() throws Exception {
+        buy("1", "1", TODAY.minusDays(1000));
+        var position = positions.findByAssetId(asset.getId()).orElseThrow();
+        position.setQuantity(new BigDecimal("0.33333334"));
+        position.setRemainingCost(new BigDecimal("0.33333334"));
+        reload();
+        partialSuggestion("1", "0.33333334", TODAY.minusDays(1000), TODAY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.costBasis").value(0.33333334));
+        positions.findByAssetId(asset.getId()).orElseThrow().setRemainingCost(BigDecimal.ZERO);
+        reload();
+        partialSuggestion("1", "0.33333334", TODAY.minusDays(1000), TODAY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.costBasis").value(0)).andExpect(jsonPath("$.taxBase").value(1));
+    }
+
+    @Test
+    void yieldAndMultipleSalesAreCountedOnceOnPersonalAndGroupDashboards() throws Exception {
+        var group = io.github.ronaldobertolucci.unita.model.group.Group.builder().name("Investment results").responsibleUser(owner).build();
+        em.persist(group);
+        em.persist(io.github.ronaldobertolucci.unita.model.group.GroupMembership.builder().group(group).user(owner).build());
+        var permission = io.github.ronaldobertolucci.unita.model.group.GroupSharePermission.builder().group(group).user(owner)
+                .shareType(io.github.ronaldobertolucci.unita.model.group.ShareType.INVESTMENTS).enabled(true).build();
+        em.persist(permission);
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(owner, null, owner.getAuthorities());
+        buy("1000", "3", TODAY.minusDays(1000));
+        mvc.perform(patch(path() + "/position").contextPath("/api").with(user(owner)).contentType("application/json")
+                .content("{\"currentValue\":3300,\"lastValuationDate\":\"2026-10-14\"}")).andExpect(status().isOk());
+        postCommand("yield", "\"amount\":30", TODAY, 40).andExpect(status().isCreated());
+        postCommand("sell", "\"quantity\":1,\"grossAmount\":1100,\"taxAmount\":10", TODAY, 41).andExpect(status().isCreated());
+        reload();
+        decimal("0", groupDashboard.getGroupNetProfit(group.getId(), auth).members().getFirst().netProfit());
+        decimal("0", new BigDecimal(mvc.perform(get("/api/dashboard/net-profit").contextPath("/api").with(user(owner)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()));
+        postCommand("sell", "\"quantity\":2,\"grossAmount\":2200,\"taxAmount\":20", TODAY, 41).andExpect(status().isCreated());
+        reload();
+        for (int i = 0; i < 2; i++) {
+            decimal("300", groupDashboard.getGroupNetProfit(group.getId(), auth).members().getFirst().netProfit());
+            String personal = mvc.perform(get("/api/dashboard/net-profit").contextPath("/api").with(user(owner)))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            decimal("300", new BigDecimal(personal));
+        }
+        em.find(io.github.ronaldobertolucci.unita.model.group.GroupSharePermission.class, permission.getId()).setEnabled(false);
+        em.flush();
+        assertNull(groupDashboard.getGroupNetProfit(group.getId(), auth).members().getFirst().netProfit());
+        partialSuggestion("1100", "1", TODAY.minusDays(1000), TODAY).andExpect(status().isConflict());
     }
     private void decimal(String expected, BigDecimal actual) { assertEquals(0, new BigDecimal(expected).compareTo(actual)); }
     private void assertState(String invested, String current, String redeemed, String quantity, String balance, int movements, int cashRows) {
@@ -221,6 +358,8 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     void missingLegacyPurchaseHistoryIsExplicitlyLimited() throws Exception {
         var position = positions.findByAssetId(asset.getId()).orElseThrow();
         position.setTotalInvested(new BigDecimal("1000"));
+        position.setRemainingCost(new BigDecimal("1000"));
+        position.setQuantity(new BigDecimal("10"));
         suggestion("1100", TODAY.minusDays(1000)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.estimationStatus").value("LIMITED_ESTIMATE"))
                 .andExpect(jsonPath("$.warnings[0]", org.hamcrest.Matchers.containsString("ausente")));
@@ -231,16 +370,15 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     void invalidSuggestionInputReturns400AndPreservesState(String gross, String date) throws Exception {
         buy("100", "10", TODAY.minusDays(1000));
         mvc.perform(get(path() + "/tax-suggestion").contextPath("/api").with(user(owner))
-                        .param("grossAmount", gross).param("purchaseDate", date))
+                        .param("grossAmount", gross).param("purchaseDate", date).param("quantity", "10").param("saleDate", TODAY.toString()))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
         assertState("1000", "1000", "0", "10", "0", 1, 2);
     }
 
     @Test
-    void zeroInvestmentBaseIsRejectedByTaxSuggestion() throws Exception {
+    void emptyPositionIsRejectedByTaxSuggestion() throws Exception {
         positions.findByAssetId(asset.getId()).orElseThrow().setTotalInvested(BigDecimal.ZERO);
-        suggestion("1100", TODAY.minusDays(1000)).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("totalInvested must be greater than zero for a tax suggestion"));
+        suggestion("1100", TODAY.minusDays(1000)).andExpect(status().isConflict());
     }
 
     @Test
@@ -252,7 +390,7 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     }
 
     @Test
-    void taxSuggestionAllowsTodayInSaoPauloAndRequiresBothQueryFields() throws Exception {
+    void taxSuggestionAllowsSameDaySaleAndRequiresQueryFields() throws Exception {
         buy("100", "10", TODAY);
         suggestion("1100", TODAY).andExpect(status().isOk()).andExpect(jsonPath("$.daysElapsed").value(0));
         mvc.perform(get(path() + "/tax-suggestion").contextPath("/api").with(user(owner)))
@@ -262,11 +400,11 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     @Test
     void suggestionsAndCommandsRequireAuthenticationAndHideOtherOwners() throws Exception {
         mvc.perform(get(path() + "/tax-suggestion").contextPath("/api")
-                .param("grossAmount", "1100").param("purchaseDate", "2024-01-01")).andExpect(status().isUnauthorized());
+                .param("grossAmount", "1100").param("purchaseDate", "2024-01-01").param("quantity", "10").param("saleDate", TODAY.toString())).andExpect(status().isUnauthorized());
         User other = User.builder().id(-1L).email("other@example.invalid").password("encoded")
                 .enabled(true).emailVerified(true).roles(owner.getRoles()).build();
         mvc.perform(get(path() + "/tax-suggestion").contextPath("/api").with(user(other))
-                .param("grossAmount", "1100").param("purchaseDate", "2024-01-01")).andExpect(status().isNotFound());
+                .param("grossAmount", "1100").param("purchaseDate", "2024-01-01").param("quantity", "10").param("saleDate", TODAY.toString())).andExpect(status().isNotFound());
         for (String operation : new String[]{"buy", "yield"}) {
             mvc.perform(post(path() + "/transactions/" + operation).contextPath("/api").with(user(other))
                     .contentType("application/json").content("{\"amount\":1,\"quantity\":1,\"transactionDate\":\"2026-10-14\",\"pocketId\":"

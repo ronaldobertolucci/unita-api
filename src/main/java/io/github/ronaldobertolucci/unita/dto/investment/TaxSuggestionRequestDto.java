@@ -11,6 +11,10 @@ import java.time.LocalDate;
 public record TaxSuggestionRequestDto(
         @Schema(description = "Strictly positive gross redemption amount in the legacy numeric contract", example = "1100.00")
         @NotNull @Positive BigDecimal grossAmount,
-        @Schema(description = "Assumed acquisition date, not in the future in America/Sao_Paulo; limitations are returned for missing or inconsistent history", example = "2024-01-01")
-        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate purchaseDate
+        @Schema(description = "Assumed acquisition date, not after saleDate; limitations are returned for missing or inconsistent history", example = "2024-01-01")
+        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate purchaseDate,
+        @Schema(description = "Quantity to sell, no greater than the remaining units")
+        @NotNull @Positive BigDecimal quantity,
+        @Schema(description = "Reference date of the proposed sale; used to calculate the holding period")
+        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate saleDate
 ) {}

@@ -191,6 +191,16 @@ class InvestmentTransactionServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
+    void yieldRejectsCategoryWithoutDefinedBehaviorBeforeWritingCash() {
+        Asset asset = buildAsset(1L, AssetStatus.ACTIVE);
+        asset.setCategory(null);
+        when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
+        assertThrows(IllegalArgumentException.class, () -> investmentTransactionService.yield(1L,
+                new InvestmentYieldDto(BigDecimal.ONE, LocalDate.now(), 5L, 1L, null), authentication));
+        verifyNoInteractions(pocketRepository, transactionRepository, investmentTransactionRepository, investmentPositionRepository);
+    }
+
+    @Test
     void yield_WhenValid_ShouldCreateTransactionsAndUpdateRedeemedValue() {
         Asset asset = buildAsset(1L, AssetStatus.ACTIVE);
         Pocket pocket = buildCash(5L);

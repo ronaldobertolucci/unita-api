@@ -119,6 +119,9 @@ public class InvestmentTransactionService {
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
 
+        if (asset.getCategory() != AssetCategory.RENDA_FIXA && asset.getCategory() != AssetCategory.PREVIDENCIA) {
+            throw new IllegalArgumentException("Yield withdrawal is unavailable for this asset category");
+        }
         if (asset.getStatus() != AssetStatus.ACTIVE) {
             throw new IllegalStateException("Cannot register yield for a non-active asset");
         }
