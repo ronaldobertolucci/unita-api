@@ -18,5 +18,7 @@ public record InvestmentSellDto(
     @NotNull Long categoryId,
     String notes,
     @Schema(description = "Units to sell; positive and no greater than the available quantity", example = "1")
-    @NotNull @Positive BigDecimal quantity
+    @NotNull @Positive BigDecimal quantity,
+    @Schema(description = "Client-generated UUID, unique per user; reuse only to retry the same sale")
+    @NotNull java.util.UUID operationId
 ) {}

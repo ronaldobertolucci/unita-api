@@ -18,6 +18,13 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponseDto> handleUnreadableRequest(
+            org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(new ErrorResponseDto(400, "Bad Request",
+                "Malformed request body or invalid field format", request.getRequestURI()));
+    }
+
     // A concurrent reference can appear after service validation. Only these financial
     // constraints are translated; unrelated integrity/infrastructure failures stay 500.
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)

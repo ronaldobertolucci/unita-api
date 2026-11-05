@@ -71,6 +71,7 @@ class InvestmentLegacyContractIntegrationTest {
             assertTrue(movement.get("quantity").isNull());
             assertTrue(movement.get("costBasis").isNull());
             assertTrue(movement.get("relatedSellId").isNull());
+            assertTrue(movement.get("operationId").isNull());
             if (movement.get("id").asLong() == 97007) {
                 assertTrue(movement.get("pocketTransactionId").isNull());
                 assertEquals("2026-10-12", movement.get("transactionDate").asString());
@@ -110,7 +111,7 @@ class InvestmentLegacyContractIntegrationTest {
                 .andExpect(jsonPath("$.position.redeemedValue").value(10));
         mvc.perform(post(path + "/transactions/sell").contextPath("/api").with(user(owner()))
                 .contentType("application/json").content("""
-                        {"quantity":2,"grossAmount":220,"taxAmount":15,"transactionDate":"2026-10-13",
+                        {"operationId":"0d462bcd-a293-462f-8d29-c0cdc2e87ca4","quantity":2,"grossAmount":220,"taxAmount":15,"transactionDate":"2026-10-13",
                          "pocketId":94003,"categoryId":41,"notes":"Contract full sell"}
                         """))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(2))

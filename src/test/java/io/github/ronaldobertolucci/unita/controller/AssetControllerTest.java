@@ -73,7 +73,7 @@ class AssetControllerTest {
 
     private InvestmentTransactionDto investmentTransactionDto() {
         return new InvestmentTransactionDto(1L, InvestmentTransactionType.BUY,
-                new BigDecimal("1000.00000000"), LocalDate.now(), null, 10L, null, null, null);
+                new BigDecimal("1000.00000000"), LocalDate.now(), null, 10L, null, null, null, null);
     }
 
     private TaxSuggestionDto taxSuggestionDto() {
@@ -530,7 +530,7 @@ class AssetControllerTest {
                 new BigDecimal("50.00"), LocalDate.now(), 5L, 1L, "Rendimento mensal");
         InvestmentTransactionDto yieldDto = new InvestmentTransactionDto(
                 2L, InvestmentTransactionType.YIELD,
-                new BigDecimal("50.00"), LocalDate.now(), "Rendimento mensal", 10L, null, null, null);
+                new BigDecimal("50.00"), LocalDate.now(), "Rendimento mensal", 10L, null, null, null, null);
         when(investmentTransactionService.yield(eq(1L), any(), any())).thenReturn(yieldDto);
 
         mockMvc.perform(post("/assets/1/transactions/yield")
@@ -568,14 +568,14 @@ class AssetControllerTest {
     void sell_WhenValid_ShouldReturn201WithTwoTransactions() throws Exception {
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, "Resgate total", BigDecimal.ONE);
+                LocalDate.now(), 5L, 1L, "Resgate total", BigDecimal.ONE, java.util.UUID.randomUUID());
 
         InvestmentTransactionDto sellDto = new InvestmentTransactionDto(
                 3L, InvestmentTransactionType.SELL,
-                new BigDecimal("1100.00"), LocalDate.now(), "Resgate total", 10L, null, null, null);
+                new BigDecimal("1100.00"), LocalDate.now(), "Resgate total", 10L, null, null, null, null);
         InvestmentTransactionDto taxDto = new InvestmentTransactionDto(
                 4L, InvestmentTransactionType.TAX,
-                new BigDecimal("165.00"), LocalDate.now(), null, null, null, null, null);
+                new BigDecimal("165.00"), LocalDate.now(), null, null, null, null, null, null);
 
         when(investmentTransactionService.sell(eq(1L), any(), any()))
                 .thenReturn(List.of(sellDto, taxDto));
@@ -592,7 +592,7 @@ class AssetControllerTest {
 
     @Test
     void sell_WhenMissingFields_ShouldReturn400() throws Exception {
-        InvestmentSellDto invalid = new InvestmentSellDto(null, null, null, null, null, null, BigDecimal.ONE);
+        InvestmentSellDto invalid = new InvestmentSellDto(null, null, null, null, null, null, BigDecimal.ONE, java.util.UUID.randomUUID());
 
         mockMvc.perform(post("/assets/1/transactions/sell")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
@@ -606,7 +606,7 @@ class AssetControllerTest {
             "100,null,taxAmount", "100,-50,taxAmount"}, nullValues = "null")
     void sell_WhenAmountsMissingOrWrongSign_ShouldReturnFieldError(
             BigDecimal gross, BigDecimal tax, String field) throws Exception {
-        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.of(2026, 10, 13), 5L, 1L, null, BigDecimal.ONE);
+        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.of(2026, 10, 13), 5L, 1L, null, BigDecimal.ONE, java.util.UUID.randomUUID());
         mockMvc.perform(post("/api/assets/1/transactions/sell").contextPath("/api")
                         .with(user("test").authorities(List.of(new SimpleGrantedAuthority("USER"))))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -623,7 +623,7 @@ class AssetControllerTest {
     void sell_WhenAlreadyRedeemed_ShouldReturn409() throws Exception {
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
+                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE, java.util.UUID.randomUUID());
         when(investmentTransactionService.sell(eq(1L), any(), any()))
                 .thenThrow(new IllegalStateException("Asset has already been fully redeemed"));
 

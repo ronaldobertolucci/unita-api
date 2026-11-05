@@ -30,6 +30,7 @@ import java.util.List;
 public class InvestmentTransactionService {
 
     private final AssetRepository assetRepository;
+    private final InvestmentSaleOperationRepository saleOperationRepository;
     private final FinancialConcurrencyService locks;
     private final InvestmentTransactionRepository investmentTransactionRepository;
     private final InvestmentPositionRepository investmentPositionRepository;
@@ -173,6 +174,9 @@ public class InvestmentTransactionService {
 
     @Transactional
     public List<InvestmentTransactionDto> sell(Long assetId, InvestmentSellDto dto, Authentication authentication) {
+        if (dto.operationId() == null) throw new IllegalArgumentException("operationId is required");
+        if (dto.transactionDate() == null || dto.pocketId() == null || dto.categoryId() == null)
+            throw new IllegalArgumentException("transactionDate, pocketId and categoryId are required");
         InvestmentDecimals.positive(dto.quantity(), "quantity");
         InvestmentDecimals.positive(dto.grossAmount(), "grossAmount");
         InvestmentDecimals.nonNegative(dto.taxAmount(), "taxAmount");
@@ -182,9 +186,19 @@ public class InvestmentTransactionService {
 
         User currentUser = (User) authentication.getPrincipal();
 
+        locks.lockInvestmentSales(currentUser.getId());
         locks.lockOwnedAsset(assetId, currentUser.getId());
         Asset asset = assetRepository.findByIdAndUserId(assetId, currentUser.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Asset not found"));
+
+        String command = InvestmentSaleSnapshot.command(assetId, dto);
+        var previous = saleOperationRepository.findByUserIdAndOperationId(currentUser.getId(), dto.operationId());
+        if (previous.isPresent()) {
+            if (!previous.get().getRequestPayload().equals(command)) {
+                throw new IllegalStateException("operationId has already been used for a different sale");
+            }
+            return InvestmentSaleSnapshot.response(previous.get().getResponsePayload());
+        }
 
         if (asset.getStatus() == AssetStatus.REDEEMED) {
             throw new IllegalStateException("Asset has already been fully redeemed");
@@ -233,6 +247,7 @@ public class InvestmentTransactionService {
                         .asset(asset)
                         .transaction(pocketTransaction)
                         .type(InvestmentTransactionType.SELL)
+                        .operationId(dto.operationId())
                         .quantity(dto.quantity())
                         .costBasis(costBasis)
                         .amount(dto.grossAmount())
@@ -245,6 +260,7 @@ public class InvestmentTransactionService {
                 InvestmentTransaction.builder()
                         .asset(asset)
                         .type(InvestmentTransactionType.TAX)
+                        .operationId(dto.operationId())
                         .relatedSell(sellTransaction)
                         .amount(dto.taxAmount())
                         .transactionDate(dto.transactionDate())
@@ -264,9 +280,13 @@ public class InvestmentTransactionService {
             assetRepository.save(asset);
         }
 
-        return List.of(
+        List<InvestmentTransactionDto> result = List.of(
                 new InvestmentTransactionDto(sellTransaction),
                 new InvestmentTransactionDto(taxTransaction));
+        saleOperationRepository.save(InvestmentSaleOperation.builder()
+                .userId(currentUser.getId()).operationId(dto.operationId()).assetId(assetId)
+                .requestPayload(command).responsePayload(InvestmentSaleSnapshot.response(result)).build());
+        return result;
     }
 
     // -------------------------------------------------------------------------

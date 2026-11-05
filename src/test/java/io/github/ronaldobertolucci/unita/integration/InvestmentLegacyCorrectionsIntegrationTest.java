@@ -83,6 +83,7 @@ class InvestmentLegacyCorrectionsIntegrationTest {
     private void reload() { em.flush(); em.clear(); }
     private String path() { return "/api/assets/" + asset.getId(); }
     private ResultActions postCommand(String operation, String fields, LocalDate date, int category) throws Exception {
+        if (operation.equals("sell")) fields += ",\"operationId\":\"" + UUID.randomUUID() + "\"";
         return mvc.perform(post(path() + "/transactions/" + operation).contextPath("/api").with(user(owner))
                 .contentType("application/json").content("{" + fields + ",\"transactionDate\":\"" + date
                         + "\",\"pocketId\":" + pocket.getId() + ",\"categoryId\":" + category + "}"));

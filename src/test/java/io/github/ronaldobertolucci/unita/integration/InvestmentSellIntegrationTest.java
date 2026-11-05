@@ -245,7 +245,7 @@ class InvestmentSellIntegrationTest {
 
     private String path() { return "/api/assets/" + asset.getId() + "/transactions/sell"; }
     private String body(String gross, String tax) {
-        return "{\"quantity\":2,\"grossAmount\":" + gross + ",\"taxAmount\":" + tax
+        return "{\"operationId\":\"" + UUID.randomUUID() + "\",\"quantity\":2,\"grossAmount\":" + gross + ",\"taxAmount\":" + tax
                 + ",\"transactionDate\":\"2026-10-13\",\"pocketId\":" + pocket.getId()
                 + ",\"categoryId\":41,\"notes\":\"Resgate total\"}";
     }
@@ -313,14 +313,43 @@ class InvestmentSellIntegrationTest {
     }
 
     @Test
+    void operationIdIsRequiredAndMustBeAUuid() throws Exception {
+        String valid = body("100", "10");
+        for (String invalid : new String[]{valid.replaceFirst("\"operationId\":\"[^\"]+\",", ""),
+                valid.replaceFirst("\"operationId\":\"[^\"]+\"", "\"operationId\":null"),
+                valid.replaceFirst("\"operationId\":\"[^\"]+\"", "\"operationId\":\"invalid\"")}) {
+            mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json").content(invalid))
+                    .andExpect(status().isBadRequest());
+            assertPreserved();
+        }
+    }
+
+    @Test
+    void httpRetryReturnsOriginalSaleAndConflictingCommandReturns409() throws Exception {
+        String command = body("100", "10");
+        var first = mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json").content(command))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        em.flush(); em.clear();
+        mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json").content(command))
+                .andExpect(status().isCreated()).andExpect(content().json(first));
+        mvc.perform(post(path()).contextPath("/api").with(user(owner)).contentType("application/json")
+                        .content(command.replace("\"grossAmount\":100", "\"grossAmount\":101")))
+                .andExpect(status().isConflict());
+        decimal("110", transactions.calculateBalanceByPocketId(pocket.getId()));
+        assertEquals(3, investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).size());
+    }
+
+    @Test
     void openApiDocumentsTheRealRedemptionContract() throws Exception {
         mvc.perform(get("/api/v3/api-docs").contextPath("/api"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/assets/{id}/transactions/sell'].post.description")
                         .value("Requires 0 < quantity <= available units, grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
-                                + "Tax is supplied by the client. Zero net amount is permitted."))
+                                + "Tax is supplied by the client. Zero net amount is permitted. A user-scoped operationId UUID is required; retrying the same command returns the original SELL/TAX result."))
                 .andExpect(jsonPath("$.paths['/assets/{id}/transactions/sell'].post.responses['400']").exists())
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.required", org.hamcrest.Matchers.hasItem("quantity")))
+                .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.required", org.hamcrest.Matchers.hasItem("operationId")))
+                .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.operationId.format").value("uuid"))
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.quantity.exclusiveMinimum").value(0))
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.taxAmount.description")
                         .value("Tax informed by the client; must be non-negative and no greater than grossAmount"));

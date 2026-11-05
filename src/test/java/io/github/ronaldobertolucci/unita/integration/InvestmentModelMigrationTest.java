@@ -50,6 +50,35 @@ class InvestmentModelMigrationTest {
     }
 
     @Test
+    void v27PreservesLegacyHistoryAndEnforcesUserScopedOperationUniqueness() throws Exception {
+        try (var fixture = fixture()) {
+            flyway(fixture, "26").migrate();
+            var before = fixture.rawRows();
+            var sequences = fixture.sequences();
+            var baseline = new InvestmentBaselineCollector(fixture.dataSource).collect();
+            var migration = flyway(fixture, "27");
+            assertEquals(1, migration.migrate().migrationsExecuted);
+            migration.validate();
+            assertEquals(0, migration.migrate().migrationsExecuted);
+            var after = fixture.rawRows();
+            after.get("investment_transactions").forEach(row -> assertNull(row.remove("operation_id")));
+            assertEquals(before, after);
+            // Existing sequences are untouched; V27 only adds its own sequence.
+            assertTrue(fixture.sequences().containsAll(sequences));
+            assertEquals(baseline.canonicalJson(), new InvestmentBaselineCollector(fixture.dataSource).collect().canonicalJson());
+            assertEquals(0, fixture.jdbc.queryForObject("SELECT count(*) FROM investment_sale_operations", Integer.class));
+            String id = "60be193c-a2a9-4924-80fc-fcf58a1b7681";
+            String insert = "INSERT INTO investment_sale_operations(user_id,operation_id,asset_id,request_payload,response_payload) VALUES (?,CAST(? AS UUID),?,'{}','[]')";
+            fixture.jdbc.update(insert, 91001L, id, 93004L);
+            assertThrows(DataIntegrityViolationException.class, () -> fixture.jdbc.update(insert, 91001L, id, 93002L));
+            fixture.jdbc.update(insert, 91002L, id, 93005L);
+            assertEquals(2, fixture.jdbc.queryForObject("SELECT count(*) FROM investment_sale_operations", Integer.class));
+            assertThrows(DataIntegrityViolationException.class, () -> fixture.jdbc.update(
+                    "UPDATE investment_transactions SET operation_id=CAST(? AS UUID) WHERE id=97012", id));
+        }
+    }
+
+    @Test
     void upgradesAndPreservesEveryLegacyColumnBaselineCashAndSequence() throws Exception {
         try (var fixture = fixture()) {
             var before = fixture.rawRows();

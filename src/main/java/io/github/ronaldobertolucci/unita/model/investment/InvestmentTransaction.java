@@ -47,6 +47,9 @@ public class InvestmentTransaction {
     @JoinColumn(name = "related_sell_id")
     private InvestmentTransaction relatedSell;
 
+    @Column(name = "operation_id")
+    private java.util.UUID operationId;
+
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 

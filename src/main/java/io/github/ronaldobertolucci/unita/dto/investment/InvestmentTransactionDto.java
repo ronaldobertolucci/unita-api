@@ -20,7 +20,9 @@ public record InvestmentTransactionDto(
     @Schema(description = "Cost removed by a sale; null when unknown in legacy history or not applicable")
     BigDecimal costBasis,
     @Schema(description = "SELL linked to this TAX; null for unpaired legacy movements or when not applicable")
-    Long relatedSellId
+    Long relatedSellId,
+    @Schema(description = "Sale operation UUID shared by SELL and TAX; null for legacy or unrelated movements")
+    java.util.UUID operationId
 ) {
     public InvestmentTransactionDto(InvestmentTransaction tx) {
         this(
@@ -32,7 +34,8 @@ public record InvestmentTransactionDto(
             tx.getTransaction() != null ? tx.getTransaction().getId() : null,
             tx.getQuantity(),
             tx.getCostBasis(),
-            tx.getRelatedSell() != null ? tx.getRelatedSell().getId() : null
+            tx.getRelatedSell() != null ? tx.getRelatedSell().getId() : null,
+            tx.getOperationId()
         );
     }
 }

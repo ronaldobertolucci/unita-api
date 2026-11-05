@@ -39,6 +39,7 @@ import static org.mockito.Mockito.*;
 class InvestmentTransactionServiceTest {
 
     @Mock private AssetRepository assetRepository;
+    @Mock private InvestmentSaleOperationRepository saleOperationRepository;
     @Mock private io.github.ronaldobertolucci.unita.service.finance.FinancialConcurrencyService locks;
     @Mock private InvestmentTransactionRepository investmentTransactionRepository;
     @Mock
@@ -281,7 +282,7 @@ class InvestmentTransactionServiceTest {
     @CsvSource(value = {"null,0", "0,0", "-1,0", "100,null", "100,-50", "100,150"}, nullValues = "null")
     void sell_WhenAmountsInvalid_ShouldRejectBeforeAnyRepositoryAccess(BigDecimal gross, BigDecimal tax) {
         reset(authentication);
-        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
+        InvestmentSellDto dto = new InvestmentSellDto(gross, tax, LocalDate.now(), 5L, 1L, null, BigDecimal.ONE, java.util.UUID.randomUUID());
         assertThrows(IllegalArgumentException.class,
                 () -> investmentTransactionService.sell(1L, dto, authentication));
         verifyNoInteractions(assetRepository, pocketRepository, transactionRepository,
@@ -299,7 +300,7 @@ class InvestmentTransactionServiceTest {
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, "Resgate total", BigDecimal.ONE);
+                LocalDate.now(), 5L, 1L, "Resgate total", BigDecimal.ONE, java.util.UUID.randomUUID());
 
         InvestmentTransaction sellTx = buildInvestmentTransaction(
                 3L, asset, InvestmentTransactionType.SELL, new BigDecimal("1100.00"), LocalDate.now());
@@ -337,7 +338,7 @@ class InvestmentTransactionServiceTest {
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
+                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE, java.util.UUID.randomUUID());
 
         when(assetRepository.findByIdAndUserId(1L, currentUser.getId())).thenReturn(Optional.of(asset));
         when(pocketRepository.findByIdAndUserId(5L, currentUser.getId())).thenReturn(Optional.of(pocket));
@@ -365,7 +366,7 @@ class InvestmentTransactionServiceTest {
 
         InvestmentSellDto dto = new InvestmentSellDto(
                 new BigDecimal("1100.00"), new BigDecimal("165.00"),
-                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE);
+                LocalDate.now(), 5L, 1L, null, BigDecimal.ONE, java.util.UUID.randomUUID());
 
         assertThrows(IllegalStateException.class,
                 () -> investmentTransactionService.sell(1L, dto, authentication));

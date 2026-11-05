@@ -69,6 +69,10 @@ class InvestmentConcurrencyPostgreSQLTest {
     void setup() {
         tx = new TransactionTemplate(manager);
         pool = Executors.newSingleThreadExecutor();
+        createPortfolio();
+    }
+
+    private void createPortfolio() {
         tx.executeWithoutResult(status -> {
             owner = users.save(User.builder().firstName("Concurrency").lastName("Investment")
                     .email(UUID.randomUUID() + "@example.invalid").password("encoded")
@@ -105,7 +109,137 @@ class InvestmentConcurrencyPostgreSQLTest {
     private void sell() { sellQuantity("3"); }
 
     private void sellQuantity(String quantity) {
-        movements.sell(assetId, new InvestmentSellDto(new BigDecimal("330"), new BigDecimal("30"), date, pocketId, 41L, null, new BigDecimal(quantity)), auth());
+        movements.sell(assetId, new InvestmentSellDto(new BigDecimal("330"), new BigDecimal("30"), date, pocketId, 41L, null, new BigDecimal(quantity), java.util.UUID.randomUUID()), auth());
+    }
+
+    private InvestmentSellDto command(UUID operation, String quantity) {
+        return new InvestmentSellDto(new BigDecimal("330"), new BigDecimal("30"), date, pocketId, 41L,
+                "Venda: á, \"teste\"", new BigDecimal(quantity), operation);
+    }
+
+    private int operations() {
+        return jdbc.queryForObject("SELECT count(*) FROM investment_sale_operations WHERE user_id=?", Integer.class, owner.getId());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "3"})
+    void sequentialRetryReturnsOriginalResponseEvenAfterFullRedemption(String quantity) {
+        var dto = command(UUID.randomUUID(), quantity);
+        var first = movements.sell(assetId, dto, auth());
+        assertEquals(first, movements.sell(assetId, dto, auth()));
+        assertEquals(1, operations());
+        assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=?", Integer.class, assetId));
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM transactions WHERE pocket_id=?", Integer.class, pocketId));
+        decimal("300", jdbc.queryForObject("SELECT redeemed_value FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal(new BigDecimal("3").subtract(new BigDecimal(quantity)).toPlainString(), jdbc.queryForObject(
+                "SELECT quantity FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        for (var movement : first) assertEquals(dto.operationId(), movement.operationId());
+        var history = movements.findAllByAsset(assetId, auth());
+        assertEquals(2, history.stream().filter(t -> dto.operationId().equals(t.operationId())).count());
+    }
+
+    @Test
+    void decimalScaleIsIgnoredButTheOriginalResponseIsPreserved() {
+        UUID id = UUID.randomUUID();
+        var first = movements.sell(assetId, command(id, "1"), auth());
+        var scaled = new InvestmentSellDto(new BigDecimal("330.00000000"), new BigDecimal("30.0"),
+                date, pocketId, 41L, command(id, "1").notes(), new BigDecimal("1.00000000"), id);
+        assertEquals(first, movements.sell(assetId, scaled, auth()));
+        // Historical references may be detached later; an acknowledged result remains the same snapshot.
+        jdbc.update("UPDATE investment_transactions SET transaction_id=NULL WHERE asset_id=? AND type='SELL'", assetId);
+        assertEquals(first, movements.sell(assetId, scaled, auth()));
+        assertEquals(1, operations());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"quantity", "gross", "tax", "pocket", "category", "date", "notes"})
+    void sameUuidWithAnyDifferentCommandFieldConflicts(String field) {
+        UUID id = UUID.randomUUID();
+        var dto = command(id, "1");
+        var first = movements.sell(assetId, dto, auth());
+        var changed = new InvestmentSellDto(field.equals("gross") ? new BigDecimal("331") : dto.grossAmount(),
+                field.equals("tax") ? new BigDecimal("31") : dto.taxAmount(),
+                field.equals("date") ? date.plusDays(1) : date,
+                field.equals("pocket") ? pocketId + 100000 : pocketId,
+                field.equals("category") ? 40L : 41L,
+                field.equals("notes") ? dto.notes() + " " : dto.notes(),
+                field.equals("quantity") ? new BigDecimal("2") : dto.quantity(), id);
+        assertThrows(IllegalStateException.class, () -> movements.sell(assetId, changed, auth()));
+        assertEquals(first, movements.sell(assetId, dto, auth()));
+        assertEquals(1, operations());
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM transactions WHERE pocket_id=?", Integer.class, pocketId));
+    }
+
+    private Long anotherOwnedAsset() {
+        return tx.execute(status -> {
+            var issuer = assets.findById(assetId).orElseThrow().getLegalEntity();
+            var another = assets.save(Asset.builder().user(owner).legalEntity(issuer).name("Another asset")
+                    .category(AssetCategory.RENDA_FIXA).build());
+            positions.save(InvestmentPosition.builder().asset(another).quantity(BigDecimal.ONE)
+                    .totalInvested(new BigDecimal("100")).remainingCost(new BigDecimal("100"))
+                    .averagePrice(new BigDecimal("100")).currentValue(new BigDecimal("100")).build());
+            return another.getId();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "3"})
+    void concurrentDuplicateReturnsSameResultWithoutAnotherCashCredit(String quantity) throws Exception {
+        var dto = command(UUID.randomUUID(), quantity);
+        var first = new java.util.concurrent.atomic.AtomicReference<java.util.List<InvestmentTransactionDto>>();
+        race(() -> first.set(movements.sell(assetId, dto, auth())),
+                () -> assertEquals(first.get(), movements.sell(assetId, dto, auth())));
+        BigDecimal remaining = new BigDecimal("3").subtract(new BigDecimal(quantity));
+        decimal(remaining.toPlainString(), jdbc.queryForObject("SELECT quantity FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal(remaining.multiply(new BigDecimal("100")).toPlainString(), jdbc.queryForObject("SELECT remaining_cost FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("300", jdbc.queryForObject("SELECT redeemed_value FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        assertEquals(quantity.equals("3") ? "REDEEMED" : "ACTIVE", jdbc.queryForObject("SELECT status FROM assets WHERE id=?", String.class, assetId));
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM transactions WHERE pocket_id=?", Integer.class, pocketId));
+        assertEquals(1, operations());
+        assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=?", Integer.class, assetId));
+    }
+
+    @Test
+    void sameUuidOnDifferentAssetsIsSerializedAndRejected() throws Exception {
+        Long another = anotherOwnedAsset();
+        var dto = command(UUID.randomUUID(), "1");
+        race(() -> movements.sell(assetId, dto, auth()),
+                () -> assertThrows(IllegalStateException.class, () -> movements.sell(another, dto, auth())));
+        assertEquals(1, operations());
+        decimal("1", jdbc.queryForObject("SELECT quantity FROM investment_positions WHERE asset_id=?", BigDecimal.class, another));
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=?", Integer.class, another));
+    }
+
+    @Test
+    void identicalCommandsWithDifferentUuidsAreIntentionalSeparateSales() {
+        var first = movements.sell(assetId, command(UUID.randomUUID(), "1"), auth());
+        var second = movements.sell(assetId, command(UUID.randomUUID(), "1"), auth());
+        assertNotEquals(first.getFirst().id(), second.getFirst().id());
+        assertEquals(2, operations());
+        decimal("1", jdbc.queryForObject("SELECT quantity FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+        decimal("600", jdbc.queryForObject("SELECT redeemed_value FROM investment_positions WHERE asset_id=?", BigDecimal.class, assetId));
+    }
+
+    @Test
+    void operationUuidIsScopedToUserAndNeverRevealsAnotherOwnersResult() {
+        var originalOwner = owner;
+        Long originalAsset = assetId, originalPocket = pocketId;
+        UUID id = UUID.randomUUID();
+        var first = movements.sell(assetId, command(id, "1"), auth());
+        createPortfolio();
+        try {
+            var secondCommand = command(id, "1");
+            assertThrows(jakarta.persistence.EntityNotFoundException.class,
+                    () -> movements.sell(originalAsset, secondCommand, auth()));
+            var second = movements.sell(assetId, secondCommand, auth());
+            assertNotEquals(first.getFirst().id(), second.getFirst().id());
+            assertEquals(second, movements.sell(assetId, secondCommand, auth()));
+            assertEquals(1, operations());
+        } finally {
+            jdbc.update("DELETE FROM users WHERE id=?", owner.getId());
+            owner = originalOwner; assetId = originalAsset; pocketId = originalPocket;
+        }
+        assertEquals(first, movements.sell(assetId, command(id, "1"), auth()));
     }
 
     private void yieldCash() {
@@ -259,15 +393,40 @@ class InvestmentConcurrencyPostgreSQLTest {
     @ParameterizedTest
     @ValueSource(strings = {"1", "3"})
     void persistenceFailureAfterCashAndSellInsertionRollsBackEverything(String quantity) {
+        var dto = command(UUID.randomUUID(), quantity);
         jdbc.execute("ALTER TABLE investment_transactions ADD CONSTRAINT be02_test_tax_failure CHECK (NOT (type='TAX' AND asset_id=" + assetId + "))");
         try {
-            assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> sellQuantity(quantity));
+            assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> movements.sell(assetId, dto, auth()));
             assertPosition("ACTIVE", "3", "300", "300", "0", "-300");
             assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=?", Integer.class, assetId));
             assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM transactions WHERE pocket_id=?", Integer.class, pocketId));
+            assertEquals(0, operations());
         } finally {
             jdbc.execute("ALTER TABLE investment_transactions DROP CONSTRAINT be02_test_tax_failure");
         }
+        var retried = movements.sell(assetId, dto, auth());
+        assertEquals(dto.operationId(), retried.getFirst().operationId());
+        assertEquals(retried, movements.sell(assetId, dto, auth()));
+        assertEquals(1, operations());
+    }
+
+    @Test
+    void failureSavingIdempotencySnapshotAlsoRollsBackCashHistoryAndPosition() {
+        var dto = command(UUID.randomUUID(), "3");
+        jdbc.execute("ALTER TABLE investment_sale_operations ADD CONSTRAINT be04_test_snapshot_failure CHECK (user_id<>" + owner.getId() + ")");
+        try {
+            assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> movements.sell(assetId, dto, auth()));
+            assertPosition("ACTIVE", "3", "300", "300", "0", "-300");
+            assertEquals(0, operations());
+            assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM investment_transactions WHERE asset_id=?", Integer.class, assetId));
+            assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM transactions WHERE pocket_id=?", Integer.class, pocketId));
+        } finally {
+            jdbc.execute("ALTER TABLE investment_sale_operations DROP CONSTRAINT be04_test_snapshot_failure");
+        }
+        var result = movements.sell(assetId, dto, auth());
+        assertEquals(result, movements.sell(assetId, dto, auth()));
+        assertPosition("REDEEMED", "0", "300", "0", "300", "0");
+        assertEquals(1, operations());
     }
 
     private String path() { return "/api/assets/" + assetId; }
@@ -287,7 +446,7 @@ class InvestmentConcurrencyPostgreSQLTest {
     void invalidMovementPrecisionReturns400WithoutMutation(String kind, String field, String value) throws Exception {
         String body = switch (kind) {
             case "buy" -> "\"amount\":100,\"quantity\":1";
-            case "sell" -> "\"quantity\":3,\"grossAmount\":330,\"taxAmount\":30";
+            case "sell" -> "\"operationId\":\"" + UUID.randomUUID() + "\",\"quantity\":3,\"grossAmount\":330,\"taxAmount\":30";
             default -> "\"amount\":5";
         };
         body = body.replaceAll("\"" + field + "\":[0-9]+", "\"" + field + "\":" + value);
@@ -332,7 +491,7 @@ class InvestmentConcurrencyPostgreSQLTest {
         stranger.setId(-1L);
         var unauthorized = new UsernamePasswordAuthenticationToken(stranger, null);
         assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> movements.sell(assetId,
-                new InvestmentSellDto(new BigDecimal("330"), BigDecimal.ZERO, date, pocketId, 41L, null, new BigDecimal("3")), unauthorized));
+                new InvestmentSellDto(new BigDecimal("330"), BigDecimal.ZERO, date, pocketId, 41L, null, new BigDecimal("3"), java.util.UUID.randomUUID()), unauthorized));
         assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> movements.buy(-1L,
                 new InvestmentBuyDto(BigDecimal.ONE, BigDecimal.ONE, date, pocketId, 39L, null), auth()));
         assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> service.updatePosition(assetId,

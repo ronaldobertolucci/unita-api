@@ -42,6 +42,15 @@ public class FinancialConcurrencyService {
         refreshAsset(id);
     }
 
+    /** SELL takes user then asset: serialize UUID allocation even when two commands name different assets. */
+    public void lockInvestmentSales(Long userId) {
+        configureWait();
+        if (entityManager.createNativeQuery("SELECT id FROM users WHERE id = :id FOR UPDATE")
+                .setParameter("id", userId).getResultList().isEmpty()) {
+            throw new EntityNotFoundException("User not found");
+        }
+    }
+
     public void lockAsset(Long id) {
         configureWait();
         if (entityManager.createNativeQuery("SELECT id FROM assets WHERE id = :id FOR UPDATE")

@@ -170,13 +170,13 @@ public class AssetController {
     @Operation(
             summary = "Sell part or all of the investment position",
             description = "Requires 0 < quantity <= available units, grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
-                    + "Tax is supplied by the client. Zero net amount is permitted.",
+                    + "Tax is supplied by the client. Zero net amount is permitted. A user-scoped operationId UUID is required; retrying the same command returns the original SELL/TAX result.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Sale registered with quantity, cost basis and linked SELL/TAX transactions"),
                     @ApiResponse(responseCode = "400", description = "Missing or invalid input amounts"),
                     @ApiResponse(responseCode = "401", description = "Authentication required"),
                     @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user"),
-                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed or insufficient units")
+                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed, insufficient units or operationId reused for a different command")
             })
     @PostMapping("/{id}/transactions/sell")
     public ResponseEntity<List<InvestmentTransactionDto>> sell(
