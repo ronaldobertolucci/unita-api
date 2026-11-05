@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+@Schema(description = "Explicit partial or final sale. Amounts and quantity must fit DECIMAL(18,8), maximum 9999999999.99999999; significant excess precision is rejected. No implicit full-sale fallback.")
 public record InvestmentSellDto(
     @Schema(description = "Gross redemption amount; must be greater than zero", example = "100.00")
     @NotNull @Positive BigDecimal grossAmount,

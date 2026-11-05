@@ -382,8 +382,7 @@ class InvestmentSellIntegrationTest {
         mvc.perform(get("/api/v3/api-docs").contextPath("/api"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/assets/{id}/transactions/sell'].post.description")
-                        .value("Requires 0 < quantity <= available units, grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
-                                + "Tax is supplied by the client. Zero net amount is permitted. A user-scoped operationId UUID is required; retrying the same command returns the original SELL/TAX result."))
+                        .value(org.hamcrest.Matchers.containsString("Missing quantity never implies a full sale.")))
                 .andExpect(jsonPath("$.paths['/assets/{id}/transactions/sell'].post.responses['400']").exists())
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.required", org.hamcrest.Matchers.hasItem("quantity")))
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.required", org.hamcrest.Matchers.hasItem("operationId")))
@@ -391,6 +390,41 @@ class InvestmentSellIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.quantity.exclusiveMinimum").value(0))
                 .andExpect(jsonPath("$.components.schemas.InvestmentSellDto.properties.taxAmount.description")
                         .value("Tax informed by the client; must be non-negative and no greater than grossAmount"));
+    }
+
+    @Test
+    void publishedExamplesExecutePartialFinalAndReplayWithoutDuplicateEffects() throws Exception {
+        setPosition("3", "3000", "3300", AssetStatus.ACTIVE);
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        var spec = mapper.readTree(mvc.perform(get("/api/v3/api-docs").contextPath("/api"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var examples = spec.at("/paths/~1assets~1{id}~1transactions~1sell/post/requestBody/content/application~1json/examples");
+        String original = null;
+        for (String name : new String[]{"partial", "final", "retry"}) {
+            var command = (tools.jackson.databind.node.ObjectNode) examples.get(name).get("value").deepCopy();
+            command.put("pocketId", pocket.getId());
+            String response = mvc.perform(post(path()).contextPath("/api").with(user(owner))
+                            .contentType("application/json").content(command.toString()))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+            em.flush(); em.clear();
+            var position = positions.findByAssetId(asset.getId()).orElseThrow();
+            if (name.equals("partial")) {
+                original = response;
+                decimal("2", position.getQuantity());
+                decimal("2000", position.getRemainingCost());
+                decimal("2200", position.getCurrentValue());
+                assertEquals(AssetStatus.ACTIVE, assets.findById(asset.getId()).orElseThrow().getStatus());
+            } else {
+                decimal("0", position.getQuantity());
+                decimal("0", position.getRemainingCost());
+                decimal("0", position.getCurrentValue());
+                assertEquals(AssetStatus.REDEEMED, assets.findById(asset.getId()).orElseThrow().getStatus());
+            }
+            if (name.equals("retry")) assertEquals(mapper.readTree(original), mapper.readTree(response));
+        }
+        decimal("3140", transactions.calculateBalanceByPocketId(pocket.getId()));
+        decimal("3120", positions.findByAssetId(asset.getId()).orElseThrow().getRedeemedValue());
+        assertEquals(5, investments.findAllByAssetIdOrderByTransactionDateDesc(asset.getId()).size());
     }
 
     @Test

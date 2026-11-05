@@ -119,7 +119,7 @@ public class AssetController {
     // -------------------------------------------------------------------------
 
     @Operation(summary = "Read legacy investment history",
-            description = "Legacy numeric IDs and amounts. pocketTransactionId may be null. Legacy SELL and TAX may have no explicit pairing.",
+            description = "Legacy numeric IDs and amounts. pocketTransactionId may be null. Legacy SELL and TAX may have no explicit pairing. quantity, costBasis, relatedSellId and operationId may be null: unknown or not applicable, never inferred zero. Movement amount is the total, not a unit price; TAX is not a second cash debit.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Original movement types, dates, notes and cash references"),
                     @ApiResponse(responseCode = "401", description = "Authentication required"),
@@ -171,13 +171,19 @@ public class AssetController {
     @Operation(
             summary = "Sell part or all of the investment position",
             description = "Requires 0 < quantity <= available units, grossAmount > 0 and 0 <= taxAmount <= grossAmount. "
-                    + "Tax is supplied by the client. Zero net amount is permitted. A user-scoped operationId UUID is required; retrying the same command returns the original SELL/TAX result.",
+                    + "Tax is supplied by the client. Zero net amount is permitted. A user-scoped operationId UUID is required; retrying the same command returns the original SELL/TAX result. "
+                    + "Partial sales preserve ACTIVE/MATURED; only selling all remaining units sets REDEEMED. "
+                    + "Cost and valuation are reduced proportionally; totalInvested and lastValuationDate are preserved. "
+                    + "Inputs must fit DECIMAL(18,8); significant excess precision is rejected, derived values use HALF_UP. "
+                    + "Missing quantity never implies a full sale. Replays return HTTP 201 with the original snapshot, even after redemption. "
+                    + "Reuse requires the same asset, pocket, category, quantity, gross, tax, date and exact notes (including null/spaces); decimal trailing zeros are ignored. "
+                    + "Operations affect the current position in registration order, without historical recalculation.",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "Sale registered with quantity, cost basis and linked SELL/TAX transactions"),
-                    @ApiResponse(responseCode = "400", description = "Missing or invalid input amounts"),
+                    @ApiResponse(responseCode = "201", description = "Sale registered or replayed with original SELL/TAX snapshot; no additional effects on replay"),
+                    @ApiResponse(responseCode = "400", description = "Missing quantity/operationId, malformed UUID, invalid amounts or precision"),
                     @ApiResponse(responseCode = "401", description = "Authentication required"),
                     @ApiResponse(responseCode = "404", description = "Resource unavailable to the authenticated user"),
-                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed, insufficient units or operationId reused for a different command")
+                    @ApiResponse(responseCode = "409", description = "Asset already fully redeemed, insufficient units, inconsistent category details or operationId reused for a different command")
             })
     @PostMapping("/{id}/transactions/sell")
     public ResponseEntity<List<InvestmentTransactionDto>> sell(
